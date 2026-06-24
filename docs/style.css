@@ -489,12 +489,17 @@ pre code {
 
 .marquee-track {
   display: flex;
-  gap: 3rem;
   width: max-content;
   will-change: transform;
 }
 
-.marquee-track span {
+.marquee-set {
+  display: flex;
+  gap: 3rem;
+  flex-shrink: 0;
+}
+
+.marquee-set span {
   color: var(--muted);
   font-weight: 600;
   font-size: 1.1rem;

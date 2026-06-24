@@ -95,8 +95,12 @@
 
     <div class="marquee" aria-hidden="true">
       <div class="marquee-track">
-        <span>let</span><span>be</span><span>show</span><span>if</span><span>then</span><span>otherwise</span><span>while</span><span>repeat</span><span>define</span><span>return</span>
-        <span>let</span><span>be</span><span>show</span><span>if</span><span>then</span><span>otherwise</span><span>while</span><span>repeat</span><span>define</span><span>return</span>
+        <div class="marquee-set">
+          <span>let</span><span>be</span><span>show</span><span>if</span><span>then</span><span>otherwise</span><span>while</span><span>repeat</span><span>define</span><span>return</span>
+        </div>
+        <div class="marquee-set">
+          <span>let</span><span>be</span><span>show</span><span>if</span><span>then</span><span>otherwise</span><span>while</span><span>repeat</span><span>define</span><span>return</span>
+        </div>
       </div>
     </div>
 
@@ -365,9 +369,19 @@
         });
       });
 
-      // Infinite keyword marquee
-      gsap.to(".marquee-track", {
-        xPercent: -50,
+      // Infinite keyword marquee — clone enough sets to fill the viewport seamlessly
+      const marqueeTrack = document.querySelector(".marquee-track");
+      const originalMarqueeHTML = marqueeTrack.innerHTML;
+      marqueeTrack.innerHTML = originalMarqueeHTML;
+      const marqueeSets = gsap.utils.toArray(".marquee-set");
+      const setWidth = marqueeSets[0].offsetWidth;
+      while (marqueeTrack.scrollWidth - setWidth < window.innerWidth && marqueeSets.length < 10) {
+        marqueeTrack.appendChild(marqueeSets[0].cloneNode(true));
+      }
+      const totalSets = gsap.utils.toArray(".marquee-set").length;
+
+      gsap.to(marqueeTrack, {
+        xPercent: -100 / totalSets,
         duration: 22,
         ease: "none",
         repeat: -1
