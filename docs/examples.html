@@ -23,9 +23,17 @@
   </header>
 
   <main>
-    <h1>Examples</h1>
+    <h1 class="gsap-fade-up">Examples</h1>
+    <p class="gsap-fade-up">A collection of Period programs demonstrating the language's features.</p>
 
-    <section>
+    <section class="gsap-reveal">
+      <h2>Hello World</h2>
+      <pre><code><span class="comment">-- The traditional first program.</span>
+<span class="keyword">let</span> greeting <span class="keyword">be</span> <span class="string">"Hello, World!"</span><span class="period">.</span>
+<span class="builtin">show</span> greeting<span class="period">.</span></code></pre>
+    </section>
+
+    <section class="gsap-reveal">
       <h2>Factorial</h2>
       <pre><code><span class="keyword">define</span> factorial <span class="keyword">with</span> n<span class="period">.</span>
     <span class="keyword">if</span> n <= <span class="number">1</span> <span class="keyword">then</span><span class="period">.</span>
@@ -37,8 +45,8 @@
 <span class="builtin">show</span> factorial <span class="keyword">with</span> <span class="number">5</span><span class="period">.</span></code></pre>
     </section>
 
-    <section>
-      <h2>Fibonacci</h2>
+    <section class="gsap-reveal">
+      <h2>Fibonacci Sequence</h2>
       <pre><code><span class="keyword">define</span> fib <span class="keyword">with</span> n<span class="period">.</span>
     <span class="keyword">if</span> n <= <span class="number">1</span> <span class="keyword">then</span><span class="period">.</span>
         <span class="keyword">return</span> n<span class="period">.</span>
@@ -53,16 +61,55 @@
 <span class="keyword">end while</span><span class="period">.</span></code></pre>
     </section>
 
-    <section>
+    <section class="gsap-reveal">
+      <h2>Prime Numbers</h2>
+      <pre><code><span class="comment">-- Find the first 20 prime numbers.</span>
+<span class="keyword">let</span> count <span class="keyword">be</span> <span class="number">0</span><span class="period">.</span>
+<span class="keyword">let</span> candidate <span class="keyword">be</span> <span class="number">2</span><span class="period">.</span>
+
+<span class="keyword">while</span> count < <span class="number">20</span> <span class="keyword">repeat</span><span class="period">.</span>
+    <span class="keyword">let</span> is_prime <span class="keyword">be</span> true<span class="period">.</span>
+    <span class="keyword">let</span> divisor <span class="keyword">be</span> <span class="number">2</span><span class="period">.</span>
+    <span class="keyword">while</span> divisor * divisor <= candidate <span class="keyword">repeat</span><span class="period">.</span>
+        <span class="keyword">if</span> candidate % divisor == <span class="number">0</span> <span class="keyword">then</span><span class="period">.</span>
+            <span class="keyword">set</span> is_prime <span class="keyword">to</span> false<span class="period">.</span>
+        <span class="keyword">end if</span><span class="period">.</span>
+        <span class="keyword">set</span> divisor <span class="keyword">to</span> divisor + <span class="number">1</span><span class="period">.</span>
+    <span class="keyword">end while</span><span class="period">.</span>
+    <span class="keyword">if</span> is_prime <span class="keyword">then</span><span class="period">.</span>
+        <span class="builtin">show</span> candidate<span class="period">.</span>
+        <span class="keyword">set</span> count <span class="keyword">to</span> count + <span class="number">1</span><span class="period">.</span>
+    <span class="keyword">end if</span><span class="period">.</span>
+    <span class="keyword">set</span> candidate <span class="keyword">to</span> candidate + <span class="number">1</span><span class="period">.</span>
+<span class="keyword">end while</span><span class="period">.</span></code></pre>
+    </section>
+
+    <section class="gsap-reveal">
       <h2>Read and Greet</h2>
       <pre><code><span class="builtin">show</span> <span class="string">"What is your name?"</span><span class="period">.</span>
 <span class="keyword">let</span> name <span class="keyword">be</span> input<span class="period">.</span>
 <span class="builtin">show</span> <span class="string">"Nice to meet you, "</span> + name + <span class="string">"."</span><span class="period">.</span></code></pre>
+    </section>
+
+    <section class="gsap-reveal">
+      <h2>Lists and Dictionaries</h2>
+      <pre><code><span class="keyword">let</span> items <span class="keyword">be</span> [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>]<span class="period">.</span>
+<span class="keyword">set</span> items[<span class="number">0</span>] <span class="keyword">to</span> <span class="number">10</span><span class="period">.</span>
+<span class="builtin">show</span> items<span class="period">.</span>
+
+<span class="keyword">let</span> person <span class="keyword">be</span> {<span class="string">"name"</span>: <span class="string">"Ada"</span>, <span class="string">"age"</span>: <span class="number">36</span>}<span class="period">.</span>
+<span class="builtin">show</span> person[<span class="string">"name"</span>]<span class="period">.</span>
+<span class="keyword">set</span> person[<span class="string">"age"</span>] <span class="keyword">to</span> <span class="number">37</span><span class="period">.</span>
+<span class="builtin">show</span> person<span class="period">.</span></code></pre>
     </section>
   </main>
 
   <footer>
     <p>&copy; 2026 Period Language. Released under the MIT License.</p>
   </footer>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+  <script src="animations.js"></script>
 </body>
 </html>

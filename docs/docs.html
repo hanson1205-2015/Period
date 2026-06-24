@@ -23,12 +23,13 @@
   </header>
 
   <main>
-    <h1>Language Documentation</h1>
-    <p>Every statement in Period ends with a period (<code>.</code>). Comments begin with two dashes and extend to the end of the line.</p>
+    <h1 class="gsap-fade-up">Language Documentation</h1>
+    <p class="gsap-fade-up">Every statement in Period ends with a period (<code>.</code>). Comments begin with two dashes and extend to the end of the line.</p>
 
-    <div class="toc">
+    <div class="toc gsap-fade-left">
       <h4>On this page</h4>
       <ul>
+        <li><a href="#install">Installation & First Steps</a></li>
         <li><a href="#basics">Basics</a></li>
         <li><a href="#variables">Variables</a></li>
         <li><a href="#data">Data Types</a></li>
@@ -37,19 +38,40 @@
         <li><a href="#loops">Loops</a></li>
         <li><a href="#functions">Functions</a></li>
         <li><a href="#builtins">Built-in Functions</a></li>
+        <li><a href="#repl">REPL</a></li>
+        <li><a href="#vscode">VS Code Extension</a></li>
         <li><a href="#errors">Error Messages</a></li>
+        <li><a href="#grammar">Grammar Reference</a></li>
+        <li><a href="#tips">Tips & Best Practices</a></li>
       </ul>
     </div>
 
-    <section id="basics">
+    <section id="install" class="gsap-reveal">
+      <h2>Installation & First Steps</h2>
+      <p>Download <code>Period-Setup.exe</code> from the <a href="https://github.com/ExploreMaths/Period/releases">GitHub Releases</a> page and run it. The installer will:</p>
+      <ul>
+        <li>Install <code>period.exe</code> to <code>C:\Program Files\Period</code>.</li>
+        <li>Add Period to your system PATH.</li>
+        <li>Install the VS Code extension automatically.</li>
+      </ul>
+      <p>After installation, verify it works:</p>
+      <pre><code>period --version</code></pre>
+      <p>Run your first program:</p>
+      <pre><code>period hello.period</code></pre>
+      <p>Or start the interactive REPL:</p>
+      <pre><code>period</code></pre>
+    </section>
+
+    <section id="basics" class="gsap-reveal">
       <h2>Basics</h2>
       <p>A Period program is a sequence of statements. Each statement ends with a period. Whitespace and blank lines are ignored.</p>
       <pre><code><span class="comment">-- This is a comment.</span>
 <span class="keyword">let</span> x <span class="keyword">be</span> <span class="number">10</span><span class="period">.</span>
 <span class="builtin">show</span> x<span class="period">.</span></code></pre>
+      <p>Period is case-insensitive for keywords. <code>Let</code>, <code>LET</code>, and <code>let</code> are all valid.</p>
     </section>
 
-    <section id="variables">
+    <section id="variables" class="gsap-reveal">
       <h2>Variables</h2>
       <p>Use <code>let</code> to declare a variable and <code>set</code> to reassign an existing variable or index.</p>
       <pre><code><span class="keyword">let</span> name <span class="keyword">be</span> <span class="string">"Period"</span><span class="period">.</span>
@@ -57,43 +79,50 @@
 
 <span class="keyword">let</span> items <span class="keyword">be</span> [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>]<span class="period">.</span>
 <span class="keyword">set</span> items[<span class="number">0</span>] <span class="keyword">to</span> <span class="number">10</span><span class="period">.</span></code></pre>
+      <p>Variable names must start with a letter or underscore and may contain letters, digits, and underscores.</p>
     </section>
 
-    <section id="data">
+    <section id="data" class="gsap-reveal">
       <h2>Data Types</h2>
+
       <h3>Numbers</h3>
-      <p>Integers and floating-point numbers are supported.</p>
+      <p>Integers and floating-point numbers are supported. Arithmetic follows standard precedence rules.</p>
       <pre><code><span class="keyword">let</span> count <span class="keyword">be</span> <span class="number">42</span><span class="period">.</span>
-<span class="keyword">let</span> pi <span class="keyword">be</span> <span class="number">3.14</span><span class="period">.</span></code></pre>
+<span class="keyword">let</span> pi <span class="keyword">be</span> <span class="number">3.14</span><span class="period">.</span>
+<span class="keyword">let</span> result <span class="keyword">be</span> <span class="number">2</span> ** <span class="number">10</span> + <span class="number">5</span><span class="period">.</span></code></pre>
 
       <h3>Strings</h3>
       <p>Strings are enclosed in double quotes and support <code>\n</code>, <code>\t</code>, <code>\"</code>, and <code>\\</code> escapes.</p>
-      <pre><code><span class="keyword">let</span> message <span class="keyword">be</span> <span class="string">"Hello, Period."</span><span class="period">.</span></code></pre>
+      <pre><code><span class="keyword">let</span> message <span class="keyword">be</span> <span class="string">"Hello, Period."</span><span class="period">.</span>
+<span class="keyword">let</span> lines <span class="keyword">be</span> <span class="string">"First line\nSecond line"</span><span class="period">.</span></code></pre>
 
       <h3>Booleans and Nothing</h3>
+      <p><code>true</code> and <code>false</code> are the boolean values. <code>nothing</code> represents the absence of a value, similar to <code>null</code> in other languages.</p>
       <pre><code><span class="keyword">let</span> flag <span class="keyword">be</span> true<span class="period">.</span>
 <span class="keyword">let</span> empty <span class="keyword">be</span> nothing<span class="period">.</span></code></pre>
 
       <h3>Lists</h3>
-      <p>Lists are ordered collections. Use brackets for indexing.</p>
+      <p>Lists are ordered, mutable collections. Use brackets for indexing. Negative indexing is not supported.</p>
       <pre><code><span class="keyword">let</span> numbers <span class="keyword">be</span> [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>]<span class="period">.</span>
 <span class="builtin">show</span> numbers[<span class="number">0</span>]<span class="period">.</span>
-<span class="keyword">set</span> numbers[<span class="number">0</span>] <span class="keyword">to</span> <span class="number">10</span><span class="period">.</span></code></pre>
+<span class="keyword">set</span> numbers[<span class="number">0</span>] <span class="keyword">to</span> <span class="number">10</span><span class="period">.</span>
+<span class="builtin">show</span> length <span class="keyword">with</span> numbers<span class="period">.</span></code></pre>
 
       <h3>Dictionaries</h3>
       <p>Dictionaries store key-value pairs. Keys can be strings, numbers, or booleans.</p>
       <pre><code><span class="keyword">let</span> person <span class="keyword">be</span> {<span class="string">"name"</span>: <span class="string">"Ada"</span>, <span class="string">"age"</span>: <span class="number">36</span>}<span class="period">.</span>
 <span class="builtin">show</span> person[<span class="string">"name"</span>]<span class="period">.</span>
-<span class="keyword">set</span> person[<span class="string">"age"</span>] <span class="keyword">to</span> <span class="number">37</span><span class="period">.</span></code></pre>
+<span class="keyword">set</span> person[<span class="string">"age"</span>] <span class="keyword">to</span> <span class="number">37</span><span class="period">.</span>
+<span class="builtin">show</span> length <span class="keyword">with</span> person<span class="period">.</span></code></pre>
     </section>
 
-    <section id="operators">
+    <section id="operators" class="gsap-reveal">
       <h2>Operators</h2>
       <h3>Arithmetic</h3>
       <ul>
         <li><code>+</code> addition (also string/list concatenation)</li>
         <li><code>-</code> subtraction and unary negation</li>
-        <li><code>*</code> multiplication (also string repetition)</li>
+        <li><code>*</code> multiplication (also string repetition by an integer)</li>
         <li><code>/</code> division</li>
         <li><code>%</code> modulo</li>
         <li><code>**</code> power</li>
@@ -102,21 +131,25 @@
       <p><code>==</code>, <code>!=</code>, <code>&lt;</code>, <code>&gt;</code>, <code>&lt;=</code>, <code>&gt;=</code></p>
       <h3>Logical</h3>
       <p><code>and</code>, <code>or</code>, <code>not</code></p>
+      <h3>Operator Precedence</h3>
+      <p>From highest to lowest: parentheses, indexing, function calls, unary <code>not</code> and <code>-</code>, <code>**</code>, <code>*</code> <code>/</code> <code>%</code>, <code>+</code> <code>-</code>, comparisons, <code>and</code>, <code>or</code>.</p>
     </section>
 
-    <section id="conditionals">
+    <section id="conditionals" class="gsap-reveal">
       <h2>Conditionals</h2>
+      <p>Use <code>if ... then.</code> to branch. The optional <code>otherwise.</code> block runs when the condition is false.</p>
       <pre><code><span class="keyword">let</span> score <span class="keyword">be</span> <span class="number">85</span><span class="period">.</span>
 <span class="keyword">if</span> score >= <span class="number">60</span> <span class="keyword">then</span><span class="period">.</span>
     <span class="builtin">show</span> <span class="string">"pass"</span><span class="period">.</span>
 <span class="keyword">otherwise</span><span class="period">.</span>
     <span class="builtin">show</span> <span class="string">"fail"</span><span class="period">.</span>
 <span class="keyword">end if</span><span class="period">.</span></code></pre>
+      <p>You can nest conditionals inside any block.</p>
     </section>
 
-    <section id="loops">
+    <section id="loops" class="gsap-reveal">
       <h2>Loops</h2>
-      <p>Use <code>while</code> with <code>repeat</code> to loop while a condition is true.</p>
+      <p>Use <code>while</code> with <code>repeat</code> to loop while a condition is true. There is no <code>for</code> loop; use a counter variable with <code>while</code>.</p>
       <pre><code><span class="keyword">let</span> i <span class="keyword">be</span> <span class="number">0</span><span class="period">.</span>
 <span class="keyword">while</span> i < <span class="number">10</span> <span class="keyword">repeat</span><span class="period">.</span>
     <span class="builtin">show</span> i<span class="period">.</span>
@@ -124,9 +157,9 @@
 <span class="keyword">end while</span><span class="period">.</span></code></pre>
     </section>
 
-    <section id="functions">
+    <section id="functions" class="gsap-reveal">
       <h2>Functions</h2>
-      <p>Define functions with <code>define</code> and call them with <code>with</code>. Use <code>return</code> to send a value back.</p>
+      <p>Define functions with <code>define</code> and call them with <code>with</code>. Use <code>return</code> to send a value back. Functions that do not explicitly return yield <code>nothing</code>.</p>
       <pre><code><span class="keyword">define</span> greet <span class="keyword">with</span> name<span class="period">.</span>
     <span class="builtin">show</span> <span class="string">"Hello, "</span> + name + <span class="string">"!"</span><span class="period">.</span>
 <span class="keyword">end define</span><span class="period">.</span>
@@ -139,33 +172,122 @@ greet <span class="keyword">with</span> <span class="string">"World"</span><span
     <span class="keyword">end if</span><span class="period">.</span>
     <span class="keyword">return</span> n * factorial <span class="keyword">with</span> n - <span class="number">1</span><span class="period">.</span>
 <span class="keyword">end define</span><span class="period">.</span></code></pre>
+      <p>Parameters are passed by value. Functions close over the environment in which they are defined.</p>
     </section>
 
-    <section id="builtins">
+    <section id="builtins" class="gsap-reveal">
       <h2>Built-in Functions</h2>
-      <ul>
-        <li><code>length with x</code> — length of a string, list, or dictionary</li>
-        <li><code>string with x</code> — convert a value to a string</li>
-        <li><code>number with x</code> — convert a value to a number</li>
-        <li><code>type with x</code> — return the type name of a value</li>
-        <li><code>input</code> — read a line from standard input</li>
-      </ul>
+      <p>Period provides a small set of built-in functions. They are called like any other function using <code>with</code>.</p>
+
+      <h3><code>length with value</code></h3>
+      <p>Returns the number of characters in a string, elements in a list, or keys in a dictionary.</p>
+      <pre><code><span class="builtin">show</span> length <span class="keyword">with</span> <span class="string">"hello"</span><span class="period">.</span>  <span class="comment">-- 5</span>
+<span class="builtin">show</span> length <span class="keyword">with</span> [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>]<span class="period">.</span>  <span class="comment">-- 3</span></code></pre>
+
+      <h3><code>string with value</code></h3>
+      <p>Converts a value to its string representation.</p>
+      <pre><code><span class="builtin">show</span> string <span class="keyword">with</span> <span class="number">42</span><span class="period">.</span>  <span class="comment">-- "42"</span></code></pre>
+
+      <h3><code>number with value</code></h3>
+      <p>Parses a string or converts a value to a number. Booleans become 1 or 0.</p>
+      <pre><code><span class="builtin">show</span> number <span class="keyword">with</span> <span class="string">"3.14"</span><span class="period">.</span>  <span class="comment">-- 3.14</span></code></pre>
+
+      <h3><code>type with value</code></h3>
+      <p>Returns the type name as a string: <code>nothing</code>, <code>boolean</code>, <code>integer</code>, <code>number</code>, <code>string</code>, <code>list</code>, <code>dictionary</code>, <code>function</code>, or <code>built-in</code>.</p>
+      <pre><code><span class="builtin">show</span> type <span class="keyword">with</span> [<span class="number">1</span>, <span class="number">2</span>]<span class="period">.</span>  <span class="comment">-- "list"</span></code></pre>
+
+      <h3><code>input</code></h3>
+      <p>Reads one line from standard input and returns it as a string.</p>
       <pre><code><span class="builtin">show</span> <span class="string">"What is your name?"</span><span class="period">.</span>
 <span class="keyword">let</span> name <span class="keyword">be</span> input<span class="period">.</span>
 <span class="builtin">show</span> <span class="string">"Nice to meet you, "</span> + name + <span class="string">"."</span><span class="period">.</span></code></pre>
     </section>
 
-    <section id="errors">
+    <section id="repl" class="gsap-reveal">
+      <h2>REPL</h2>
+      <p>Running <code>period</code> without arguments starts the interactive Read-Eval-Print Loop. Type statements ending with a period and press Enter.</p>
+      <pre><code>$ period
+Period programming language REPL.
+Type a statement ending with '.' and press Enter. Use Ctrl+C or type 'exit.' to quit.
+
+>>> <span class="keyword">let</span> x <span class="keyword">be</span> <span class="number">10</span><span class="period">.</span>
+>>> <span class="builtin">show</span> x * <span class="number">2</span><span class="period">.</span>
+20
+>>> exit.</code></pre>
+      <p>Use <code>exit.</code>, <code>quit.</code>, or <code>Ctrl+C</code> to leave the REPL.</p>
+    </section>
+
+    <section id="vscode" class="gsap-reveal">
+      <h2>VS Code Extension</h2>
+      <p>The Windows installer automatically installs the Period VS Code extension. If you need to install it manually:</p>
+      <pre><code>code --install-extension period-language.vsix</code></pre>
+      <p>The extension provides:</p>
+      <ul>
+        <li>Syntax highlighting for <code>.period</code> files</li>
+        <li>LSP-powered diagnostics with red/yellow squiggles</li>
+        <li>Hover information for keywords and built-ins</li>
+        <li>Auto-completion for keywords, built-ins, and defined names</li>
+        <li>Document formatting with automatic indentation</li>
+        <li>Go to Definition for variables and functions</li>
+      </ul>
+      <p>If the language server is not found automatically, set <code>period.languageServerPath</code> in VS Code settings to the full path of <code>period.exe</code>.</p>
+    </section>
+
+    <section id="errors" class="gsap-reveal">
       <h2>Error Messages</h2>
       <p>Period reports errors with the exact line and column range. The parser recovers from errors so multiple problems can be reported in a single pass.</p>
       <pre><code>example.period:1:11: error: Expected '.' at the end of a 'let' statement.
        1 | let x be 5
          |           ^</code></pre>
+      <p>Runtime errors, such as division by zero or undefined variables, also include source locations:</p>
+      <pre><code>example.period: runtime error: [line 2, columns 6-11] Division by zero.</code></pre>
+    </section>
+
+    <section id="grammar" class="gsap-reveal">
+      <h2>Grammar Reference</h2>
+      <p>A concise reference for the Period language grammar.</p>
+      <pre><code>program        := statement*
+statement      := "let" IDENTIFIER "be" expression "."
+                | "set" expression "to" expression "."
+                | "show" expression "."
+                | "if" expression "then" "." block ("otherwise" "." block)? "end" "if" "."
+                | "while" expression "repeat" "." block "end" "while" "."
+                | "define" IDENTIFIER ("with" params)? "." block "end" "define" "."
+                | "return" expression? "."
+                | expression "."
+block          := statement*
+expression     := or_expr
+or_expr        := and_expr ("or" and_expr)*
+and_expr       := not_expr ("and" not_expr)*
+not_expr       := "not" not_expr | comparison
+comparison     := additive (("=="|"!="|"<"|">"|"<="|">=") additive)?
+additive       := multiplicative (("+"|"-") multiplicative)*
+multiplicative := power (("*"|"/"|"%") power)*
+power          := unary ("**" power)?
+unary          := ("-"|"not") unary | call
+call           := primary ("with" arguments)? ("[" expression "]")*
+primary        := NUMBER | STRING | "true" | "false" | "nothing" | "input"
+                | IDENTIFIER | "(" expression ")" | "[" arguments? "]" | "{" pairs? "}"</code></pre>
+    </section>
+
+    <section id="tips" class="gsap-reveal">
+      <h2>Tips & Best Practices</h2>
+      <ul>
+        <li><strong>End every statement with a period.</strong> Missing periods are the most common parse error.</li>
+        <li><strong>Indent consistently.</strong> Indentation is not required by the parser, but two or four spaces per block level improves readability.</li>
+        <li><strong>Prefer functions over deep nesting.</strong> Functions help keep programs article-like.</li>
+        <li><strong>Use comments as paragraphs.</strong> A short comment before each section makes the code read like a document.</li>
+        <li><strong>Check error locations.</strong> Diagnostics point to the exact character range, so read them carefully.</li>
+      </ul>
     </section>
   </main>
 
   <footer>
     <p>&copy; 2026 Period Language. Released under the MIT License.</p>
   </footer>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+  <script src="animations.js"></script>
 </body>
 </html>

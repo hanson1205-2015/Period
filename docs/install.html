@@ -23,9 +23,10 @@
   </header>
 
   <main>
-    <h1>Installation</h1>
+    <h1 class="gsap-fade-up">Installation</h1>
+    <p class="gsap-fade-up">Get Period running on Windows in minutes.</p>
 
-    <section>
+    <section class="gsap-reveal">
       <h2>Windows Installer</h2>
       <p>Download the latest installer from the <a href="https://github.com/period-lang/period/releases">GitHub Releases</a> page. It will:</p>
       <ul>
@@ -35,24 +36,24 @@
       </ul>
     </section>
 
-    <section>
+    <section class="gsap-reveal">
       <h2>Run a Program</h2>
       <pre><code>period hello.period</code></pre>
     </section>
 
-    <section>
+    <section class="gsap-reveal">
       <h2>Start the REPL</h2>
       <pre><code>period</code></pre>
       <p>Type statements ending with a period. Use <code>exit.</code> or <code>Ctrl+C</code> to quit.</p>
     </section>
 
-    <section>
+    <section class="gsap-reveal">
       <h2>VS Code Extension</h2>
       <p>If the installer did not install the extension, run:</p>
       <pre><code>code --install-extension period-language.vsix</code></pre>
     </section>
 
-    <section>
+    <section class="gsap-reveal">
       <h2>Documentation</h2>
       <p>After installation, open <code>docs/index.html</code> in your browser for the full language documentation and examples.</p>
     </section>
@@ -61,5 +62,9 @@
   <footer>
     <p>&copy; 2026 Period Language. Released under the MIT License.</p>
   </footer>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+  <script src="animations.js"></script>
 </body>
 </html>

@@ -83,6 +83,24 @@ main {
 .hero {
   text-align: center;
   padding: 5rem 1rem 4rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.hero-bg {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.hero-particle {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: rgba(110, 168, 255, 0.35);
+  border-radius: 50%;
+  filter: blur(1px);
 }
 
 .hero h1 {
@@ -93,6 +111,11 @@ main {
   background: linear-gradient(135deg, var(--accent), var(--accent-2));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+}
+
+.hero h1 .char {
+  display: inline-block;
+  transform-origin: center bottom;
 }
 
 .hero p {
