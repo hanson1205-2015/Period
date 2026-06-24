@@ -64,14 +64,14 @@ nav a {
 }
 
 nav a:hover,
-av a.active {
+nav a.active {
   color: var(--accent);
 }
 
 main {
-  max-width: 800px;
+  max-width: 900px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 1rem;
 }
 
 .hero {
@@ -251,34 +251,70 @@ pre code {
   font-size: 0.95rem;
 }
 
-.toc {
+.docs-layout {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 2.5rem;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1.5rem;
+  align-items: start;
+}
+
+.sidebar {
+  position: sticky;
+  top: 80px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 0.6rem;
-  padding: 1.25rem 1.5rem;
-  margin: 1.5rem 0 2rem;
+  padding: 1.25rem;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
 }
 
-.toc h4 {
-  margin: 0 0 0.75rem;
-  color: var(--accent);
-}
-
-.toc ul {
-  margin: 0;
-  padding-left: 1.25rem;
-}
-
-.toc li {
-  margin: 0.3rem 0;
-}
-
-.toc a {
+.sidebar h4 {
+  margin: 0 0 1rem;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
   color: var(--muted);
 }
 
-.toc a:hover {
+.sidebar ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.sidebar li {
+  margin: 0.1rem 0;
+}
+
+.sidebar a {
+  display: block;
+  padding: 0.4rem 0.6rem;
+  border-radius: 0.35rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+  text-decoration: none;
+}
+
+.sidebar a:hover,
+.sidebar a.active {
+  background: var(--surface-alt);
   color: var(--accent);
+}
+
+.docs-content {
+  min-width: 0;
+}
+
+.docs-content h1 {
+  margin-top: 0;
+}
+
+.toc {
+  display: none;
 }
 
 .section-label {
@@ -394,6 +430,18 @@ footer {
   margin: 0 auto;
 }
 
+@media (max-width: 860px) {
+  .docs-layout {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+    padding: 1rem;
+  }
+  .sidebar {
+    position: static;
+    max-height: none;
+  }
+}
+
 @media (max-width: 640px) {
   header {
     flex-direction: column;
@@ -404,7 +452,7 @@ footer {
     margin: 0 0.6rem;
   }
   main {
-    padding: 1.5rem 1rem;
+    padding: 1rem;
   }
   .hero {
     padding: 3rem 1rem 2rem;
