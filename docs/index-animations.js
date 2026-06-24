@@ -1,5 +1,5 @@
 // Register GSAP plugins
-gsap.registerPlugin(ScrollTrigger);
+gsap.registerPlugin(ScrollTrigger, TextPlugin);
 
 // Header entrance
 gsap.from("header", {
