@@ -24,6 +24,11 @@
 
   <main>
     <section class="hero">
+      <div class="hero-shapes" aria-hidden="true">
+        <span class="shape shape-1">.</span>
+        <span class="shape shape-2">.</span>
+        <span class="shape shape-3">.</span>
+      </div>
       <h1>Period<span class="period">.</span></h1>
       <p>An English programming language designed to read like an article. Every statement ends with a period, giving your code a calm, literary rhythm.</p>
       <div class="cta">
@@ -60,6 +65,25 @@
       </div>
     </section>
 
+    <section id="stats">
+      <div class="stat">
+        <span class="stat-number" data-value="1">0</span>
+        <span class="stat-label">Single executable</span>
+      </div>
+      <div class="stat">
+        <span class="stat-number" data-value="100">0</span>
+        <span class="stat-label">Percent free &amp; open source</span>
+      </div>
+      <div class="stat">
+        <span class="stat-number" data-value="4">0</span>
+        <span class="stat-label">Core data types</span>
+      </div>
+      <div class="stat">
+        <span class="stat-number" data-value="1">0</span>
+        <span class="stat-label">Punctuation to remember</span>
+      </div>
+    </section>
+
     <section id="hello-period">
       <span class="section-label">Showcase</span>
       <h2>Hello, Period</h2>
@@ -68,6 +92,13 @@
 <span class="keyword">let</span> greeting <span class="keyword">be</span> <span class="string">"Hello, World!"</span><span class="period">.</span>
 <span class="builtin">show</span> greeting<span class="period">.</span></code></pre>
     </section>
+
+    <div class="marquee" aria-hidden="true">
+      <div class="marquee-track">
+        <span>let</span><span>be</span><span>show</span><span>if</span><span>then</span><span>otherwise</span><span>while</span><span>repeat</span><span>define</span><span>return</span>
+        <span>let</span><span>be</span><span>show</span><span>if</span><span>then</span><span>otherwise</span><span>while</span><span>repeat</span><span>define</span><span>return</span>
+      </div>
+    </div>
 
     <section class="horizontal-section" id="walkthrough">
       <div class="horizontal-track">
@@ -104,6 +135,46 @@
       </div>
     </section>
 
+    <section id="examples">
+      <span class="section-label">Examples</span>
+      <h2>See it in action.</h2>
+      <p>Click a tab to switch examples. The same sentence-like style runs everywhere.</p>
+
+      <div class="tabs">
+        <div class="tab-list" role="tablist">
+          <button class="tab-btn active" role="tab" data-tab="hello" aria-selected="true">Hello</button>
+          <button class="tab-btn" role="tab" data-tab="loop" aria-selected="false">Loop</button>
+          <button class="tab-btn" role="tab" data-tab="function" aria-selected="false">Function</button>
+          <div class="tab-indicator"></div>
+        </div>
+
+        <div class="tab-panels">
+          <div class="tab-panel active" role="tabpanel" data-tab="hello">
+            <pre><code><span class="comment">-- Greet the world.</span>
+<span class="keyword">let</span> greeting <span class="keyword">be</span> <span class="string">"Hello, World!"</span><span class="period">.</span>
+<span class="builtin">show</span> greeting<span class="period">.</span></code></pre>
+          </div>
+          <div class="tab-panel" role="tabpanel" data-tab="loop">
+            <pre><code><span class="comment">-- Count to five.</span>
+<span class="keyword">let</span> i <span class="keyword">be</span> <span class="number">1</span><span class="period">.</span>
+<span class="keyword">while</span> i <= <span class="number">5</span> <span class="keyword">repeat</span><span class="period">.</span>
+    <span class="builtin">show</span> i<span class="period">.</span>
+    <span class="keyword">set</span> i <span class="keyword">to</span> i + <span class="number">1</span><span class="period">.</span>
+<span class="keyword">end while</span><span class="period">.</span></code></pre>
+          </div>
+          <div class="tab-panel" role="tabpanel" data-tab="function">
+            <pre><code><span class="comment">-- A recursive factorial.</span>
+<span class="keyword">define</span> factorial <span class="keyword">with</span> n<span class="period">.</span>
+    <span class="keyword">if</span> n <= <span class="number">1</span> <span class="keyword">then</span><span class="period">.</span>
+        <span class="keyword">return</span> <span class="number">1</span><span class="period">.</span>
+    <span class="keyword">end if</span><span class="period">.</span>
+    <span class="keyword">return</span> n * factorial <span class="keyword">with</span> n - <span class="number">1</span><span class="period">.</span>
+<span class="keyword">end define</span><span class="period">.</span></code></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section id="cta" class="cta-section">
       <h2>Start writing in Period.</h2>
       <p>Download the latest pre-release, install it in seconds, and write your first sentence-like program.</p>
@@ -127,9 +198,86 @@
 
     const mm = gsap.matchMedia();
 
-    mm.add("(prefers-reduced-motion: no-preference)", () => {
-      const heroTl = gsap.timeline({ defaults: { duration: 0.7, ease: "power2.out" } });
+    mm.add({
+      motion: "(prefers-reduced-motion: no-preference)",
+      desktop: "(min-width: 800px)"
+    }, (context) => {
+      const { motion, desktop } = context.conditions;
+      const cleanups = [];
 
+      // Tabs: functional even when motion is reduced
+      const tabBtns = document.querySelectorAll(".tab-btn");
+      const indicator = document.querySelector(".tab-indicator");
+
+      const moveIndicator = (btn) => {
+        if (motion) {
+          gsap.to(indicator, {
+            x: btn.offsetLeft,
+            width: btn.offsetWidth,
+            duration: 0.3,
+            ease: "power2.out"
+          });
+        } else {
+          gsap.set(indicator, { x: btn.offsetLeft, width: btn.offsetWidth });
+        }
+      };
+
+      const initIndicator = () => {
+        const active = document.querySelector(".tab-btn.active");
+        if (active) moveIndicator(active);
+      };
+      initIndicator();
+
+      const switchTab = (tab) => {
+        const currentPanel = document.querySelector(".tab-panel.active");
+        const nextPanel = document.querySelector(`.tab-panel[data-tab="${tab}"]`);
+        if (!nextPanel || nextPanel === currentPanel) return;
+
+        if (motion) {
+          gsap.to(currentPanel, {
+            autoAlpha: 0,
+            y: -10,
+            duration: 0.2,
+            onComplete: () => {
+              currentPanel.classList.remove("active");
+              nextPanel.classList.add("active");
+              gsap.fromTo(nextPanel,
+                { autoAlpha: 0, y: 10 },
+                { autoAlpha: 1, y: 0, duration: 0.25 }
+              );
+            }
+          });
+        } else {
+          currentPanel.classList.remove("active");
+          nextPanel.classList.add("active");
+        }
+
+        tabBtns.forEach((b) => {
+          const active = b.dataset.tab === tab;
+          b.classList.toggle("active", active);
+          b.setAttribute("aria-selected", active);
+        });
+
+        moveIndicator(document.querySelector(`.tab-btn[data-tab="${tab}"]`));
+      };
+
+      const onTabClick = (e) => switchTab(e.currentTarget.dataset.tab);
+      tabBtns.forEach((b) => b.addEventListener("click", onTabClick));
+      window.addEventListener("resize", initIndicator);
+      cleanups.push(() => {
+        tabBtns.forEach((b) => b.removeEventListener("click", onTabClick));
+        window.removeEventListener("resize", initIndicator);
+      });
+
+      if (!motion) {
+        return () => cleanups.forEach((fn) => fn());
+      }
+
+      // Motion-enabled animations below
+      gsap.defaults({ ease: "power2.out", duration: 0.7 });
+
+      // Hero entrance
+      const heroTl = gsap.timeline({ defaults: { duration: 0.7, ease: "power2.out" } });
       heroTl
         .from(".hero h1", { y: 40, autoAlpha: 0, duration: 0.8, ease: "power3.out" }, 0.1)
         .from(".hero p", { y: 30, autoAlpha: 0 }, "-=0.5")
@@ -142,6 +290,24 @@
           transformOrigin: "center center"
         }, "-=0.65");
 
+      // Hero background shapes parallax
+      gsap.to(".shape-1", {
+        y: -90,
+        rotation: 12,
+        scrollTrigger: { trigger: ".hero", start: "top top", end: "bottom top", scrub: 1 }
+      });
+      gsap.to(".shape-2", {
+        y: -50,
+        rotation: -10,
+        scrollTrigger: { trigger: ".hero", start: "top top", end: "bottom top", scrub: 1 }
+      });
+      gsap.to(".shape-3", {
+        y: -120,
+        rotation: 18,
+        scrollTrigger: { trigger: ".hero", start: "top top", end: "bottom top", scrub: 1 }
+      });
+
+      // Section scroll reveals
       const reveal = { y: 35, autoAlpha: 0, duration: 0.6 };
 
       gsap.from("#features .section-label, #features h2, #features > p", {
@@ -158,10 +324,24 @@
         scrollTrigger: { trigger: ".feature-grid", start: "top 82%" }
       });
 
+      gsap.from("#stats .stat", {
+        y: 40,
+        autoAlpha: 0,
+        duration: 0.6,
+        stagger: 0.1,
+        scrollTrigger: { trigger: "#stats", start: "top 82%" }
+      });
+
       gsap.from("#hello-period .section-label, #hello-period h2, #hello-period > p, #hello-period pre", {
         ...reveal,
         stagger: 0.12,
         scrollTrigger: { trigger: "#hello-period", start: "top 78%" }
+      });
+
+      gsap.from("#examples .section-label, #examples h2, #examples > p, #examples .tabs", {
+        ...reveal,
+        stagger: 0.1,
+        scrollTrigger: { trigger: "#examples", start: "top 80%" }
       });
 
       gsap.from("#cta h2, #cta p, #cta .cta", {
@@ -170,46 +350,83 @@
         scrollTrigger: { trigger: "#cta", start: "top 80%" }
       });
 
-      return () => {
-        heroTl.kill();
-        ScrollTrigger.getAll().forEach(t => t.kill());
-      };
-    });
-
-    mm.add("(prefers-reduced-motion: no-preference) and (min-width: 800px)", () => {
-      const track = document.querySelector(".horizontal-track");
-      const panels = gsap.utils.toArray(".h-panel");
-      if (!track || panels.length < 2) return;
-
-      const scrollTween = gsap.to(track, {
-        xPercent: -100 * (panels.length - 1),
-        ease: "none",
-        scrollTrigger: {
-          trigger: ".horizontal-section",
-          pin: true,
-          scrub: 1,
-          end: () => "+=" + track.offsetWidth
-        }
-      });
-
-      panels.forEach((panel) => {
-        gsap.from(panel.querySelectorAll("h2, p, pre"), {
-          y: 40,
-          autoAlpha: 0,
-          stagger: 0.1,
-          scrollTrigger: {
-            trigger: panel,
-            containerAnimation: scrollTween,
-            start: "left 85%",
-            end: "left 45%",
-            scrub: true
+      // Animated counters
+      gsap.utils.toArray(".stat-number").forEach((el) => {
+        const value = parseFloat(el.dataset.value);
+        gsap.to({ val: 0 }, {
+          val: value,
+          duration: 1.2,
+          ease: "power2.out",
+          snap: { val: 1 },
+          scrollTrigger: { trigger: el, start: "top 85%" },
+          onUpdate: function () {
+            el.textContent = Math.round(this.targets()[0].val);
           }
         });
       });
 
-      return () => {
-        ScrollTrigger.getAll().forEach(t => t.kill());
-      };
+      // Infinite keyword marquee
+      gsap.to(".marquee-track", {
+        xPercent: -50,
+        duration: 22,
+        ease: "none",
+        repeat: -1
+      });
+
+      // Magnetic buttons
+      const magneticBtns = document.querySelectorAll(".btn");
+      magneticBtns.forEach((btn) => {
+        const xTo = gsap.quickTo(btn, "x", { duration: 0.3, ease: "power2.out" });
+        const yTo = gsap.quickTo(btn, "y", { duration: 0.3, ease: "power2.out" });
+        const onMove = (e) => {
+          const rect = btn.getBoundingClientRect();
+          xTo((e.clientX - rect.left - rect.width / 2) * 0.25);
+          yTo((e.clientY - rect.top - rect.height / 2) * 0.25);
+        };
+        const onLeave = () => { xTo(0); yTo(0); };
+        btn.addEventListener("mousemove", onMove);
+        btn.addEventListener("mouseleave", onLeave);
+        cleanups.push(() => {
+          btn.removeEventListener("mousemove", onMove);
+          btn.removeEventListener("mouseleave", onLeave);
+          gsap.set(btn, { clearProps: "transform" });
+        });
+      });
+
+      // Horizontal scroll walkthrough (desktop only)
+      if (desktop) {
+        const hTrack = document.querySelector(".horizontal-track");
+        const hPanels = gsap.utils.toArray(".h-panel");
+        if (hTrack && hPanels.length >= 2) {
+          const scrollTween = gsap.to(hTrack, {
+            xPercent: -100 * (hPanels.length - 1),
+            ease: "none",
+            scrollTrigger: {
+              trigger: ".horizontal-section",
+              pin: true,
+              scrub: 1,
+              end: () => "+=" + hTrack.offsetWidth
+            }
+          });
+
+          hPanels.forEach((panel) => {
+            gsap.from(panel.querySelectorAll("h2, p, pre"), {
+              y: 40,
+              autoAlpha: 0,
+              stagger: 0.1,
+              scrollTrigger: {
+                trigger: panel,
+                containerAnimation: scrollTween,
+                start: "left 85%",
+                end: "left 45%",
+                scrub: true
+              }
+            });
+          });
+        }
+      }
+
+      return () => cleanups.forEach((fn) => fn());
     });
   </script>
 </body>
