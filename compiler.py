@@ -108,13 +108,18 @@ def main():
         help="Start the Language Server Protocol (LSP) service on stdin/stdout.",
     )
     argparser.add_argument(
+        "--stdio",
+        action="store_true",
+        help="Use stdin/stdout for LSP (used by VS Code; same as --lsp).",
+    )
+    argparser.add_argument(
         "--version",
         action="version",
         version="Period 0.0.1",
     )
     args = argparser.parse_args()
 
-    if args.lsp:
+    if args.lsp or args.stdio:
         server = LSPServer()
         server.run()
         return 0

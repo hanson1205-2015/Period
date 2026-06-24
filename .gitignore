@@ -19,3 +19,6 @@ vscode-extension/*.vsix
 # IDE
 .vscode/
 .idea/
+
+# Other
+gsap-skills/
