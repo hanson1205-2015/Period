@@ -463,6 +463,8 @@
 
           const st = scrollTween.scrollTrigger;
 
+          const threshold = 90;
+
           const goToPanel = (index) => {
             index = gsap.utils.clamp(0, panelCount - 1, index);
             if (index === currentIndex || isNavigating) return;
@@ -470,10 +472,34 @@
             const targetScroll = st.start + (st.end - st.start) * (index / (panelCount - 1));
             gsap.to(window, {
               scrollTo: { y: targetScroll, autoKill: true },
-              duration: 0.7,
+              duration: 0.55,
               ease: "power2.inOut",
-              onComplete: () => { isNavigating = false; currentIndex = index; }
+              onComplete: () => {
+                isNavigating = false;
+                currentIndex = index;
+                if (accumulated > threshold) {
+                  accumulated -= threshold;
+                  if (currentIndex < panelCount - 1) goToPanel(currentIndex + 1);
+                  else window.scrollBy(0, accumulated);
+                } else if (accumulated < -threshold) {
+                  accumulated += threshold;
+                  if (currentIndex > 0) goToPanel(currentIndex - 1);
+                  else window.scrollBy(0, accumulated);
+                }
+              }
             });
+          };
+
+          const tryAdvance = (delta) => {
+            if (accumulated > threshold) {
+              accumulated -= threshold;
+              if (currentIndex < panelCount - 1) goToPanel(currentIndex + 1);
+              else window.scrollBy(0, delta);
+            } else if (accumulated < -threshold) {
+              accumulated += threshold;
+              if (currentIndex > 0) goToPanel(currentIndex - 1);
+              else window.scrollBy(0, delta);
+            }
           };
 
           const observer = Observer.create({
@@ -481,24 +507,8 @@
             type: "wheel,touch",
             preventDefault: true,
             onChangeY: (self) => {
-              if (isNavigating) return;
               accumulated += self.deltaY;
-              const threshold = 90;
-              if (accumulated > threshold) {
-                accumulated = 0;
-                if (currentIndex < panelCount - 1) {
-                  goToPanel(currentIndex + 1);
-                } else {
-                  window.scrollBy(0, self.deltaY);
-                }
-              } else if (accumulated < -threshold) {
-                accumulated = 0;
-                if (currentIndex > 0) {
-                  goToPanel(currentIndex - 1);
-                } else {
-                  window.scrollBy(0, self.deltaY);
-                }
-              }
+              if (!isNavigating) tryAdvance(self.deltaY);
             },
             onStop: () => { accumulated = 0; }
           });
