@@ -288,5 +288,29 @@ primary        := NUMBER | STRING | "true" | "false" | "nothing" | "input"
     <p>&copy; 2026 Period Language. Released under the MIT License.</p>
   </footer>
 
+  <script>
+    (function () {
+      const links = document.querySelectorAll('.sidebar a[href^="#"]');
+      const sections = Array.from(links)
+        .map(a => document.querySelector(a.getAttribute('href')))
+        .filter(Boolean);
+      const offset = 100;
+
+      function update() {
+        let current = sections[0] ? sections[0].id : '';
+        for (const section of sections) {
+          if (section.getBoundingClientRect().top <= offset) {
+            current = section.id;
+          }
+        }
+        links.forEach(link => {
+          link.classList.toggle('active', link.getAttribute('href') === '#' + current);
+        });
+      }
+
+      window.addEventListener('scroll', update, { passive: true });
+      update();
+    })();
+  </script>
   </body>
 </html>
