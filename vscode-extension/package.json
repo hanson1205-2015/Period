@@ -38,6 +38,22 @@
         "path": "./syntaxes/period.tmLanguage.json"
       }
     ],
+    "commands": [
+      {
+        "command": "period.runFile",
+        "title": "Run Period File",
+        "icon": "$(play)"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "period.runFile",
+          "when": "editorLangId == period",
+          "group": "navigation@2"
+        }
+      ]
+    },
     "configuration": {
       "title": "Period Language",
       "properties": {

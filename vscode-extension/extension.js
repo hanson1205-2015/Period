@@ -45,8 +45,28 @@ function startClient(context) {
     client.start();
 }
 
+function runCurrentFile(context) {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor || editor.document.languageId !== 'period') {
+        vscode.window.showWarningMessage('Open a .period file to run it.');
+        return;
+    }
+
+    const filePath = editor.document.fileName;
+    const executable = findServerExecutable(context);
+    const terminal = vscode.window.terminals.find(t => t.name === 'Period')
+        || vscode.window.createTerminal('Period');
+    terminal.show();
+    terminal.sendText(`${JSON.stringify(executable)} ${JSON.stringify(filePath)}`, true);
+}
+
 function activate(context) {
     startClient(context);
+
+    const runCommand = vscode.commands.registerCommand('period.runFile', () => {
+        runCurrentFile(context);
+    });
+    context.subscriptions.push(runCommand);
 }
 
 function deactivate() {
