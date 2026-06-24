@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation - Period Language</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="period.png" type="image/png">
+</head>
+<body>
+  <header>
+    <a class="logo" href="index.html">
+      <img src="period.png" alt="Period logo">
+      <span>Period</span>
+    </a>
+    <nav>
+      <a href="index.html">Home</a>
+      <a class="active" href="docs.html">Docs</a>
+      <a href="examples.html">Examples</a>
+      <a href="install.html">Install</a>
+      <a href="about.html">About</a>
+    </nav>
+  </header>
+
+  <main>
+    <h1>Language Documentation</h1>
+
+    <section>
+      <h2>Basics</h2>
+      <p>Every statement in Period ends with a period (<code>.</code>). Comments begin with two dashes.</p>
+      <pre><code><span class="comment">-- This is a comment.</span>
+<span class="keyword">let</span> x <span class="keyword">be</span> <span class="number">10</span><span class="period">.</span>
+<span class="builtin">show</span> x<span class="period">.</span></code></pre>
+    </section>
+
+    <section>
+      <h2>Variables</h2>
+      <p>Use <code>let</code> to declare and <code>set</code> to reassign.</p>
+      <pre><code><span class="keyword">let</span> name <span class="keyword">be</span> <span class="string">"Period"</span><span class="period">.</span>
+<span class="keyword">set</span> name <span class="keyword">to</span> <span class="string">"Period Language"</span><span class="period">.</span></code></pre>
+    </section>
+
+    <section>
+      <h2>Conditionals</h2>
+      <pre><code><span class="keyword">let</span> score <span class="keyword">be</span> <span class="number">85</span><span class="period">.</span>
+<span class="keyword">if</span> score >= <span class="number">60</span> <span class="keyword">then</span><span class="period">.</span>
+    <span class="builtin">show</span> <span class="string">"pass"</span><span class="period">.</span>
+<span class="keyword">otherwise</span><span class="period">.</span>
+    <span class="builtin">show</span> <span class="string">"fail"</span><span class="period">.</span>
+<span class="keyword">end if</span><span class="period">.</span></code></pre>
+    </section>
+
+    <section>
+      <h2>Loops</h2>
+      <pre><code><span class="keyword">let</span> i <span class="keyword">be</span> <span class="number">0</span><span class="period">.</span>
+<span class="keyword">while</span> i < <span class="number">10</span> <span class="keyword">repeat</span><span class="period">.</span>
+    <span class="builtin">show</span> i<span class="period">.</span>
+    <span class="keyword">set</span> i <span class="keyword">to</span> i + <span class="number">1</span><span class="period">.</span>
+<span class="keyword">end while</span><span class="period">.</span></code></pre>
+    </section>
+
+    <section>
+      <h2>Functions</h2>
+      <pre><code><span class="keyword">define</span> greet <span class="keyword">with</span> name<span class="period">.</span>
+    <span class="builtin">show</span> <span class="string">"Hello, "</span> + name + <span class="string">"!"</span><span class="period">.</span>
+<span class="keyword">end define</span><span class="period">.</span>
+
+greet <span class="keyword">with</span> <span class="string">"World"</span><span class="period">.</span></code></pre>
+    </section>
+
+    <section>
+      <h2>Built-ins</h2>
+      <ul>
+        <li><code>length with x</code> — length of string, list, or dictionary</li>
+        <li><code>string with x</code> — convert to string</li>
+        <li><code>number with x</code> — convert to number</li>
+        <li><code>type with x</code> — type name</li>
+        <li><code>input</code> — read a line of input</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Data Structures</h2>
+      <pre><code><span class="keyword">let</span> items <span class="keyword">be</span> [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>]<span class="period">.</span>
+<span class="keyword">let</span> person <span class="keyword">be</span> {<span class="string">"name"</span>: <span class="string">"Ada"</span>, <span class="string">"age"</span>: <span class="number">36</span>}<span class="period">.</span>
+<span class="builtin">show</span> items[<span class="number">0</span>]<span class="period">.</span>
+<span class="builtin">show</span> person[<span class="string">"name"</span>]<span class="period">.</span></code></pre>
+    </section>
+  </main>
+
+  <footer>
+    <p>&copy; 2026 Period Language. Released under the MIT License.</p>
+  </footer>
+</body>
+</html>

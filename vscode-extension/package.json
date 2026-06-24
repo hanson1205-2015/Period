@@ -1,0 +1,61 @@
+{
+  "name": "period-language",
+  "displayName": "Period Language",
+  "description": "Language support for Period: an elegant programming language that ends every statement with a period.",
+  "version": "0.0.1",
+  "publisher": "period",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/period-lang/period.git"
+  },
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": ["Programming Languages"],
+  "keywords": ["period", "language", "lsp"],
+  "activationEvents": [
+    "onLanguage:period"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "period",
+        "aliases": ["Period", "period"],
+        "extensions": [".period"],
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./period.png",
+          "dark": "./period.png"
+        }
+      }
+    ],
+    "grammars": [
+      {
+        "language": "period",
+        "scopeName": "source.period",
+        "path": "./syntaxes/period.tmLanguage.json"
+      }
+    ],
+    "configuration": {
+      "title": "Period Language",
+      "properties": {
+        "period.languageServerPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the Period language server executable. Leave empty to use 'period' from PATH."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "package": "vsce package"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.74.0"
+  }
+}

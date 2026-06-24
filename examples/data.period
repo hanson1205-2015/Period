@@ -1,0 +1,11 @@
+-- Test lists and dictionaries.
+let items be [1, 2, 3].
+show length with items.
+
+set items[0] to 10.
+show items.
+
+let person be {"name": "Ada", "age": 36}.
+show person["name"].
+set person["age"] to 37.
+show person.

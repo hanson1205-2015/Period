@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Examples - Period Language</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="period.png" type="image/png">
+</head>
+<body>
+  <header>
+    <a class="logo" href="index.html">
+      <img src="period.png" alt="Period logo">
+      <span>Period</span>
+    </a>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="docs.html">Docs</a>
+      <a class="active" href="examples.html">Examples</a>
+      <a href="install.html">Install</a>
+      <a href="about.html">About</a>
+    </nav>
+  </header>
+
+  <main>
+    <h1>Examples</h1>
+
+    <section>
+      <h2>Factorial</h2>
+      <pre><code><span class="keyword">define</span> factorial <span class="keyword">with</span> n<span class="period">.</span>
+    <span class="keyword">if</span> n <= <span class="number">1</span> <span class="keyword">then</span><span class="period">.</span>
+        <span class="keyword">return</span> <span class="number">1</span><span class="period">.</span>
+    <span class="keyword">end if</span><span class="period">.</span>
+    <span class="keyword">return</span> n * factorial <span class="keyword">with</span> n - <span class="number">1</span><span class="period">.</span>
+<span class="keyword">end define</span><span class="period">.</span>
+
+<span class="builtin">show</span> factorial <span class="keyword">with</span> <span class="number">5</span><span class="period">.</span></code></pre>
+    </section>
+
+    <section>
+      <h2>Fibonacci</h2>
+      <pre><code><span class="keyword">define</span> fib <span class="keyword">with</span> n<span class="period">.</span>
+    <span class="keyword">if</span> n <= <span class="number">1</span> <span class="keyword">then</span><span class="period">.</span>
+        <span class="keyword">return</span> n<span class="period">.</span>
+    <span class="keyword">end if</span><span class="period">.</span>
+    <span class="keyword">return</span> fib <span class="keyword">with</span> n - <span class="number">1</span> + fib <span class="keyword">with</span> n - <span class="number">2</span><span class="period">.</span>
+<span class="keyword">end define</span><span class="period">.</span>
+
+<span class="keyword">let</span> i <span class="keyword">be</span> <span class="number">0</span><span class="period">.</span>
+<span class="keyword">while</span> i < <span class="number">10</span> <span class="keyword">repeat</span><span class="period">.</span>
+    <span class="builtin">show</span> fib <span class="keyword">with</span> i<span class="period">.</span>
+    <span class="keyword">set</span> i <span class="keyword">to</span> i + <span class="number">1</span><span class="period">.</span>
+<span class="keyword">end while</span><span class="period">.</span></code></pre>
+    </section>
+
+    <section>
+      <h2>Read and Greet</h2>
+      <pre><code><span class="builtin">show</span> <span class="string">"What is your name?"</span><span class="period">.</span>
+<span class="keyword">let</span> name <span class="keyword">be</span> input<span class="period">.</span>
+<span class="builtin">show</span> <span class="string">"Nice to meet you, "</span> + name + <span class="string">"."</span><span class="period">.</span></code></pre>
+    </section>
+  </main>
+
+  <footer>
+    <p>&copy; 2026 Period Language. Released under the MIT License.</p>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Build artifacts
+dist/
+*.exe
+
+# Sphinx build
+sphinx-docs/build/
+
+# VS Code extension
+vscode-extension/node_modules/
+vscode-extension/*.vsix
+!vscode-extension/period-language.vsix
+
+# IDE
+.vscode/
+.idea/

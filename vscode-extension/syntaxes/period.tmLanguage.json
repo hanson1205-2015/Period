@@ -1,0 +1,102 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Period",
+  "scopeName": "source.period",
+  "fileTypes": [".period"],
+  "patterns": [
+    { "include": "#comment" },
+    { "include": "#statement-terminator" },
+    { "include": "#keyword" },
+    { "include": "#function-call" },
+    { "include": "#string" },
+    { "include": "#number" },
+    { "include": "#constant" },
+    { "include": "#operator" },
+    { "include": "#identifier" }
+  ],
+  "repository": {
+    "comment": {
+      "patterns": [
+        {
+          "name": "comment.line.double-dash.period",
+          "match": "(--).*"
+        }
+      ]
+    },
+    "statement-terminator": {
+      "patterns": [
+        {
+          "name": "punctuation.terminator.statement.period",
+          "match": "\\."
+        }
+      ]
+    },
+    "keyword": {
+      "patterns": [
+        {
+          "name": "keyword.control.period",
+          "match": "\\b(let|be|set|to|if|then|otherwise|end|while|repeat|define|with|return)\\b"
+        },
+        {
+          "name": "keyword.operator.logical.period",
+          "match": "\\b(and|or|not)\\b"
+        },
+        {
+          "name": "support.function.builtin.period",
+          "match": "\\b(show|length|string|number|type|input)\\b"
+        }
+      ]
+    },
+    "function-call": {
+      "patterns": [
+        {
+          "name": "entity.name.function.period",
+          "match": "\\b[a-zA-Z_][a-zA-Z0-9_]*\\b(?=\\s+with)"
+        }
+      ]
+    },
+    "string": {
+      "name": "string.quoted.double.period",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.period",
+          "match": "\\\\."
+        }
+      ]
+    },
+    "number": {
+      "patterns": [
+        {
+          "name": "constant.numeric.period",
+          "match": "\\b\\d+(\\.\\d+)?\\b"
+        }
+      ]
+    },
+    "constant": {
+      "patterns": [
+        {
+          "name": "constant.language.period",
+          "match": "\\b(true|false|nothing)\\b"
+        }
+      ]
+    },
+    "operator": {
+      "patterns": [
+        {
+          "name": "keyword.operator.period",
+          "match": "(\\+|-\\b|\\*|\\*\\*|/|%|==|!=|<=|>=|<|>|=)"
+        }
+      ]
+    },
+    "identifier": {
+      "patterns": [
+        {
+          "name": "variable.other.period",
+          "match": "\\b[a-zA-Z_][a-zA-Z0-9_]*\\b"
+        }
+      ]
+    }
+  }
+}

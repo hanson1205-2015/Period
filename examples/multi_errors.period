@@ -1,0 +1,6 @@
+let a be 1
+let b be 2.
+set c to .
+show a + b.
+let d be .
+show undefined.

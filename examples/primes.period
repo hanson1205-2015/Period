@@ -1,0 +1,19 @@
+-- Find the first 20 prime numbers.
+let count be 0.
+let candidate be 2.
+
+while count < 20 repeat.
+    let is_prime be true.
+    let divisor be 2.
+    while divisor * divisor <= candidate repeat.
+        if candidate % divisor == 0 then.
+            set is_prime to false.
+        end if.
+        set divisor to divisor + 1.
+    end while.
+    if is_prime then.
+        show candidate.
+        set count to count + 1.
+    end if.
+    set candidate to candidate + 1.
+end while.

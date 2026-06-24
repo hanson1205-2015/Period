@@ -1,0 +1,18 @@
+-- A warm greeting in Period.
+let greeting be "Hello, World!".
+show greeting.
+
+let count be 5.
+while count > 0 repeat.
+    show count.
+    set count to count - 1.
+end while.
+
+define factorial with n.
+    if n <= 1 then.
+        return 1.
+    end if.
+    return n * factorial with n - 1.
+end define.
+
+show factorial with 5.

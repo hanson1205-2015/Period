@@ -1,0 +1,5 @@
+let x be 5
+show x.
+let y be .
+set z to 10.
+show undefined_var.
