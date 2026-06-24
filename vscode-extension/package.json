@@ -2,12 +2,12 @@
   "name": "period-language",
   "displayName": "Period Language",
   "description": "Language support for Period: an elegant programming language that ends every statement with a period.",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "publisher": "period",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/period-lang/period.git"
+    "url": "https://github.com/ExploreMaths/Period.git"
   },
   "engines": {
     "vscode": "^1.74.0"
