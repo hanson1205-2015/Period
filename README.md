@@ -41,9 +41,7 @@ cd vscode-extension && npx @vscode/vsce package  # Builds the VSIX
 
 ## Documentation
 
-- Static website: `docs/`
-- Sphinx documentation: `sphinx-docs/`
-- Online: https://period-lang.readthedocs.io
+The full documentation is included in the `docs/` folder as a self-contained static website. Open `docs/index.html` in a browser after installation.
 
 ## License
 

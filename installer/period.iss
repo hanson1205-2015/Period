@@ -1,7 +1,7 @@
 #define MyAppName "Period"
 #define MyAppVersion "0.0.1"
 #define MyAppPublisher "Period Language"
-#define MyAppURL "https://period-lang.readthedocs.io"
+#define MyAppURL "https://exploremaths.github.io/Period/"
 
 [Setup]
 AppId={{PERIOD-LANG-1234-5678-90AB-CDEF12345678}

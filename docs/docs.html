@@ -24,23 +24,87 @@
 
   <main>
     <h1>Language Documentation</h1>
+    <p>Every statement in Period ends with a period (<code>.</code>). Comments begin with two dashes and extend to the end of the line.</p>
 
-    <section>
+    <div class="toc">
+      <h4>On this page</h4>
+      <ul>
+        <li><a href="#basics">Basics</a></li>
+        <li><a href="#variables">Variables</a></li>
+        <li><a href="#data">Data Types</a></li>
+        <li><a href="#operators">Operators</a></li>
+        <li><a href="#conditionals">Conditionals</a></li>
+        <li><a href="#loops">Loops</a></li>
+        <li><a href="#functions">Functions</a></li>
+        <li><a href="#builtins">Built-in Functions</a></li>
+        <li><a href="#errors">Error Messages</a></li>
+      </ul>
+    </div>
+
+    <section id="basics">
       <h2>Basics</h2>
-      <p>Every statement in Period ends with a period (<code>.</code>). Comments begin with two dashes.</p>
+      <p>A Period program is a sequence of statements. Each statement ends with a period. Whitespace and blank lines are ignored.</p>
       <pre><code><span class="comment">-- This is a comment.</span>
 <span class="keyword">let</span> x <span class="keyword">be</span> <span class="number">10</span><span class="period">.</span>
 <span class="builtin">show</span> x<span class="period">.</span></code></pre>
     </section>
 
-    <section>
+    <section id="variables">
       <h2>Variables</h2>
-      <p>Use <code>let</code> to declare and <code>set</code> to reassign.</p>
+      <p>Use <code>let</code> to declare a variable and <code>set</code> to reassign an existing variable or index.</p>
       <pre><code><span class="keyword">let</span> name <span class="keyword">be</span> <span class="string">"Period"</span><span class="period">.</span>
-<span class="keyword">set</span> name <span class="keyword">to</span> <span class="string">"Period Language"</span><span class="period">.</span></code></pre>
+<span class="keyword">set</span> name <span class="keyword">to</span> <span class="string">"Period Language"</span><span class="period">.</span>
+
+<span class="keyword">let</span> items <span class="keyword">be</span> [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>]<span class="period">.</span>
+<span class="keyword">set</span> items[<span class="number">0</span>] <span class="keyword">to</span> <span class="number">10</span><span class="period">.</span></code></pre>
     </section>
 
-    <section>
+    <section id="data">
+      <h2>Data Types</h2>
+      <h3>Numbers</h3>
+      <p>Integers and floating-point numbers are supported.</p>
+      <pre><code><span class="keyword">let</span> count <span class="keyword">be</span> <span class="number">42</span><span class="period">.</span>
+<span class="keyword">let</span> pi <span class="keyword">be</span> <span class="number">3.14</span><span class="period">.</span></code></pre>
+
+      <h3>Strings</h3>
+      <p>Strings are enclosed in double quotes and support <code>\n</code>, <code>\t</code>, <code>\"</code>, and <code>\\</code> escapes.</p>
+      <pre><code><span class="keyword">let</span> message <span class="keyword">be</span> <span class="string">"Hello, Period."</span><span class="period">.</span></code></pre>
+
+      <h3>Booleans and Nothing</h3>
+      <pre><code><span class="keyword">let</span> flag <span class="keyword">be</span> true<span class="period">.</span>
+<span class="keyword">let</span> empty <span class="keyword">be</span> nothing<span class="period">.</span></code></pre>
+
+      <h3>Lists</h3>
+      <p>Lists are ordered collections. Use brackets for indexing.</p>
+      <pre><code><span class="keyword">let</span> numbers <span class="keyword">be</span> [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>]<span class="period">.</span>
+<span class="builtin">show</span> numbers[<span class="number">0</span>]<span class="period">.</span>
+<span class="keyword">set</span> numbers[<span class="number">0</span>] <span class="keyword">to</span> <span class="number">10</span><span class="period">.</span></code></pre>
+
+      <h3>Dictionaries</h3>
+      <p>Dictionaries store key-value pairs. Keys can be strings, numbers, or booleans.</p>
+      <pre><code><span class="keyword">let</span> person <span class="keyword">be</span> {<span class="string">"name"</span>: <span class="string">"Ada"</span>, <span class="string">"age"</span>: <span class="number">36</span>}<span class="period">.</span>
+<span class="builtin">show</span> person[<span class="string">"name"</span>]<span class="period">.</span>
+<span class="keyword">set</span> person[<span class="string">"age"</span>] <span class="keyword">to</span> <span class="number">37</span><span class="period">.</span></code></pre>
+    </section>
+
+    <section id="operators">
+      <h2>Operators</h2>
+      <h3>Arithmetic</h3>
+      <ul>
+        <li><code>+</code> addition (also string/list concatenation)</li>
+        <li><code>-</code> subtraction and unary negation</li>
+        <li><code>*</code> multiplication (also string repetition)</li>
+        <li><code>/</code> division</li>
+        <li><code>%</code> modulo</li>
+        <li><code>**</code> power</li>
+      </ul>
+      <h3>Comparison</h3>
+      <p><code>==</code>, <code>!=</code>, <code>&lt;</code>, <code>&gt;</code>, <code>&lt;=</code>, <code>&gt;=</code></p>
+      <h3>Logical</h3>
+      <p><code>and</code>, <code>or</code>, <code>not</code></p>
+    </section>
+
+    <section id="conditionals">
       <h2>Conditionals</h2>
       <pre><code><span class="keyword">let</span> score <span class="keyword">be</span> <span class="number">85</span><span class="period">.</span>
 <span class="keyword">if</span> score >= <span class="number">60</span> <span class="keyword">then</span><span class="period">.</span>
@@ -50,8 +114,9 @@
 <span class="keyword">end if</span><span class="period">.</span></code></pre>
     </section>
 
-    <section>
+    <section id="loops">
       <h2>Loops</h2>
+      <p>Use <code>while</code> with <code>repeat</code> to loop while a condition is true.</p>
       <pre><code><span class="keyword">let</span> i <span class="keyword">be</span> <span class="number">0</span><span class="period">.</span>
 <span class="keyword">while</span> i < <span class="number">10</span> <span class="keyword">repeat</span><span class="period">.</span>
     <span class="builtin">show</span> i<span class="period">.</span>
@@ -59,32 +124,43 @@
 <span class="keyword">end while</span><span class="period">.</span></code></pre>
     </section>
 
-    <section>
+    <section id="functions">
       <h2>Functions</h2>
+      <p>Define functions with <code>define</code> and call them with <code>with</code>. Use <code>return</code> to send a value back.</p>
       <pre><code><span class="keyword">define</span> greet <span class="keyword">with</span> name<span class="period">.</span>
     <span class="builtin">show</span> <span class="string">"Hello, "</span> + name + <span class="string">"!"</span><span class="period">.</span>
 <span class="keyword">end define</span><span class="period">.</span>
 
-greet <span class="keyword">with</span> <span class="string">"World"</span><span class="period">.</span></code></pre>
+greet <span class="keyword">with</span> <span class="string">"World"</span><span class="period">.</span>
+
+<span class="keyword">define</span> factorial <span class="keyword">with</span> n<span class="period">.</span>
+    <span class="keyword">if</span> n <= <span class="number">1</span> <span class="keyword">then</span><span class="period">.</span>
+        <span class="keyword">return</span> <span class="number">1</span><span class="period">.</span>
+    <span class="keyword">end if</span><span class="period">.</span>
+    <span class="keyword">return</span> n * factorial <span class="keyword">with</span> n - <span class="number">1</span><span class="period">.</span>
+<span class="keyword">end define</span><span class="period">.</span></code></pre>
     </section>
 
-    <section>
-      <h2>Built-ins</h2>
+    <section id="builtins">
+      <h2>Built-in Functions</h2>
       <ul>
-        <li><code>length with x</code> — length of string, list, or dictionary</li>
-        <li><code>string with x</code> — convert to string</li>
-        <li><code>number with x</code> — convert to number</li>
-        <li><code>type with x</code> — type name</li>
-        <li><code>input</code> — read a line of input</li>
+        <li><code>length with x</code> — length of a string, list, or dictionary</li>
+        <li><code>string with x</code> — convert a value to a string</li>
+        <li><code>number with x</code> — convert a value to a number</li>
+        <li><code>type with x</code> — return the type name of a value</li>
+        <li><code>input</code> — read a line from standard input</li>
       </ul>
+      <pre><code><span class="builtin">show</span> <span class="string">"What is your name?"</span><span class="period">.</span>
+<span class="keyword">let</span> name <span class="keyword">be</span> input<span class="period">.</span>
+<span class="builtin">show</span> <span class="string">"Nice to meet you, "</span> + name + <span class="string">"."</span><span class="period">.</span></code></pre>
     </section>
 
-    <section>
-      <h2>Data Structures</h2>
-      <pre><code><span class="keyword">let</span> items <span class="keyword">be</span> [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>]<span class="period">.</span>
-<span class="keyword">let</span> person <span class="keyword">be</span> {<span class="string">"name"</span>: <span class="string">"Ada"</span>, <span class="string">"age"</span>: <span class="number">36</span>}<span class="period">.</span>
-<span class="builtin">show</span> items[<span class="number">0</span>]<span class="period">.</span>
-<span class="builtin">show</span> person[<span class="string">"name"</span>]<span class="period">.</span></code></pre>
+    <section id="errors">
+      <h2>Error Messages</h2>
+      <p>Period reports errors with the exact line and column range. The parser recovers from errors so multiple problems can be reported in a single pass.</p>
+      <pre><code>example.period:1:11: error: Expected '.' at the end of a 'let' statement.
+       1 | let x be 5
+         |           ^</code></pre>
     </section>
   </main>
 
