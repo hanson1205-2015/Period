@@ -130,6 +130,30 @@
           <p>Syntax highlighting, hover hints, auto-completion, formatting, go-to-definition, and live LSP diagnostics.</p>
           <pre><code>code --install-extension period-language.vsix</code></pre>
         </article>
+
+        <article class="h-panel">
+          <span class="section-label">Functions</span>
+          <h2>Recursive and readable.</h2>
+          <pre><code><span class="comment">-- A recursive factorial.</span>
+<span class="keyword">define</span> factorial <span class="keyword">with</span> n<span class="period">.</span>
+    <span class="keyword">if</span> n <= <span class="number">1</span> <span class="keyword">then</span><span class="period">.</span>
+        <span class="keyword">return</span> <span class="number">1</span><span class="period">.</span>
+    <span class="keyword">end if</span><span class="period">.</span>
+    <span class="keyword">return</span> n * factorial <span class="keyword">with</span> n - <span class="number">1</span><span class="period">.</span>
+<span class="keyword">end define</span><span class="period">.</span></code></pre>
+          <p>Define functions with plain English and call them with <code>with</code>.</p>
+        </article>
+
+        <article class="h-panel">
+          <span class="section-label">REPL</span>
+          <h2>Try ideas instantly.</h2>
+          <pre><code>$ period
+>>> <span class="keyword">let</span> x <span class="keyword">be</span> <span class="number">10</span><span class="period">.</span>
+>>> <span class="builtin">show</span> x * <span class="number">2</span><span class="period">.</span>
+20
+>>> exit.</code></pre>
+          <p>Run <code>period</code> without arguments to start the interactive shell.</p>
+        </article>
       </div>
     </section>
 
