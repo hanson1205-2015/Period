@@ -139,7 +139,7 @@ nav a.active {
   border-radius: 2px;
   display: block;
   margin: 0 auto;
-  transition: transform 0.3s ease, opacity 0.3s ease;
+  transition: transform 0.3s ease, opacity 0.3s ease, width 0.25s ease;
   transform-origin: center;
 }
 
@@ -149,6 +149,10 @@ nav a.active {
 
 .bubble-menu .menu-line.short {
   width: 16px;
+}
+
+.bubble-menu .menu-btn.open .menu-line {
+  width: 24px;
 }
 
 .bubble-menu .menu-btn.open .menu-line:first-child {
