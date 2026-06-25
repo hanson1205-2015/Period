@@ -35,6 +35,7 @@
         <li><a href="#functions">Functions</a></li>
         <li><a href="#types">Type Annotations</a></li>
         <li><a href="#classes">Classes</a></li>
+        <li><a href="#imports">Imports</a></li>
         <li><a href="#builtins">Built-ins</a></li>
         <li><a href="#repl">REPL</a></li>
         <li><a href="#vscode">VS Code</a></li>
@@ -200,6 +201,31 @@ tell ada <span class="keyword">to</span> greet <span class="keyword">with</span>
       <p>Create instances with <code>new ClassName with args</code>, call methods with <code>tell object to method with args</code>, and read properties with <code>the property of object</code>.</p>
     </section>
 
+    <section id="imports">
+      <h2>Imports</h2>
+      <p>Use <code>import</code> to bring in built-in or local modules. Multiple modules can be imported in one statement, separated by commas. The last separator may be replaced with <code>and</code>, but only one <code>and</code> is allowed.</p>
+      <pre><code><span class="keyword">import</span> math<span class="period">.</span>
+<span class="keyword">import</span> math, random, string<span class="period">.</span>
+<span class="keyword">import</span> math, random <span class="keyword">and</span> string<span class="period">.</span></code></pre>
+      <p>After importing, call the exported functions directly by name:</p>
+      <pre><code><span class="keyword">import</span> math, random <span class="keyword">and</span> string<span class="period">.</span>
+
+<span class="keyword">let</span> n <span class="keyword">be</span> random <span class="keyword">with</span> nothing<span class="period">.</span>
+<span class="keyword">let</span> greeting <span class="keyword">be</span> upper <span class="keyword">with</span> <span class="string">"hello"</span><span class="period">.</span>
+<span class="builtin">show</span> sqrt <span class="keyword">with</span> <span class="number">2</span><span class="period">.</span></code></pre>
+      <p>Period ships with the following built-in modules:</p>
+      <ul>
+        <li><code>math</code> &mdash; trigonometry, roots, rounding, and constants</li>
+        <li><code>io</code> &mdash; read and write files</li>
+        <li><code>random</code> &mdash; random numbers, choice, and shuffle</li>
+        <li><code>string</code> &mdash; join, split, trim, case conversion, replace, contains, substring</li>
+        <li><code>time</code> &mdash; timestamps, sleeping, and formatting</li>
+        <li><code>json</code> &mdash; parse and stringify JSON</li>
+        <li><code>os</code> &mdash; directory listing, file existence checks, and path operations</li>
+      </ul>
+      <p>Local modules are loaded from the same directory as the importing file, or from a project <code>lib/</code> folder. Relative imports such as <code>.helper</code> and <code>..helper</code> are also supported.</p>
+    </section>
+
     <section id="builtins">
       <h2>Built-in Functions</h2>
       <p>Period provides a small set of built-in functions. They are called like any other function using <code>with</code>.</p>
@@ -280,11 +306,13 @@ statement      := "let" IDENTIFIER "be" expression "."
                 | "define" IDENTIFIER ("with" params)? "." block
                 | "class" IDENTIFIER "." class-body
                 | "return" expression? "."
+                | "import" module-path ("," module-path)* ("and" module-path)? "."
                 | expression "."
 block          := INDENT statement+ DEDENT
 class-body     := INDENT (init | method)+ DEDENT
 init           := "init" ("with" params)? "." block
 method         := "define" IDENTIFIER ("with" params)? "." block
+module-path    := "."* IDENTIFIER ("." IDENTIFIER)*
 expression     := or_expr
 or_expr        := and_expr ("or" and_expr)*
 and_expr       := not_expr ("and" not_expr)*

@@ -1,5 +1,5 @@
 """Recursive-descent parser for Period with multi-error recovery."""
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from . import ast_nodes as ast
 from .errors import Diagnostic, ParseError, SourceSpan
@@ -291,8 +291,8 @@ class Parser:
         span = self._span_from(start, self._previous())
         return ast.ClassStmt(span=span, name=name_tok.value, name_span=name_tok.span, body=body, docstring=docstring)
 
-    def _import_statement(self) -> ast.Stmt:
-        start = self._advance()  # import
+    def _parse_module_path(self) -> Tuple[Optional[str], Optional[Token], Optional[Token]]:
+        """Parse a single module path and return (path, first_token, last_token)."""
         first_module_tok = None
         dots = 0
         while self._match(TokenType.DOT):
@@ -301,7 +301,7 @@ class Parser:
             dots += 1
         first = self._consume(TokenType.IDENTIFIER, "Expected a module name after 'import'.")
         if first is None:
-            return None
+            return None, None, None
         if first_module_tok is None:
             first_module_tok = first
         parts = [first.value]
@@ -314,13 +314,63 @@ class Parser:
                 break
             parts.append(part.value)
             last_tok = part
+        module_path = ("." * dots) + ".".join(parts)
+        return module_path, first_module_tok, last_tok
+
+    def _import_statement(self) -> ast.Stmt:
+        start = self._advance()  # import
+        module_paths: List[str] = []
+        module_spans: List[SourceSpan] = []
+        and_used = False
+        last_separator: Optional[str] = None
+
+        while True:
+            if module_paths and self._check(TokenType.DOT):
+                self._error(
+                    "Expected a module name after ',' or 'and'.",
+                    self._peek().span,
+                )
+                break
+            module_path, first_tok, last_tok = self._parse_module_path()
+            if module_path is None:
+                return None
+            module_paths.append(module_path)
+            module_spans.append(self._span_from(first_tok, last_tok))
+
+            if self._check(TokenType.DOT):
+                break
+            if self._match(TokenType.COMMA):
+                last_separator = "comma"
+                continue
+            if self._match(TokenType.AND):
+                if and_used:
+                    self._error(
+                        "Only one 'and' is allowed in an 'import' statement.",
+                        self._previous().span,
+                    )
+                and_used = True
+                last_separator = "and"
+                continue
+            self._error(
+                "Expected ',', 'and', or '.' in 'import' statement.",
+                self._peek().span,
+            )
+            # Attempt to recover at the next plausible module start.
+            if self._check(TokenType.IDENTIFIER) or self._check(TokenType.DOT):
+                continue
+            break
+
+        if and_used and last_separator != "and":
+            self._error(
+                "If 'and' is used, it must separate the last two modules.",
+                self._peek().span,
+            )
+
         end = self._consume(TokenType.DOT, "Expected '.' at the end of an 'import' statement.")
         if end is None:
             end = self._previous()
-        module_path = ("." * dots) + ".".join(parts)
         span = self._span_from(start, end)
-        module_span = self._span_from(first_module_tok, last_tok)
-        return ast.ImportStmt(span=span, module_path=module_path, module_span=module_span)
+        return ast.ImportStmt(span=span, module_paths=module_paths, module_spans=module_spans)
 
     def _class_body(self) -> List[ast.Stmt]:
         while self._match(TokenType.NEWLINE, TokenType.COMMENT, TokenType.ERROR):

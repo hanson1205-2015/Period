@@ -217,22 +217,23 @@ class SemanticChecker:
     def _visit_import(self, stmt: ast.ImportStmt):
         from .module_loader import resolve_module
 
-        self._add_token(stmt.module_span, TOKEN_CLASS)
-        resolved = resolve_module(stmt.module_path, self.filename)
-        if resolved is None:
-            self.diagnostics.append(
-                Diagnostic(
-                    f"Module '{stmt.module_path}' not found.",
-                    stmt.module_span,
-                    "error",
+        for module_path, module_span in zip(stmt.module_paths, stmt.module_spans):
+            self._add_token(module_span, TOKEN_CLASS)
+            resolved = resolve_module(module_path, self.filename)
+            if resolved is None:
+                self.diagnostics.append(
+                    Diagnostic(
+                        f"Module '{module_path}' not found.",
+                        module_span,
+                        "error",
+                    )
                 )
-            )
-            return
+                continue
 
-        if isinstance(resolved, str):
-            self._declare_builtin_module_exports(resolved)
-        else:
-            self._declare_file_module_exports(resolved)
+            if isinstance(resolved, str):
+                self._declare_builtin_module_exports(resolved)
+            else:
+                self._declare_file_module_exports(resolved)
 
     def _declare_builtin_module_exports(self, name: str):
         import importlib

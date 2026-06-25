@@ -159,8 +159,8 @@ class ReturnStmt(Stmt):
 
 @dataclass
 class ImportStmt(Stmt):
-    module_path: str
-    module_span: SourceSpan
+    module_paths: List[str]
+    module_spans: List[SourceSpan]
 
 
 @dataclass

@@ -358,7 +358,8 @@ class Interpreter:
             self.environment.define(stmt.name, klass)
             return
         if isinstance(stmt, ast.ImportStmt):
-            self._import_module(stmt.module_path)
+            for module_path in stmt.module_paths:
+                self._import_module(module_path)
             return
         if isinstance(stmt, ast.InitStmt):
             raise RuntimeError("'init' may only appear inside a class body.", stmt.span)
