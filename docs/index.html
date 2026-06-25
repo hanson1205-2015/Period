@@ -597,14 +597,8 @@ tell ada <span class="keyword">to</span> greet <span class="keyword">with</span>
       document.querySelectorAll('a[data-download]').forEach((btn) => {
         btn.addEventListener('click', (e) => {
           e.preventDefault();
-          const iframe = document.createElement('iframe');
-          iframe.style.display = 'none';
-          iframe.src = downloadUrl;
-          document.body.appendChild(iframe);
-          setTimeout(() => {
-            document.body.removeChild(iframe);
-            window.location.href = 'finish_install.html?started=1';
-          }, 1200);
+          window.open(downloadUrl, '_blank');
+          window.location.href = 'finish_install.html?started=1';
         });
       });
     })();
