@@ -5,7 +5,6 @@
 
 [Setup]
 AppId={{PERIOD-LANG-1234-5678-90AB-CDEF12345678}
-SignTool=signtool
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}

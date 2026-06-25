@@ -87,6 +87,7 @@ jobs:
           $signtool = "${{ steps.signtool.outputs.path }}"
           $cert = "$env:RUNNER_TEMP\code-signing.pfx"
           if (Test-Path $cert) {
+            (Get-Content installer\period.iss -Raw) -replace '(\[Setup\]\r?\n)', "`$1SignTool=signtool `$p`r`n" | Set-Content installer\period.iss -NoNewline
             $signcmd = "`"$signtool`" sign /f `"$cert`" /p `"$env:CERT_PASSWORD`" /tr http://timestamp.digicert.com /td sha256 /fd sha256 `"$f`""
             & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /Ssigntool="$signcmd" installer\period.iss
           } else {
