@@ -41,7 +41,7 @@ class Document:
 
         if self.ast is not None and not diagnostics:
             semantic = SemanticChecker()
-            for d in semantic.check(self.ast):
+            for d in semantic.check(self.ast, self.uri):
                 diagnostics.append(d)
 
         self.diagnostics = [d.to_dict() for d in diagnostics]
@@ -870,7 +870,7 @@ class LSPServer:
             return
 
         checker = SemanticChecker()
-        tokens = checker.semantic_tokens(doc.ast)
+        tokens = checker.semantic_tokens(doc.ast, doc.uri)
         self._respond(request_id, {"data": self._encode_semantic_tokens(tokens)})
 
     def _encode_semantic_tokens(self, tokens) -> List[int]:

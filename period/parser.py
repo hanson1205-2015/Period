@@ -121,6 +121,7 @@ class Parser:
                 TokenType.RETURN,
                 TokenType.CLASS,
                 TokenType.INIT,
+                TokenType.IMPORT,
                 TokenType.OTHERWISE,
                 TokenType.DEDENT,
             }:
@@ -158,6 +159,8 @@ class Parser:
                 return self._return_statement()
             if self._check(TokenType.CLASS):
                 return self._class_statement()
+            if self._check(TokenType.IMPORT):
+                return self._import_statement()
             return self._expression_statement()
         except ParseError:
             self._recover()
@@ -284,6 +287,29 @@ class Parser:
         docstring, body = self._extract_docstring(body)
         span = self._span_from(start, self._previous())
         return ast.ClassStmt(span=span, name=name_tok.value, name_span=name_tok.span, body=body, docstring=docstring)
+
+    def _import_statement(self) -> ast.Stmt:
+        start = self._advance()  # import
+        dots = 0
+        while self._match(TokenType.DOT):
+            dots += 1
+        first = self._consume(TokenType.IDENTIFIER, "Expected a module name after 'import'.")
+        if first is None:
+            return None
+        parts = [first.value]
+        # Allow dotted module paths like foo.bar, stopping before the statement terminator.
+        while self._check(TokenType.DOT) and self._peek(1).type == TokenType.IDENTIFIER:
+            self._advance()  # consume the separator dot
+            part = self._consume(TokenType.IDENTIFIER, "Expected a module name after '.'.")
+            if part is None:
+                break
+            parts.append(part.value)
+        end = self._consume(TokenType.DOT, "Expected '.' at the end of an 'import' statement.")
+        if end is None:
+            end = self._previous()
+        module_path = ("." * dots) + ".".join(parts)
+        span = self._span_from(start, end)
+        return ast.ImportStmt(span=span, module_path=module_path)
 
     def _class_body(self) -> List[ast.Stmt]:
         while self._match(TokenType.NEWLINE, TokenType.COMMENT, TokenType.ERROR):

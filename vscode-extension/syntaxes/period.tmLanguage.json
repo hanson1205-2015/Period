@@ -115,7 +115,7 @@
         },
         {
           "name": "keyword.other.period",
-          "match": "\\b(let|be|set|to|with|this|new|tell|of|the)\\b"
+          "match": "\\b(let|be|set|to|with|this|new|tell|of|the|import)\\b"
         },
         {
           "name": "keyword.operator.logical.period keyword",

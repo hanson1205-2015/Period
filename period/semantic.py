@@ -46,11 +46,13 @@ class SemanticChecker:
         self.diagnostics: List[Diagnostic] = []
         self.scopes: List[Dict[str, str]] = []
         self.tokens: List[Tuple[SourceSpan, str, bool]] = []
+        self.filename: str = "<stdin>"
 
-    def check(self, program: ast.Program) -> List[Diagnostic]:
+    def check(self, program: ast.Program, filename: str = "<stdin>") -> List[Diagnostic]:
         self.diagnostics = []
         self.tokens = []
         self.scopes = [self._builtin_scope()]
+        self.filename = filename
 
         # First pass: register all top-level function and class names so they can
         # be referenced before their definition.
@@ -65,9 +67,9 @@ class SemanticChecker:
 
         return self.diagnostics
 
-    def semantic_tokens(self, program: ast.Program) -> List[Tuple[SourceSpan, str, bool]]:
+    def semantic_tokens(self, program: ast.Program, filename: str = "<stdin>") -> List[Tuple[SourceSpan, str, bool]]:
         """Return a list of (span, kind, is_declaration) tuples for semantic highlighting."""
-        self.check(program)
+        self.check(program, filename)
         return self.tokens
 
     def _builtin_scope(self) -> Dict[str, str]:
@@ -183,9 +185,79 @@ class SemanticChecker:
             self._add_token(stmt.name_span, TOKEN_CLASS, is_declaration=True)
             self._declare(stmt.name, TOKEN_CLASS)
             self._visit_class_body(stmt)
+        elif isinstance(stmt, ast.ImportStmt):
+            self._visit_import(stmt)
         elif isinstance(stmt, ast.InitStmt):
             # Init outside a class body is a parse/runtime concern; nothing to check here.
             pass
+
+    def _visit_import(self, stmt: ast.ImportStmt):
+        from .module_loader import resolve_module
+
+        resolved = resolve_module(stmt.module_path, self.filename)
+        if resolved is None:
+            self.diagnostics.append(
+                Diagnostic(
+                    f"Module '{stmt.module_path}' not found.",
+                    stmt.span,
+                    "error",
+                )
+            )
+            return
+
+        if isinstance(resolved, str):
+            self._declare_builtin_module_exports(resolved)
+        else:
+            self._declare_file_module_exports(resolved)
+
+    def _declare_builtin_module_exports(self, name: str):
+        import importlib
+
+        try:
+            mod = importlib.import_module(f"period.stdlib.{name}")
+        except Exception as exc:
+            self.diagnostics.append(
+                Diagnostic(
+                    f"Could not load built-in module '{name}': {exc}.",
+                    SourceSpan(1, 1, 1),
+                    "error",
+                )
+            )
+            return
+
+        exports = getattr(mod, "EXPORTS", [])
+        for export in exports:
+            if not hasattr(mod, export):
+                continue
+            value = getattr(mod, export)
+            kind = TOKEN_FUNCTION if callable(value) else TOKEN_VARIABLE
+            self._declare(export, kind)
+
+    def _declare_file_module_exports(self, path):
+        from .lexer import Lexer
+        from .parser import Parser
+
+        source = path.read_text(encoding="utf-8")
+        lexer = Lexer(source, str(path))
+        tokens = lexer.scan()
+        diagnostics = list(lexer.diagnostics)
+
+        parser = Parser(tokens, source, str(path))
+        program = parser.parse()
+        diagnostics.extend(parser.diagnostics)
+
+        if diagnostics:
+            for diag in diagnostics:
+                self.diagnostics.append(diag)
+            return
+
+        for s in program.statements:
+            if isinstance(s, ast.DefineStmt):
+                self._declare(s.name, TOKEN_FUNCTION)
+            elif isinstance(s, ast.ClassStmt):
+                self._declare(s.name, TOKEN_CLASS)
+            elif isinstance(s, ast.LetStmt):
+                self._declare(s.name, TOKEN_VARIABLE)
 
     def _visit_stmts(self, statements: List[ast.Stmt]):
         for stmt in statements:

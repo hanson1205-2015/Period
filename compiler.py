@@ -39,7 +39,7 @@ def run_source(source: str, filename: str = "<stdin>", print_output: bool = True
     diagnostics.extend(parser.diagnostics)
 
     checker = SemanticChecker()
-    diagnostics.extend(checker.check(program))
+    diagnostics.extend(checker.check(program, filename))
 
     if diagnostics:
         print(format_diagnostics(source, diagnostics, filename), file=sys.stderr)
@@ -47,7 +47,7 @@ def run_source(source: str, filename: str = "<stdin>", print_output: bool = True
 
     interpreter = Interpreter()
     try:
-        interpreter.interpret(program)
+        interpreter.interpret(program, filename)
     except Exception as e:
         print(f"{filename}: runtime error: {e}", file=sys.stderr)
         return 1

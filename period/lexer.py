@@ -44,6 +44,9 @@ class TokenType(Enum):
     OF = auto()
     THE = auto()
 
+    # Module keywords
+    IMPORT = auto()
+
     # Operators / punctuation
     PLUS = auto()
     MINUS = auto()
@@ -108,6 +111,7 @@ KEYWORDS = {
     "tell": TokenType.TELL,
     "of": TokenType.OF,
     "the": TokenType.THE,
+    "import": TokenType.IMPORT,
 }
 
 

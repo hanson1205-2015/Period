@@ -157,6 +157,11 @@ class ReturnStmt(Stmt):
 
 
 @dataclass
+class ImportStmt(Stmt):
+    module_path: str
+
+
+@dataclass
 class DefineStmt(Stmt):
     name: str
     name_span: SourceSpan

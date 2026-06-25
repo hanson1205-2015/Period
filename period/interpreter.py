@@ -1,5 +1,8 @@
 """Tree-walking interpreter for the Period programming language."""
+import importlib
+import inspect
 import math
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from . import ast_nodes as ast
@@ -104,6 +107,8 @@ class Interpreter:
         self.globals = Environment()
         self.environment = self.globals
         self.output: List[str] = []
+        self.filename: str = "<stdin>"
+        self.modules: Dict[str, Environment] = {}
         self._install_builtins()
 
     def _install_builtins(self):
@@ -279,7 +284,9 @@ class Interpreter:
 
     # Public API --------------------------------------------------------------
 
-    def interpret(self, program: ast.Program) -> List[str]:
+    def interpret(self, program: ast.Program, filename: Optional[str] = None) -> List[str]:
+        if filename is not None:
+            self.filename = filename
         for stmt in program.statements:
             self._execute(stmt)
         return self.output
@@ -350,9 +357,95 @@ class Interpreter:
             klass = PeriodClass(stmt.name, init, methods)
             self.environment.define(stmt.name, klass)
             return
+        if isinstance(stmt, ast.ImportStmt):
+            self._import_module(stmt.module_path)
+            return
         if isinstance(stmt, ast.InitStmt):
             raise RuntimeError("'init' may only appear inside a class body.", stmt.span)
         raise RuntimeError(f"Unknown statement type: {type(stmt).__name__}.", stmt.span)
+
+    def _import_module(self, module_path: str):
+        from .module_loader import resolve_module
+
+        resolved = resolve_module(module_path, self.filename)
+        if resolved is None:
+            raise RuntimeError(f"Module '{module_path}' not found.", SourceSpan(0, 0, 0))
+
+        if isinstance(resolved, Path):
+            cache_key = str(resolved.resolve())
+            if cache_key in self.modules:
+                module_env = self.modules[cache_key]
+            else:
+                module_env = self._load_file_module(resolved)
+                self.modules[cache_key] = module_env
+        else:
+            if resolved in self.modules:
+                module_env = self.modules[resolved]
+            else:
+                module_env = self._load_builtin_module(resolved)
+                self.modules[resolved] = module_env
+
+        for name, value in module_env.values.items():
+            self.environment.define(name, value)
+
+    def _load_builtin_module(self, name: str) -> Environment:
+        from .lexer import Lexer
+        from .parser import Parser
+        from .semantic import SemanticChecker
+
+        try:
+            mod = importlib.import_module(f"period.stdlib.{name}")
+        except Exception as exc:
+            raise RuntimeError(f"Could not load built-in module '{name}': {exc}.", SourceSpan(0, 0, 0))
+
+        env = Environment()
+        exports = getattr(mod, "EXPORTS", [])
+        for export in exports:
+            if not hasattr(mod, export):
+                continue
+            value = getattr(mod, export)
+            if callable(value):
+                arity = len(inspect.signature(value).parameters)
+                env.define(
+                    export,
+                    PeriodBuiltIn(
+                        export,
+                        arity,
+                        lambda args, span, fn=value: fn(*args),
+                    ),
+                )
+            else:
+                env.define(export, value)
+        return env
+
+    def _load_file_module(self, path: Path) -> Environment:
+        from .lexer import Lexer
+        from .parser import Parser
+        from .semantic import SemanticChecker
+
+        source = path.read_text(encoding="utf-8")
+        lexer = Lexer(source, str(path))
+        tokens = lexer.scan()
+        diagnostics = list(lexer.diagnostics)
+
+        parser = Parser(tokens, source, str(path))
+        program = parser.parse()
+        diagnostics.extend(parser.diagnostics)
+
+        if diagnostics:
+            messages = "\n".join(f"  {d.span.line}:{d.span.col_start}: {d.message}" for d in diagnostics)
+            raise RuntimeError(f"Errors in module '{path}':\n{messages}", SourceSpan(0, 0, 0))
+
+        checker = SemanticChecker()
+        module_diagnostics = checker.check(program, str(path))
+        if module_diagnostics:
+            messages = "\n".join(f"  {d.span.line}:{d.span.col_start}: {d.message}" for d in module_diagnostics)
+            raise RuntimeError(f"Errors in module '{path}':\n{messages}", SourceSpan(0, 0, 0))
+
+        module_interpreter = Interpreter()
+        module_interpreter.filename = str(path)
+        module_interpreter.interpret(program)
+        return module_interpreter.environment
 
     def _assign_target(self, target: ast.Expr, value: Any, span: SourceSpan):
         if isinstance(target, ast.VariableExpr):
