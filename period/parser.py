@@ -222,8 +222,8 @@ class Parser:
             parameters.extend(params)
             parameter_types.extend(types)
         return_type: Optional[str] = None
-        if self._match(TokenType.ARROW):
-            ret = self._consume(TokenType.IDENTIFIER, "Expected a return type after '->'.")
+        if self._match(TokenType.RETURNS):
+            ret = self._consume(TokenType.IDENTIFIER, "Expected a return type after 'returns'.")
             return_type = ret.value if ret else None
         self._consume(TokenType.COLON, "Expected ':' after the function signature.")
         body = self._block("define")

@@ -77,10 +77,10 @@
     <section>
       <h2>Type Annotations</h2>
       <pre><code><span class="comment">-- Type annotations are optional.</span>
-<span class="keyword">define</span> add <span class="keyword">with</span> number a, number b -> number<span class="period">:</span>
+<span class="keyword">define</span> add <span class="keyword">with</span> number a, number b <span class="keyword">returns</span> number<span class="period">:</span>
     <span class="keyword">return</span> a + b<span class="period">.</span>
 
-<span class="keyword">define</span> greet <span class="keyword">with</span> string name -> string<span class="period">:</span>
+<span class="keyword">define</span> greet <span class="keyword">with</span> string name <span class="keyword">returns</span> string<span class="period">:</span>
     <span class="keyword">return</span> <span class="string">"Hello, "</span> + name + <span class="string">"!"</span><span class="period">.</span>
 
 <span class="builtin">show</span> add <span class="keyword">with</span> <span class="number">3</span>, <span class="number">4</span><span class="period">.</span>

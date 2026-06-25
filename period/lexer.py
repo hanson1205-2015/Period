@@ -29,6 +29,7 @@ class TokenType(Enum):
     DEFINE = auto()
     WITH = auto()
     RETURN = auto()
+    RETURNS = auto()
     AND = auto()
     OR = auto()
     NOT = auto()
@@ -57,7 +58,6 @@ class TokenType(Enum):
     GREATER = auto()
     LESS_EQUAL = auto()
     GREATER_EQUAL = auto()
-    ARROW = auto()
     LPAREN = auto()
     RPAREN = auto()
     LBRACKET = auto()
@@ -93,6 +93,7 @@ KEYWORDS = {
     "define": TokenType.DEFINE,
     "with": TokenType.WITH,
     "return": TokenType.RETURN,
+    "returns": TokenType.RETURNS,
     "and": TokenType.AND,
     "or": TokenType.OR,
     "not": TokenType.NOT,
@@ -206,10 +207,7 @@ class Lexer:
             self._add_token(TokenType.PLUS)
             return
         if char == "-":
-            if self._match(">"):
-                self._add_token(TokenType.ARROW)
-            else:
-                self._add_token(TokenType.MINUS)
+            self._add_token(TokenType.MINUS)
             return
         if char == "*":
             if self._match("*"):
