@@ -34,23 +34,23 @@
 
     <section>
       <h2>Factorial</h2>
-      <pre><code><span class="keyword">define</span> factorial <span class="keyword">with</span> n<span class="period">.</span>
-    <span class="keyword">if</span> n <= <span class="number">1</span> <span class="keyword">then</span><span class="period">.</span>
+      <pre><code><span class="keyword">define</span> factorial <span class="keyword">with</span> n<span class="period">:</span>
+    <span class="keyword">if</span> n <= <span class="number">1</span> <span class="keyword">then</span><span class="period">:</span>
         <span class="keyword">return</span> <span class="number">1</span><span class="period">.</span>
-    <span class="keyword">return</span> n * factorial <span class="keyword">with</span> n - <span class="number">1</span><span class="period">.</span>
+    <span class="keyword">return</span> n * factorial <span class="keyword">with</span> (n - <span class="number">1</span>)<span class="period">.</span>
 
 <span class="builtin">show</span> factorial <span class="keyword">with</span> <span class="number">5</span><span class="period">.</span></code></pre>
     </section>
 
     <section>
       <h2>Fibonacci Sequence</h2>
-      <pre><code><span class="keyword">define</span> fib <span class="keyword">with</span> n<span class="period">.</span>
-    <span class="keyword">if</span> n <= <span class="number">1</span> <span class="keyword">then</span><span class="period">.</span>
+      <pre><code><span class="keyword">define</span> fib <span class="keyword">with</span> n<span class="period">:</span>
+    <span class="keyword">if</span> n <= <span class="number">1</span> <span class="keyword">then</span><span class="period">:</span>
         <span class="keyword">return</span> n<span class="period">.</span>
-    <span class="keyword">return</span> fib <span class="keyword">with</span> n - <span class="number">1</span> + fib <span class="keyword">with</span> n - <span class="number">2</span><span class="period">.</span>
+    <span class="keyword">return</span> fib <span class="keyword">with</span> (n - <span class="number">1</span>) + fib <span class="keyword">with</span> (n - <span class="number">2</span>)<span class="period">.</span>
 
 <span class="keyword">let</span> i <span class="keyword">be</span> <span class="number">0</span><span class="period">.</span>
-<span class="keyword">while</span> i < <span class="number">10</span> <span class="keyword">repeat</span><span class="period">.</span>
+<span class="keyword">while</span> i < <span class="number">10</span> <span class="keyword">repeat</span><span class="period">:</span>
     <span class="builtin">show</span> fib <span class="keyword">with</span> i<span class="period">.</span>
     <span class="keyword">set</span> i <span class="keyword">to</span> i + <span class="number">1</span><span class="period">.</span></code></pre>
     </section>
@@ -61,14 +61,14 @@
 <span class="keyword">let</span> count <span class="keyword">be</span> <span class="number">0</span><span class="period">.</span>
 <span class="keyword">let</span> candidate <span class="keyword">be</span> <span class="number">2</span><span class="period">.</span>
 
-<span class="keyword">while</span> count < <span class="number">20</span> <span class="keyword">repeat</span><span class="period">.</span>
+<span class="keyword">while</span> count < <span class="number">20</span> <span class="keyword">repeat</span><span class="period">:</span>
     <span class="keyword">let</span> is_prime <span class="keyword">be</span> true<span class="period">.</span>
     <span class="keyword">let</span> divisor <span class="keyword">be</span> <span class="number">2</span><span class="period">.</span>
-    <span class="keyword">while</span> divisor * divisor <= candidate <span class="keyword">repeat</span><span class="period">.</span>
-        <span class="keyword">if</span> candidate % divisor == <span class="number">0</span> <span class="keyword">then</span><span class="period">.</span>
+    <span class="keyword">while</span> divisor * divisor <= candidate <span class="keyword">repeat</span><span class="period">:</span>
+        <span class="keyword">if</span> candidate % divisor == <span class="number">0</span> <span class="keyword">then</span><span class="period">:</span>
             <span class="keyword">set</span> is_prime <span class="keyword">to</span> false<span class="period">.</span>
         <span class="keyword">set</span> divisor <span class="keyword">to</span> divisor + <span class="number">1</span><span class="period">.</span>
-    <span class="keyword">if</span> is_prime <span class="keyword">then</span><span class="period">.</span>
+    <span class="keyword">if</span> is_prime <span class="keyword">then</span><span class="period">:</span>
         <span class="builtin">show</span> candidate<span class="period">.</span>
         <span class="keyword">set</span> count <span class="keyword">to</span> count + <span class="number">1</span><span class="period">.</span>
     <span class="keyword">set</span> candidate <span class="keyword">to</span> candidate + <span class="number">1</span><span class="period">.</span></code></pre>
@@ -96,12 +96,12 @@
     <section>
       <h2>Classes</h2>
       <pre><code><span class="comment">-- Define a class with init and methods.</span>
-<span class="keyword">class</span> Person<span class="period">.</span>
-    <span class="keyword">init</span> <span class="keyword">with</span> name, age<span class="period">.</span>
+<span class="keyword">class</span> Person<span class="period">:</span>
+    <span class="keyword">init</span> <span class="keyword">with</span> name, age<span class="period">:</span>
         <span class="keyword">set</span> this name <span class="keyword">to</span> name<span class="period">.</span>
         <span class="keyword">set</span> this age <span class="keyword">to</span> age<span class="period">.</span>
 
-    <span class="keyword">define</span> greet <span class="keyword">with</span> greeting<span class="period">.</span>
+    <span class="keyword">define</span> greet <span class="keyword">with</span> greeting<span class="period">:</span>
         <span class="builtin">show</span> greeting + <span class="string">", "</span> + this name + <span class="string">"!"</span><span class="period">.</span>
 
 <span class="keyword">let</span> ada <span class="keyword">be</span> new Person <span class="keyword">with</span> <span class="string">"Ada"</span>, <span class="number">42</span><span class="period">.</span>

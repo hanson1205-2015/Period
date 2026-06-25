@@ -76,7 +76,7 @@ class Parser:
         """Advance to the next synchronization point so parsing can continue."""
         self._advance()
         while not self._is_at_end():
-            if self._previous().type == TokenType.DOT:
+            if self._previous().type in (TokenType.DOT, TokenType.COLON):
                 return
             if self._peek().type in {
                 TokenType.LET,
@@ -166,13 +166,14 @@ class Parser:
     def _if_statement(self) -> ast.Stmt:
         start = self._advance()  # if
         condition = self._expression()
+        self._match(TokenType.COMMA)  # optional comma before then
         self._consume(TokenType.THEN, "Expected 'then' after the condition of an 'if' statement.")
-        self._consume(TokenType.DOT, "Expected '.' after 'then'.")
+        self._consume(TokenType.COLON, "Expected ':' after 'then'.")
         then_branch = self._block("if")
 
         else_branch: List[ast.Stmt] = []
         if self._match(TokenType.OTHERWISE):
-            self._consume(TokenType.DOT, "Expected '.' after 'otherwise'.")
+            self._consume(TokenType.COLON, "Expected ':' after 'otherwise'.")
             else_branch = self._block("otherwise")
 
         span = self._span_from(start, self._previous())
@@ -182,7 +183,7 @@ class Parser:
         start = self._advance()  # while
         condition = self._expression()
         self._consume(TokenType.REPEAT, "Expected 'repeat' after the condition of a 'while' statement.")
-        self._consume(TokenType.DOT, "Expected '.' after 'repeat'.")
+        self._consume(TokenType.COLON, "Expected ':' after 'repeat'.")
         body = self._block("while")
         span = self._span_from(start, self._previous())
         return ast.WhileStmt(span=span, condition=condition, body=body)
@@ -201,7 +202,7 @@ class Parser:
                     param = self._consume(TokenType.IDENTIFIER, "Expected a parameter name after ','.")
                     if param:
                         parameters.append(param.value)
-        self._consume(TokenType.DOT, "Expected '.' after the function signature.")
+        self._consume(TokenType.COLON, "Expected ':' after the function signature.")
         body = self._block("define")
         span = self._span_from(start, self._previous())
         return ast.DefineStmt(span=span, name=name_tok.value, parameters=parameters, body=body)
@@ -222,7 +223,7 @@ class Parser:
         name_tok = self._consume(TokenType.IDENTIFIER, "Expected a class name after 'class'.")
         if name_tok is None:
             return None
-        self._consume(TokenType.DOT, "Expected '.' after the class name.")
+        self._consume(TokenType.COLON, "Expected ':' after the class name.")
         body = self._class_body()
         span = self._span_from(start, self._previous())
         return ast.ClassStmt(span=span, name=name_tok.value, body=body)
@@ -271,7 +272,7 @@ class Parser:
                     param = self._consume(TokenType.IDENTIFIER, "Expected a parameter name after ','.")
                     if param:
                         parameters.append(param.value)
-        self._consume(TokenType.DOT, "Expected '.' after the init signature.")
+        self._consume(TokenType.COLON, "Expected ':' after the init signature.")
         body = self._block("init")
         span = self._span_from(start, self._previous())
         return ast.InitStmt(span=span, parameters=parameters, body=body)

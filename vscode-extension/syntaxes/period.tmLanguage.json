@@ -28,6 +28,10 @@
         {
           "name": "punctuation.terminator.statement.period",
           "match": "\\."
+        },
+        {
+          "name": "punctuation.separator.colon.period",
+          "match": ":"
         }
       ]
     },

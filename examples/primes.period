@@ -2,14 +2,14 @@
 let count be 0.
 let candidate be 2.
 
-while count < 20 repeat.
+while count < 20 repeat:
     let is_prime be true.
     let divisor be 2.
-    while divisor * divisor <= candidate repeat.
-        if candidate % divisor == 0 then.
+    while divisor * divisor <= candidate repeat:
+        if candidate % divisor == 0, then:
             set is_prime to false.
         set divisor to divisor + 1.
-    if is_prime then.
+    if is_prime, then:
         show candidate.
         set count to count + 1.
     set candidate to candidate + 1.

@@ -134,10 +134,10 @@
           <span class="section-label">Functions</span>
           <h2>Recursive and readable.</h2>
           <pre><code><span class="comment">-- A recursive factorial.</span>
-<span class="keyword">define</span> factorial <span class="keyword">with</span> n<span class="period">.</span>
-    <span class="keyword">if</span> n <= <span class="number">1</span> <span class="keyword">then</span><span class="period">.</span>
+<span class="keyword">define</span> factorial <span class="keyword">with</span> n<span class="period">:</span>
+    <span class="keyword">if</span> n <= <span class="number">1</span> <span class="keyword">then</span><span class="period">:</span>
         <span class="keyword">return</span> <span class="number">1</span><span class="period">.</span>
-    <span class="keyword">return</span> n * factorial <span class="keyword">with</span> n - <span class="number">1</span><span class="period">.</span></code></pre>
+    <span class="keyword">return</span> n * factorial <span class="keyword">with</span> (n - <span class="number">1</span>)<span class="period">.</span></code></pre>
           <p>Define functions with plain English and call them with <code>with</code>.</p>
         </article>
 
@@ -177,23 +177,23 @@
           <div class="tab-panel" role="tabpanel" data-tab="loop">
             <pre><code><span class="comment">-- Count to five.</span>
 <span class="keyword">let</span> i <span class="keyword">be</span> <span class="number">1</span><span class="period">.</span>
-<span class="keyword">while</span> i <= <span class="number">5</span> <span class="keyword">repeat</span><span class="period">.</span>
+<span class="keyword">while</span> i <= <span class="number">5</span> <span class="keyword">repeat</span><span class="period">:</span>
     <span class="builtin">show</span> i<span class="period">.</span>
     <span class="keyword">set</span> i <span class="keyword">to</span> i + <span class="number">1</span><span class="period">.</span></code></pre>
           </div>
           <div class="tab-panel" role="tabpanel" data-tab="function">
             <pre><code><span class="comment">-- A recursive factorial.</span>
-<span class="keyword">define</span> factorial <span class="keyword">with</span> n<span class="period">.</span>
-    <span class="keyword">if</span> n <= <span class="number">1</span> <span class="keyword">then</span><span class="period">.</span>
+<span class="keyword">define</span> factorial <span class="keyword">with</span> n<span class="period">:</span>
+    <span class="keyword">if</span> n <= <span class="number">1</span> <span class="keyword">then</span><span class="period">:</span>
         <span class="keyword">return</span> <span class="number">1</span><span class="period">.</span>
-    <span class="keyword">return</span> n * factorial <span class="keyword">with</span> n - <span class="number">1</span><span class="period">.</span></code></pre>
+    <span class="keyword">return</span> n * factorial <span class="keyword">with</span> (n - <span class="number">1</span>)<span class="period">.</span></code></pre>
           </div>
           <div class="tab-panel" role="tabpanel" data-tab="class">
             <pre><code><span class="comment">-- A tiny class.</span>
-<span class="keyword">class</span> Person<span class="period">.</span>
-    <span class="keyword">init</span> <span class="keyword">with</span> name<span class="period">.</span>
+<span class="keyword">class</span> Person<span class="period">:</span>
+    <span class="keyword">init</span> <span class="keyword">with</span> name<span class="period">:</span>
         <span class="keyword">set</span> this name <span class="keyword">to</span> name<span class="period">.</span>
-    <span class="keyword">define</span> greet <span class="keyword">with</span> greeting<span class="period">.</span>
+    <span class="keyword">define</span> greet <span class="keyword">with</span> greeting<span class="period">:</span>
         <span class="builtin">show</span> greeting + <span class="string">", "</span> + this name + <span class="string">"!"</span><span class="period">.</span>
 
 <span class="keyword">let</span> ada <span class="keyword">be</span> new Person <span class="keyword">with</span> <span class="string">"Ada"</span><span class="period">.</span>
