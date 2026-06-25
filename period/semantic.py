@@ -100,6 +100,24 @@ class SemanticChecker:
             )
         )
 
+    def _validate_type_annotation(self, name: str, span: SourceSpan):
+        """Report a diagnostic if the type name is not a known type or class."""
+        if self._is_valid_type(name):
+            return
+        self.diagnostics.append(
+            Diagnostic(
+                f"Unknown type '{name}'.",
+                span,
+                "error",
+            )
+        )
+
+    def _is_valid_type(self, name: str) -> bool:
+        """Return True if the name refers to a known type or class."""
+        if name in TYPE_NAMES:
+            return True
+        return self._lookup(name) == TOKEN_CLASS
+
     def _infer_expr_type(self, expr: ast.Expr) -> Optional[str]:
         """Statically infer the Period type name of an expression, if obvious."""
         if isinstance(expr, ast.NumberLiteral):
@@ -158,7 +176,12 @@ class SemanticChecker:
             if stmt.type_annotation_span is not None:
                 self._add_token(stmt.type_annotation_span, TOKEN_CLASS)
             if stmt.type_annotation is not None:
-                self._check_let_type(stmt)
+                self._validate_type_annotation(
+                    stmt.type_annotation,
+                    stmt.type_annotation_span or stmt.span,
+                )
+                if self._is_valid_type(stmt.type_annotation):
+                    self._check_let_type(stmt)
             self._declare(stmt.name, TOKEN_VARIABLE)
         elif isinstance(stmt, ast.SetStmt):
             self._visit_expr(stmt.value)
@@ -268,10 +291,15 @@ class SemanticChecker:
     def _visit_function_body(self, stmt: ast.DefineStmt):
         for param, param_type in zip(stmt.parameters, stmt.parameter_types):
             self._declare(param, TOKEN_PARAMETER)
-        for param_type_span in stmt.parameter_type_spans:
+        for param_type, param_type_span in zip(
+            stmt.parameter_types, stmt.parameter_type_spans
+        ):
             if param_type_span is not None:
                 self._add_token(param_type_span, TOKEN_CLASS)
-        if stmt.return_type_span is not None:
+            if param_type is not None:
+                self._validate_type_annotation(param_type, param_type_span)
+        if stmt.return_type is not None and stmt.return_type_span is not None:
+            self._validate_type_annotation(stmt.return_type, stmt.return_type_span)
             self._add_token(stmt.return_type_span, TOKEN_CLASS)
         self._visit_stmts(stmt.body)
 
@@ -287,19 +315,28 @@ class SemanticChecker:
         self._declare("this", TOKEN_VARIABLE)
         for param, param_type in zip(stmt.parameters, stmt.parameter_types):
             self._declare(param, TOKEN_PARAMETER)
-        for param_type_span in stmt.parameter_type_spans:
+        for param_type, param_type_span in zip(
+            stmt.parameter_types, stmt.parameter_type_spans
+        ):
             if param_type_span is not None:
                 self._add_token(param_type_span, TOKEN_CLASS)
+            if param_type is not None:
+                self._validate_type_annotation(param_type, param_type_span)
         self._visit_stmts(stmt.body)
 
     def _visit_method_body(self, stmt: ast.DefineStmt):
         self._declare("this", TOKEN_VARIABLE)
         for param, param_type in zip(stmt.parameters, stmt.parameter_types):
             self._declare(param, TOKEN_PARAMETER)
-        for param_type_span in stmt.parameter_type_spans:
+        for param_type, param_type_span in zip(
+            stmt.parameter_types, stmt.parameter_type_spans
+        ):
             if param_type_span is not None:
                 self._add_token(param_type_span, TOKEN_CLASS)
-        if stmt.return_type_span is not None:
+            if param_type is not None:
+                self._validate_type_annotation(param_type, param_type_span)
+        if stmt.return_type is not None and stmt.return_type_span is not None:
+            self._validate_type_annotation(stmt.return_type, stmt.return_type_span)
             self._add_token(stmt.return_type_span, TOKEN_CLASS)
         self._visit_stmts(stmt.body)
 
