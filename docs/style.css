@@ -263,8 +263,9 @@ pre code {
 }
 
 .sidebar {
-  position: sticky;
+  position: fixed;
   top: 80px;
+  width: 220px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 0.6rem;
