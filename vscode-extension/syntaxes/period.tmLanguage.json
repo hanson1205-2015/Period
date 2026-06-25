@@ -46,12 +46,16 @@
           "match": "\\b(and|or|not)\\b"
         },
         {
-          "name": "support.function.builtin.period",
-          "match": "\\b(show|length|string|number|type|input)\\b"
-        },
-        {
           "name": "support.type.builtin.period",
           "match": "\\b(nothing|boolean|integer|number|string|list|dictionary|function|class)\\b"
+        },
+        {
+          "name": "support.function.builtin.period",
+          "match": "\\b(show|input)\\b"
+        },
+        {
+          "name": "support.function.builtin.period",
+          "match": "\\b(length|string|number|type)\\b(?=\\s+with)"
         }
       ]
     },
