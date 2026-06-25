@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Download Started - Period Language</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="period.png" type="image/png">
   <link rel="icon" href="period.svg" type="image/svg+xml">
 </head>
 <body>
@@ -52,13 +53,11 @@
     (function startDownload() {
       if (location.search.includes('started=1')) return;
       const url = 'https://github.com/ExploreMaths/Period/releases/latest/download/Period-Setup.exe';
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = 'Period-Setup.exe';
-      link.style.display = 'none';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      iframe.src = url;
+      document.body.appendChild(iframe);
+      setTimeout(() => document.body.removeChild(iframe), 5000);
     })();
   </script>
   <script type="module" src="bubble-menu.js"></script>
