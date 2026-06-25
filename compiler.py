@@ -115,7 +115,7 @@ def main():
     argparser.add_argument(
         "--version",
         action="version",
-        version="Period 1.0.1",
+        version="Period 1.0.2",
     )
     args = argparser.parse_args()
 
