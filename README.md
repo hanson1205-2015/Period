@@ -13,7 +13,8 @@ show greeting.
 - Sentence-like syntax for readable code.
 - Detailed error messages with exact line and column information.
 - Parser recovers from errors to report multiple issues at once.
-- Turing complete: variables, conditionals, loops, functions, and recursion.
+- Turing complete: variables, conditionals, loops, functions, classes, and recursion.
+- Modules and standard library: import built-in modules (math, string, random, time, json, os) or local `.period` files.
 - VS Code extension with syntax highlighting, hover, completion, formatting, go-to-definition, and LSP diagnostics.
 - Command-line compiler and interactive REPL.
 

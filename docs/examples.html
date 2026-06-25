@@ -107,6 +107,18 @@
     </section>
 
     <section>
+      <h2>Imports</h2>
+      <pre><code><span class="comment">-- Import multiple modules at once.</span>
+<span class="keyword">import</span> math, random <span class="keyword">and</span> string<span class="period">.</span>
+
+<span class="keyword">let</span> greeting <span class="keyword">be</span> upper <span class="keyword">with</span> <span class="string">"hello"</span><span class="period">.</span>
+<span class="builtin">show</span> sqrt <span class="keyword">with</span> <span class="number">2</span><span class="period">.</span>
+
+<span class="comment">-- If two modules export the same name, qualify it with from.</span>
+<span class="builtin">show</span> sin <span class="keyword">from</span> math <span class="keyword">with</span> <span class="number">5</span><span class="period">.</span></code></pre>
+    </section>
+
+    <section>
       <h2>Classes</h2>
       <pre><code><span class="comment">-- Define a class with init and methods.</span>
 <span class="keyword">class</span> Person<span class="period">:</span>
