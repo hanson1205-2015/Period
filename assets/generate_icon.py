@@ -1,4 +1,4 @@
-"""Generate Period icon assets (PNG and ICO) from a simple vector description."""
+"""Generate Period icon assets (PNG and ICO) matching the site amber theme."""
 from pathlib import Path
 
 from PIL import Image, ImageDraw
@@ -6,41 +6,18 @@ from PIL import Image, ImageDraw
 HERE = Path(__file__).resolve().parent
 SIZE = 256
 
-# Deep blue to purple gradient background, approximated with bands.
-image = Image.new("RGBA", (SIZE, SIZE), (30, 58, 138, 255))
+# Transparent background.
+image = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
 draw = ImageDraw.Draw(image)
 
-# Draw smooth vertical gradient from top-left blue to bottom-right purple.
-for y in range(SIZE):
-    for x in range(SIZE):
-        t = (x + y) / (2 * SIZE)
-        r = int(30 + (88 - 30) * t)
-        g = int(58 + (28 - 58) * t)
-        b = int(138 + (135 - 138) * t)
-        image.putpixel((x, y), (r, g, b, 255))
+# Amber accent palette.
+RING_COLOR = (217, 119, 6, 255)       # #d97706
+DOT_COLOR = (180, 83, 9, 255)         # #b45309
 
-# Rounded rectangle clip (approximated with a large rounded rectangle overlay).
-mask = Image.new("L", (SIZE, SIZE), 0)
-mask_draw = ImageDraw.Draw(mask)
-mask_draw.rounded_rectangle((0, 0, SIZE, SIZE), radius=48, fill=255)
-image.putalpha(mask)
-
-# Subtle circular ring.
-draw = ImageDraw.Draw(image)
-draw.ellipse([40, 40, 216, 216], outline=(255, 255, 255, 38), width=8)
-
-# The "period" dot with a light blue to purple gradient, approximated.
-for y in range(SIZE):
-    for x in range(SIZE):
-        dx = x - 128
-        dy = y - 172
-        dist = (dx * dx + dy * dy) ** 0.5
-        if dist <= 28:
-            t = (dx + 28) / 56
-            r = int(96 + (192 - 96) * t)
-            g = int(165 + (132 - 165) * t)
-            b = int(250 + (252 - 250) * t)
-            image.putpixel((x, y), (r, g, b, 255))
+# Thick outer ring.
+draw.ellipse([28, 28, 228, 228], outline=RING_COLOR, width=32)
+# Solid central dot.
+draw.ellipse([100, 100, 156, 156], fill=DOT_COLOR)
 
 # Save PNG.
 image.save(HERE / "period.png", "PNG")

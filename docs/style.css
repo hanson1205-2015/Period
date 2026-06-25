@@ -339,12 +339,18 @@ main {
 }
 
 .btn {
-  padding: 0.85rem 1.6rem;
-  border-radius: 0.5rem;
+  display: inline-block;
+  padding: 0.85rem 1.8rem;
+  border-radius: 999px;
   text-decoration: none;
   font-weight: 600;
   font-size: 0.95rem;
-  transition: background 0.15s, border-color 0.15s;
+  transition: background 0.15s, border-color 0.15s, transform 0.15s;
+}
+
+.btn:hover {
+  text-decoration: none;
+  transform: translateY(-1px);
 }
 
 .btn-primary {
@@ -821,6 +827,16 @@ pre code {
   border-bottom: 1px solid var(--border);
   position: relative;
   z-index: 1;
+}
+
+header,
+.bubble-menu {
+  transition: transform 0.35s ease;
+}
+
+header.nav-hidden,
+.bubble-menu.nav-hidden {
+  transform: translateY(-120%);
 }
 
 .horizontal-track {

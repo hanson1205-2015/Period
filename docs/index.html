@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Period - An Elegant Programming Language</title>
   <link rel="stylesheet" href="style.css">
-  <link rel="icon" href="period.png" type="image/png">
+  <link rel="icon" href="period.svg" type="image/svg+xml">
 </head>
 <body>
   <header>
     <a class="logo" href="index.html">
-      <img src="period.png" alt="Period logo">
+      <img src="period.svg" alt="Period logo">
       <span>Period</span>
     </a>
     <nav>
@@ -32,7 +32,7 @@
       <h1>Period<span class="period">.</span></h1>
       <p>An English programming language designed to read like an article. Every statement ends with a period, giving your code a calm, literary rhythm.</p>
       <div class="cta">
-        <a class="btn btn-primary" href="https://github.com/ExploreMaths/Period/releases/latest/download/Period-Setup.exe" onclick="window.open(this.href, '_blank'); location.href='install.html'; return false;">Download</a>
+        <a class="btn btn-primary" href="install.html">Download</a>
         <a class="btn btn-secondary" href="docs.html">Read the Docs</a>
       </div>
     </section>
@@ -206,7 +206,7 @@ tell ada <span class="keyword">to</span> greet <span class="keyword">with</span>
 
     <section id="cta" class="cta-section">
       <h2>Start writing in Period.</h2>
-      <p>Download the latest pre-release, install it in seconds, and write your first sentence-like program.</p>
+      <p>Download the latest release, install it in seconds, and write your first sentence-like program.</p>
       <div class="cta">
         <a class="btn btn-primary" href="install.html">Download Period</a>
         <a class="btn btn-secondary" href="docs.html">Explore Docs</a>
@@ -445,14 +445,15 @@ tell ada <span class="keyword">to</span> greet <span class="keyword">with</span>
           let isNavigating = false;
           let accumulated = 0;
 
+          const header = document.querySelector("header");
+          const bubbleMenu = document.querySelector(".bubble-menu");
+
           const setTrackPadding = () => {
             const panelW = hPanels[0].offsetWidth;
             const viewportW = document.documentElement.clientWidth;
             const margin = Math.max(0, (viewportW - panelW) / 2);
-            const headerH = document.querySelector("header")?.offsetHeight || 70;
             hTrack.style.paddingLeft = margin + "px";
             hTrack.style.paddingRight = margin + "px";
-            hTrack.style.paddingTop = headerH + "px";
           };
           setTrackPadding();
 
@@ -526,10 +527,26 @@ tell ada <span class="keyword">to</span> greet <span class="keyword">with</span>
               onUpdate: (self) => {
                 currentIndex = Math.round(self.progress * (panelCount - 1));
               },
-              onEnter: () => observer.enable(),
-              onLeave: () => observer.disable(),
-              onEnterBack: () => observer.enable(),
-              onLeaveBack: () => observer.disable()
+              onEnter: () => {
+                header?.classList.add("nav-hidden");
+                bubbleMenu?.classList.add("nav-hidden");
+                observer.enable();
+              },
+              onLeave: () => {
+                header?.classList.remove("nav-hidden");
+                bubbleMenu?.classList.remove("nav-hidden");
+                observer.disable();
+              },
+              onEnterBack: () => {
+                header?.classList.add("nav-hidden");
+                bubbleMenu?.classList.add("nav-hidden");
+                observer.enable();
+              },
+              onLeaveBack: () => {
+                header?.classList.remove("nav-hidden");
+                bubbleMenu?.classList.remove("nav-hidden");
+                observer.disable();
+              }
             }
           });
 
