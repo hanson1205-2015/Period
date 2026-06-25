@@ -190,6 +190,7 @@ class Parser:
         return ast.LetStmt(
             span=span,
             name=name_tok.value,
+            name_span=name_tok.span,
             initializer=init,
             type_annotation=type_annotation,
             type_annotation_span=type_annotation_span,
@@ -256,10 +257,12 @@ class Parser:
         return_type: Optional[str] = None
         return_type_span: Optional[SourceSpan] = None
         if self._match(TokenType.RETURNS):
-            ret = self._consume(TokenType.IDENTIFIER, "Expected a return type after 'returns'.")
-            if ret is not None:
+            if self._check(TokenType.IDENTIFIER) or self._check(TokenType.NOTHING):
+                ret = self._advance()
                 return_type = ret.value
                 return_type_span = ret.span
+            else:
+                self._error("Expected a return type after 'returns'.")
         self._consume(TokenType.COLON, "Expected ':' after the function signature.")
         body = self._block("define")
         docstring, body = self._extract_docstring(body)

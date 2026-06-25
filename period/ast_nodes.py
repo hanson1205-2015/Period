@@ -120,6 +120,7 @@ class LetStmt(Stmt):
     type_annotation: Optional[str] = None
     type_annotation_span: Optional[SourceSpan] = None
     is_default_initialization: bool = False
+    name_span: Optional[SourceSpan] = None
 
 
 @dataclass

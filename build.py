@@ -15,6 +15,7 @@ def main():
         "nuitka",
         "--standalone",
         "--onefile",
+        "--onefile-no-compression",
         "--windows-icon-from-ico=assets/period.ico",
         "--company-name=Period Language",
         "--product-name=Period",

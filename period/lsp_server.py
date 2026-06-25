@@ -4,6 +4,7 @@ import sys
 from typing import Any, Dict, List, Optional
 
 from . import ast_nodes as ast
+from .errors import SourceSpan
 from .lexer import Lexer, TokenType
 from .parser import Parser
 from .semantic import SemanticChecker
@@ -78,6 +79,13 @@ class Document:
         if not statements:
             return None
         return statements[-1].span.line
+
+    @staticmethod
+    def _last_span(statements: List[ast.Stmt]) -> Optional[SourceSpan]:
+        """Return the source span of the last statement in a block, if any."""
+        if not statements:
+            return None
+        return statements[-1].span
 
     def _infer_type(self, expr: ast.Expr) -> str:
         """Infer a Period type name from an expression using available annotations."""
@@ -199,6 +207,113 @@ class Document:
             return
         global_end = 10**9
         self._collect_stmts(self.ast.statements, global_end)
+
+    def document_symbols(self) -> List[dict]:
+        """Return top-level DocumentSymbol items for the outline view / minimap."""
+        if self.ast is None:
+            return []
+
+        def span_range(span: SourceSpan, end_span: Optional[SourceSpan] = None) -> dict:
+            end = end_span or span
+            return {
+                "start": {"line": span.line - 1, "character": span.col_start - 1},
+                "end": {"line": end.line - 1, "character": end.col_end - 1},
+            }
+
+        def selection(span: SourceSpan) -> dict:
+            return span_range(span)
+
+        symbols: List[dict] = []
+        for stmt in self.ast.statements:
+            if isinstance(stmt, ast.LetStmt):
+                type_name = stmt.type_annotation or self._infer_type(stmt.initializer)
+                symbols.append(
+                    {
+                        "name": stmt.name,
+                        "detail": f"{type_name}",
+                        "kind": 13,  # Variable
+                        "range": span_range(stmt.span),
+                        "selectionRange": selection(stmt.name_span or stmt.span),
+                    }
+                )
+            elif isinstance(stmt, ast.DefineStmt):
+                body_end = self._last_span(stmt.body)
+                sig = self._func_signature(
+                    stmt.name,
+                    stmt.parameters,
+                    stmt.parameter_types,
+                    stmt.return_type,
+                )
+                symbols.append(
+                    {
+                        "name": stmt.name,
+                        "detail": sig,
+                        "kind": 12,  # Function
+                        "range": span_range(stmt.span, body_end),
+                        "selectionRange": selection(stmt.name_span),
+                    }
+                )
+            elif isinstance(stmt, ast.ClassStmt):
+                class_end = self._last_span(stmt.body)
+                children: List[dict] = []
+                init_sig = None
+                for member in stmt.body:
+                    if isinstance(member, ast.InitStmt):
+                        body_end = self._last_span(member.body)
+                        init_sig = self._func_signature(
+                            "init",
+                            member.parameters,
+                            member.parameter_types,
+                            None,
+                            class_name=stmt.name,
+                        )
+                        children.append(
+                            {
+                                "name": "init",
+                                "detail": init_sig,
+                                "kind": 9,  # Constructor
+                                "range": span_range(member.span, body_end),
+                                "selectionRange": selection(member.span),
+                            }
+                        )
+                    elif isinstance(member, ast.DefineStmt):
+                        body_end = self._last_span(member.body)
+                        sig = self._func_signature(
+                            member.name,
+                            member.parameters,
+                            member.parameter_types,
+                            member.return_type,
+                            class_name=stmt.name,
+                        )
+                        children.append(
+                            {
+                                "name": member.name,
+                                "detail": sig,
+                                "kind": 6,  # Method
+                                "range": span_range(member.span, body_end),
+                                "selectionRange": selection(member.name_span),
+                            }
+                        )
+                class_symbol = {
+                    "name": stmt.name,
+                    "detail": init_sig or "",
+                    "kind": 5,  # Class
+                    "range": span_range(stmt.span, class_end),
+                    "selectionRange": selection(stmt.name_span),
+                }
+                if children:
+                    class_symbol["children"] = children
+                symbols.append(class_symbol)
+            elif isinstance(stmt, ast.ImportStmt):
+                symbols.append(
+                    {
+                        "name": stmt.module_path,
+                        "kind": 2,  # Module
+                        "range": span_range(stmt.module_span),
+                        "selectionRange": selection(stmt.module_span),
+                    }
+                )
+        return symbols
 
     def _collect_stmts(self, statements: List[ast.Stmt], scope_end: int):
         for stmt in statements:
@@ -548,6 +663,8 @@ class LSPServer:
             self._formatting(request_id, params)
         elif method == "textDocument/definition":
             self._definition(request_id, params)
+        elif method == "textDocument/documentSymbol":
+            self._document_symbol(request_id, params)
         elif method == "textDocument/semanticTokens/full":
             self._semantic_tokens_full(request_id, params)
         else:
@@ -566,6 +683,7 @@ class LSPServer:
                 "completionProvider": {"triggerCharacters": ["."]},
                 "documentFormattingProvider": True,
                 "definitionProvider": True,
+                "documentSymbolProvider": True,
                 "semanticTokensProvider": {
                     "legend": {
                         "tokenTypes": [
@@ -1001,6 +1119,13 @@ class LSPServer:
             },
         )
 
+    def _document_symbol(self, request_id: Any, params: dict):
+        uri = params["textDocument"]["uri"]
+        doc = self.documents.get(uri)
+        if doc is None:
+            self._respond(request_id, None)
+            return
+        self._respond(request_id, doc.document_symbols())
 
     def _semantic_tokens_full(self, request_id: Any, params: dict):
         uri = params["textDocument"]["uri"]
