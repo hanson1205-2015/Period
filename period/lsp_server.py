@@ -375,11 +375,33 @@ class Document:
             except Exception:
                 return
             exports = getattr(mod, "EXPORTS", [])
+            docs = getattr(mod, "DOCS", {})
             for name in exports:
                 if not hasattr(mod, name):
                     continue
                 value = getattr(mod, name)
                 kind = "function" if callable(value) else "variable"
+                signature = None
+                docstring = None
+                type_name = None
+                doc_entry = docs.get(name)
+                if isinstance(doc_entry, tuple):
+                    signature, docstring = doc_entry
+                elif isinstance(doc_entry, str):
+                    docstring = doc_entry
+                if not callable(value):
+                    if isinstance(value, bool):
+                        type_name = "boolean"
+                    elif isinstance(value, (int, float)):
+                        type_name = "number"
+                    elif isinstance(value, str):
+                        type_name = "string"
+                    elif isinstance(value, list):
+                        type_name = "list"
+                    elif isinstance(value, dict):
+                        type_name = "dictionary"
+                    else:
+                        type_name = type(value).__name__
                 self.imports[name] = {
                     "name": name,
                     "kind": kind,
@@ -387,6 +409,9 @@ class Document:
                     "col_start": stmt.module_span.col_start,
                     "col_end": stmt.module_span.col_end,
                     "detail": f"Imported from {resolved}",
+                    "signature": signature,
+                    "docstring": docstring,
+                    "type_name": type_name,
                 }
             return
 
@@ -404,6 +429,12 @@ class Document:
         module_name = resolved.name
         for s in program.statements:
             if isinstance(s, ast.DefineStmt):
+                sig = self._func_signature(
+                    s.name,
+                    s.parameters,
+                    s.parameter_types,
+                    s.return_type,
+                )
                 self.imports[s.name] = {
                     "name": s.name,
                     "kind": "function",
@@ -411,6 +442,8 @@ class Document:
                     "col_start": s.name_span.col_start,
                     "col_end": s.name_span.col_end,
                     "detail": f"Imported from {module_name}",
+                    "signature": sig,
+                    "docstring": s.docstring,
                 }
             elif isinstance(s, ast.ClassStmt):
                 self.imports[s.name] = {
@@ -420,8 +453,10 @@ class Document:
                     "col_start": s.name_span.col_start,
                     "col_end": s.name_span.col_end,
                     "detail": f"Imported from {module_name}",
+                    "docstring": s.docstring,
                 }
             elif isinstance(s, ast.LetStmt):
+                type_name = s.type_annotation or self._infer_type(s.initializer)
                 self.imports[s.name] = {
                     "name": s.name,
                     "kind": "variable",
@@ -429,6 +464,7 @@ class Document:
                     "col_start": s.span.col_start,
                     "col_end": s.span.col_end,
                     "detail": f"Imported from {module_name}",
+                    "type_name": type_name,
                 }
 
 
@@ -627,6 +663,9 @@ class LSPServer:
         properties = [s for s in doc.properties if s["name"] == word]
         if properties:
             return properties
+        imported = doc.imports.get(word)
+        if imported:
+            return [imported]
         return []
 
     def _hover_symbol_text(self, doc: Document, word: str, line: int, character: int) -> Optional[str]:
@@ -667,6 +706,8 @@ class LSPServer:
             lines.append("```")
         else:
             return None
+        if symbol.get("detail"):
+            lines.append(f"*{symbol['detail']}*")
         return "\n".join(lines)
 
     def _word_at(self, text: str, line: int, character: int) -> str:
