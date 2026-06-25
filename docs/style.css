@@ -345,12 +345,11 @@ main {
   text-decoration: none;
   font-weight: 600;
   font-size: 0.95rem;
-  transition: background 0.15s, border-color 0.15s, transform 0.15s;
+  transition: background 0.15s, border-color 0.15s;
 }
 
 .btn:hover {
   text-decoration: none;
-  transform: translateY(-1px);
 }
 
 .btn-primary {
@@ -914,6 +913,87 @@ footer {
   padding: 2.5rem 2.5rem;
 }
 
+/* Finish install page */
+.finish-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 140px);
+  padding: 2rem 1rem;
+}
+
+.finish-card {
+  max-width: 640px;
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 2.5rem;
+  text-align: center;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.06);
+}
+
+.finish-icon {
+  font-size: 3.5rem;
+  line-height: 1;
+  margin-bottom: 1.25rem;
+}
+
+.finish-card h1 {
+  font-size: 2rem;
+  margin: 0 0 0.75rem;
+}
+
+.finish-card > p {
+  color: var(--muted);
+  margin: 0 0 2rem;
+}
+
+.finish-card > p a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.finish-next {
+  text-align: left;
+  background: var(--surface-alt);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.finish-next h2 {
+  font-size: 1.15rem;
+  margin: 0 0 0.75rem;
+}
+
+.finish-next ul {
+  margin: 0;
+  padding-left: 1.25rem;
+  color: var(--text);
+}
+
+.finish-next li {
+  margin-bottom: 0.5rem;
+}
+
+.finish-next a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.finish-next a:hover {
+  text-decoration: underline;
+}
+
+.finish-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
 @media (max-width: 860px) {
   .docs-layout {
     display: block;
@@ -965,5 +1045,14 @@ footer {
   .tab-btn {
     flex: 1;
     padding: 0.55rem 0.5rem;
+  }
+  .finish-card {
+    padding: 1.75rem 1.25rem;
+  }
+  .finish-actions {
+    flex-direction: column;
+  }
+  .finish-actions .btn {
+    width: 100%;
   }
 }

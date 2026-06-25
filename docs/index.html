@@ -17,7 +17,6 @@
       <a class="active" href="index.html">Home</a>
       <a href="docs.html">Docs</a>
       <a href="examples.html">Examples</a>
-      <a href="install.html">Install</a>
       <a href="about.html">About</a>
     </nav>
   </header>
@@ -32,7 +31,7 @@
       <h1>Period<span class="period">.</span></h1>
       <p>An English programming language designed to read like an article. Every statement ends with a period, giving your code a calm, literary rhythm.</p>
       <div class="cta">
-        <a class="btn btn-primary" href="install.html">Download</a>
+        <a class="btn btn-primary" href="https://github.com/ExploreMaths/Period/releases/latest/download/Period-Setup.exe" data-download>Download</a>
         <a class="btn btn-secondary" href="docs.html">Read the Docs</a>
       </div>
     </section>
@@ -208,7 +207,7 @@ tell ada <span class="keyword">to</span> greet <span class="keyword">with</span>
       <h2>Start writing in Period.</h2>
       <p>Download the latest release, install it in seconds, and write your first sentence-like program.</p>
       <div class="cta">
-        <a class="btn btn-primary" href="install.html">Download Period</a>
+        <a class="btn btn-primary" href="https://github.com/ExploreMaths/Period/releases/latest/download/Period-Setup.exe" data-download>Download Period</a>
         <a class="btn btn-secondary" href="docs.html">Explore Docs</a>
       </div>
     </section>
@@ -591,6 +590,24 @@ tell ada <span class="keyword">to</span> greet <span class="keyword">with</span>
 
       return () => cleanups.forEach((fn) => fn());
     });
+  </script>
+  <script>
+    (function () {
+      const downloadUrl = 'https://github.com/ExploreMaths/Period/releases/latest/download/Period-Setup.exe';
+      document.querySelectorAll('a[data-download]').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          const link = document.createElement('a');
+          link.href = downloadUrl;
+          link.download = 'Period-Setup.exe';
+          link.style.display = 'none';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          window.location.href = 'finish_install.html?started=1';
+        });
+      });
+    })();
   </script>
 <script type="module" src="bubble-menu.js"></script>
 </body>
