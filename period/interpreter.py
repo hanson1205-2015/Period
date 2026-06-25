@@ -194,6 +194,24 @@ class Interpreter:
             return f"instance of {value.klass.name}"
         return "unknown"
 
+    def _check_type(self, value: Any, expected: str, span: SourceSpan):
+        """Raise a runtime error if value does not match the expected type annotation."""
+        if expected is None:
+            return
+        actual = self._type_name(value, span)
+        if expected == actual:
+            return
+        # 'number' accepts both integer and number.
+        if expected == "number" and actual == "integer":
+            return
+        # Class annotations match instances of that class.
+        if actual == f"instance of {expected}":
+            return
+        raise RuntimeError(
+            f"Type mismatch: expected '{expected}' but got '{actual}'.",
+            span,
+        )
+
     def _read_input(self, span: SourceSpan) -> str:
         try:
             return input()
@@ -441,12 +459,15 @@ class Interpreter:
                     expr.span,
                 )
             env = Environment(callee.closure)
-            for param, arg in zip(decl.parameters, arguments):
+            for param, param_type, arg in zip(decl.parameters, decl.parameter_types, arguments):
+                self._check_type(arg, param_type, expr.span)
                 env.define(param, arg)
             try:
                 self.execute_block(decl.body, env)
             except ReturnValue as ret:
+                self._check_type(ret.value, decl.return_type, expr.span)
                 return ret.value
+            self._check_type(None, decl.return_type, expr.span)
             return None
 
         raise RuntimeError(f"Cannot call {self._type_name(callee, expr.span)}.", expr.span)
@@ -502,7 +523,8 @@ class Interpreter:
                 )
             env = Environment(self.environment)
             env.define("this", instance)
-            for param, arg in zip(init.parameters, arguments):
+            for param, param_type, arg in zip(init.parameters, init.parameter_types, arguments):
+                self._check_type(arg, param_type, expr.span)
                 env.define(param, arg)
             try:
                 self.execute_block(init.body, env)
@@ -527,11 +549,13 @@ class Interpreter:
             )
         env = Environment(self.environment)
         env.define("this", obj)
-        for param, arg in zip(method.parameters, arguments):
+        for param, param_type, arg in zip(method.parameters, method.parameter_types, arguments):
+            self._check_type(arg, param_type, expr.span)
             env.define(param, arg)
         try:
             self.execute_block(method.body, env)
         except ReturnValue as ret:
+            self._check_type(ret.value, method.return_type, expr.span)
             return ret.value
         return None
 

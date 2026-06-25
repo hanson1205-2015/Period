@@ -57,6 +57,7 @@ class TokenType(Enum):
     GREATER = auto()
     LESS_EQUAL = auto()
     GREATER_EQUAL = auto()
+    ARROW = auto()
     LPAREN = auto()
     RPAREN = auto()
     LBRACKET = auto()
@@ -205,7 +206,10 @@ class Lexer:
             self._add_token(TokenType.PLUS)
             return
         if char == "-":
-            self._add_token(TokenType.MINUS)
+            if self._match(">"):
+                self._add_token(TokenType.ARROW)
+            else:
+                self._add_token(TokenType.MINUS)
             return
         if char == "*":
             if self._match("*"):

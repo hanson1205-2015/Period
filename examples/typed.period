@@ -1,0 +1,10 @@
+-- Optional type annotations.
+define add with number a, number b -> number:
+    return a + b.
+
+show add with 3, 4.
+
+define greet with string name -> string:
+    return "Hello, " + name + "!".
+
+show greet with "Period".

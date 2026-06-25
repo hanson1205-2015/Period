@@ -75,6 +75,19 @@
     </section>
 
     <section>
+      <h2>Type Annotations</h2>
+      <pre><code><span class="comment">-- Type annotations are optional.</span>
+<span class="keyword">define</span> add <span class="keyword">with</span> number a, number b -> number<span class="period">:</span>
+    <span class="keyword">return</span> a + b<span class="period">.</span>
+
+<span class="keyword">define</span> greet <span class="keyword">with</span> string name -> string<span class="period">:</span>
+    <span class="keyword">return</span> <span class="string">"Hello, "</span> + name + <span class="string">"!"</span><span class="period">.</span>
+
+<span class="builtin">show</span> add <span class="keyword">with</span> <span class="number">3</span>, <span class="number">4</span><span class="period">.</span>
+<span class="builtin">show</span> greet <span class="keyword">with</span> <span class="string">"Period"</span><span class="period">.</span></code></pre>
+    </section>
+
+    <section>
       <h2>Read and Greet</h2>
       <pre><code><span class="builtin">show</span> <span class="string">"What is your name?"</span><span class="period">.</span>
 <span class="keyword">let</span> name <span class="keyword">be</span> input<span class="period">.</span>

@@ -9,6 +9,8 @@ from period.interpreter import Interpreter
 from period.lexer import Lexer
 from period.lsp_server import LSPServer
 from period.parser import Parser
+from period.semantic import SemanticChecker
+from period.semantic import SemanticChecker
 
 
 def format_diagnostics(source: str, diagnostics, filename: str = "<stdin>") -> str:
@@ -35,6 +37,9 @@ def run_source(source: str, filename: str = "<stdin>", print_output: bool = True
     parser = Parser(tokens, source, filename)
     program = parser.parse()
     diagnostics.extend(parser.diagnostics)
+
+    checker = SemanticChecker()
+    diagnostics.extend(checker.check(program))
 
     if diagnostics:
         print(format_diagnostics(source, diagnostics, filename), file=sys.stderr)

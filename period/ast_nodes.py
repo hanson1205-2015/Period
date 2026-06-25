@@ -157,12 +157,15 @@ class ReturnStmt(Stmt):
 class DefineStmt(Stmt):
     name: str
     parameters: List[str]
+    parameter_types: List[Optional[str]]
+    return_type: Optional[str]
     body: List[Stmt]
 
 
 @dataclass
 class InitStmt(Stmt):
     parameters: List[str]
+    parameter_types: List[Optional[str]]
     body: List[Stmt]
 
 

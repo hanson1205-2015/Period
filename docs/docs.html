@@ -33,6 +33,7 @@
         <li><a href="#conditionals">Conditionals</a></li>
         <li><a href="#loops">Loops</a></li>
         <li><a href="#functions">Functions</a></li>
+        <li><a href="#types">Type Annotations</a></li>
         <li><a href="#classes">Classes</a></li>
         <li><a href="#builtins">Built-ins</a></li>
         <li><a href="#repl">REPL</a></li>
@@ -169,6 +170,17 @@ greet <span class="keyword">with</span> <span class="string">"World"</span><span
         <span class="keyword">return</span> <span class="number">1</span><span class="period">.</span>
     <span class="keyword">return</span> n * factorial <span class="keyword">with</span> (n - <span class="number">1</span>)<span class="period">.</span></code></pre>
       <p>Parameters are passed by value. Functions close over the environment in which they are defined.</p>
+    </section>
+
+    <section id="types">
+      <h2>Type Annotations</h2>
+      <p>Type annotations are optional. Use them on parameters and return values to get runtime type checks.</p>
+      <pre><code><span class="keyword">define</span> add <span class="keyword">with</span> number a, number b -> number<span class="period">:</span>
+    <span class="keyword">return</span> a + b<span class="period">.</span>
+
+<span class="keyword">define</span> greet <span class="keyword">with</span> string name -> string<span class="period">:</span>
+    <span class="keyword">return</span> <span class="string">"Hello, "</span> + name + <span class="string">"!"</span><span class="period">.</span></code></pre>
+      <p>Built-in type names are <code>nothing</code>, <code>boolean</code>, <code>integer</code>, <code>number</code>, <code>string</code>, <code>list</code>, <code>dictionary</code>, <code>function</code>, and <code>class</code>. You can also use a class name to match instances of that class.</p>
     </section>
 
     <section id="classes">
