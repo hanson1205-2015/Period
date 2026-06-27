@@ -159,4 +159,4 @@ A Windows installer is planned for future releases. For 1.0.0, build from source
 
 ### Full commit
 
-`7ac9a47`
+`f06769d`
