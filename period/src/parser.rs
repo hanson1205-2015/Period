@@ -242,6 +242,21 @@ impl Parser {
         self.skip_newlines();
         self.expect(TokenKind::Indent, "expected indented block");
         let mut stmts = Vec::new();
+        // A leading string literal that is not followed by '.' is treated as a
+        // docstring, allowing stub/interface files to write:
+        //   define f with x:
+        //       "doc"
+        //       ...
+        self.skip_newlines();
+        if !self.check(&TokenKind::Dedent) && !self.check(&TokenKind::Eof) {
+            if let TokenKind::String(s) = &self.peek(0).kind {
+                if !matches!(self.peek(1).kind, TokenKind::Dot) {
+                    let s = s.clone();
+                    self.advance();
+                    stmts.push(Stmt::Expr(Expr::String(s)));
+                }
+            }
+        }
         loop {
             self.skip_newlines();
             if self.check(&TokenKind::Dedent) || self.check(&TokenKind::Eof) { break; }

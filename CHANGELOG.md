@@ -29,6 +29,7 @@
 - The Windows installer now registers `.periodi` files as "Period Interface File" with the Period icon and open command.
 - The VS Code: extension now associates `.periodi` files with the Period language and contributes a "Period Icons" file icon theme for `.period` / `.periodi` files.
 - Zero-argument user-defined functions are now auto-called when used as values, matching zero-argument built-ins.
+- A leading string literal inside a block is now treated as a docstring and does not require a trailing `.`, enabling stub/interface files to declare documentation before `...`.
 - The installer now uninstalls the old VS Code extension before installing the new one, preventing version-downgrade issues.
 
 ### Full commit

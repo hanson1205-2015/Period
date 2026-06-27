@@ -225,7 +225,7 @@ tell ada <span class="keyword">to</span> greet <span class="keyword">with</span>
         <li><code>list</code> &mdash; list utilities (source in <code>period/stdlib/list.period</code>)</li>
         <li><code>text</code> &mdash; text utilities (source in <code>period/stdlib/text.period</code>)</li>
       </ul>
-      <p>If a <code>.period</code> source file is missing, the native built-in implementation is used as a fallback. You can also write <code>.periodi</code> interface files (like Python <code>.pyi</code> stubs) that declare exports without implementation; the LSP reads them for completions and hover, while the runtime ignores them. Use <code>...</code> as a placeholder body:</p>
+      <p>If a <code>.period</code> source file is missing, the native built-in implementation is used as a fallback. You can also write <code>.periodi</code> interface files (like Python <code>.pyi</code> stubs) that declare exports without implementation; the LSP reads them for completions and hover, while the runtime ignores them. Use <code>...</code> as a placeholder body. A leading string literal in a block is treated as a docstring and does not need a trailing <code>.</code>:</p>
       <pre><code><span class="keyword">define</span> sin <span class="keyword">with</span> value <span class="keyword">returns</span> number<span class="period">:</span>
     <span class="string">"Return the sine of a value."</span>
     <span class="keyword">...</span></code></pre>
