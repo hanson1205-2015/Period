@@ -484,6 +484,36 @@ fn find_token(tokens: &[crate::lexer::Token], pos: lsp_types::Position) -> Optio
     None
 }
 
+fn format_params(params: &[(String, Option<String>)]) -> String {
+    params
+        .iter()
+        .map(|(n, t)| match t {
+            Some(ty) => format!("<{}: {}>", n, ty),
+            None => format!("<{}>", n),
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+fn function_detail(name: &str, params: &[(String, Option<String>)], return_type: &Option<String>) -> String {
+    let param_str = format_params(params);
+    let ret = return_type.clone().unwrap_or_else(|| "unknown".to_string());
+    if params.is_empty() {
+        format!("{} -> {}", name, ret)
+    } else {
+        format!("{} with {} -> {}", name, param_str, ret)
+    }
+}
+
+fn init_detail(name: &str, params: &[(String, Option<String>)]) -> String {
+    let param_str = format_params(params);
+    if params.is_empty() {
+        name.to_string()
+    } else {
+        format!("{} with {}", name, param_str)
+    }
+}
+
 fn index_program(program: &Program) -> Vec<SymbolInfo> {
     let mut symbols = Vec::new();
     let mut imports = Vec::new();
@@ -517,18 +547,9 @@ fn index_program(program: &Program) -> Vec<SymbolInfo> {
                 });
             }
             Stmt::Define { name, params, return_type, docstring, .. } => {
-                let param_str = params
-                    .iter()
-                    .map(|(n, t)| match t {
-                        Some(ty) => format!("{}: {}", n, ty),
-                        None => n.clone(),
-                    })
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                let ret = return_type.clone().unwrap_or_else(|| "unknown".to_string());
                 symbols.push(SymbolInfo {
                     name: name.clone(),
-                    detail: format!("define {}({}) -> {}", name, param_str, ret),
+                    detail: function_detail(name, params, return_type),
                     docstring: docstring.clone(),
                     kind: CompletionItemKind::FUNCTION,
                 });
@@ -541,36 +562,18 @@ fn index_program(program: &Program) -> Vec<SymbolInfo> {
                     kind: CompletionItemKind::CLASS,
                 });
                 if let Some(init) = init {
-                    let param_str = init
-                        .params
-                        .iter()
-                        .map(|(n, t)| match t {
-                            Some(ty) => format!("{}: {}", n, ty),
-                            None => n.clone(),
-                        })
-                        .collect::<Vec<_>>()
-                        .join(", ");
                     symbols.push(SymbolInfo {
                         name: format!("{}.__init__", name),
-                        detail: format!("init {}({})", name, param_str),
+                        detail: init_detail(name, &init.params),
                         docstring: init.docstring.clone(),
                         kind: CompletionItemKind::CONSTRUCTOR,
                     });
                 }
                 for m in methods {
                     if let Stmt::Define { name: mname, params, return_type, docstring, .. } = m {
-                        let param_str = params
-                            .iter()
-                            .map(|(n, t)| match t {
-                                Some(ty) => format!("{}: {}", n, ty),
-                                None => n.clone(),
-                            })
-                            .collect::<Vec<_>>()
-                            .join(", ");
-                        let ret = return_type.clone().unwrap_or_else(|| "unknown".to_string());
                         symbols.push(SymbolInfo {
                             name: mname.clone(),
-                            detail: format!("define {}({}) -> {}", mname, param_str, ret),
+                            detail: function_detail(mname, params, return_type),
                             docstring: docstring.clone(),
                             kind: CompletionItemKind::METHOD,
                         });
@@ -642,18 +645,9 @@ fn collect_symbols(stmt: &Stmt, func_returns: &HashMap<String, String>, symbols:
             });
         }
         Stmt::Define { name, params, return_type, docstring, body } => {
-            let param_str = params
-                .iter()
-                .map(|(n, t)| match t {
-                    Some(ty) => format!("{}: {}", n, ty),
-                    None => n.clone(),
-                })
-                .collect::<Vec<_>>()
-                .join(", ");
-            let ret = return_type.clone().unwrap_or_else(|| "unknown".to_string());
             symbols.push(SymbolInfo {
                 name: name.clone(),
-                detail: format!("define {}({}) -> {}", name, param_str, ret),
+                detail: function_detail(name, params, return_type),
                 docstring: docstring.clone(),
                 kind: CompletionItemKind::FUNCTION,
             });
@@ -667,18 +661,9 @@ fn collect_symbols(stmt: &Stmt, func_returns: &HashMap<String, String>, symbols:
                 kind: CompletionItemKind::CLASS,
             });
             if let Some(init) = init {
-                let param_str = init
-                    .params
-                    .iter()
-                    .map(|(n, t)| match t {
-                        Some(ty) => format!("{}: {}", n, ty),
-                        None => n.clone(),
-                    })
-                    .collect::<Vec<_>>()
-                    .join(", ");
                 symbols.push(SymbolInfo {
                     name: format!("{}.__init__", name),
-                    detail: format!("init {}({})", name, param_str),
+                    detail: init_detail(name, &init.params),
                     docstring: init.docstring.clone(),
                     kind: CompletionItemKind::CONSTRUCTOR,
                 });
@@ -830,18 +815,9 @@ fn stdlib_module_exports(module: &str) -> Option<Vec<SymbolInfo>> {
                 });
             }
             Stmt::Define { name, params, return_type, docstring, .. } => {
-                let param_str = params
-                    .iter()
-                    .map(|(n, t)| match t {
-                        Some(ty) => format!("{}: {}", n, ty),
-                        None => n.clone(),
-                    })
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                let ret = return_type.clone().unwrap_or_else(|| "unknown".to_string());
                 exports.push(SymbolInfo {
                     name: name.clone(),
-                    detail: format!("{}::define {}({}) -> {}", module, name, param_str, ret),
+                    detail: format!("{}::{}", module, function_detail(name, params, return_type)),
                     docstring: docstring.clone(),
                     kind: CompletionItemKind::FUNCTION,
                 });
@@ -854,36 +830,18 @@ fn stdlib_module_exports(module: &str) -> Option<Vec<SymbolInfo>> {
                     kind: CompletionItemKind::CLASS,
                 });
                 if let Some(init) = init {
-                    let param_str = init
-                        .params
-                        .iter()
-                        .map(|(n, t)| match t {
-                            Some(ty) => format!("{}: {}", n, ty),
-                            None => n.clone(),
-                        })
-                        .collect::<Vec<_>>()
-                        .join(", ");
                     exports.push(SymbolInfo {
                         name: format!("{}.__init__", name),
-                        detail: format!("{}::init {}({})", module, name, param_str),
+                        detail: format!("{}::{}", module, init_detail(name, &init.params)),
                         docstring: init.docstring.clone(),
                         kind: CompletionItemKind::CONSTRUCTOR,
                     });
                 }
                 for m in methods {
                     if let Stmt::Define { name: mname, params, return_type, docstring, .. } = m {
-                        let param_str = params
-                            .iter()
-                            .map(|(n, t)| match t {
-                                Some(ty) => format!("{}: {}", n, ty),
-                                None => n.clone(),
-                            })
-                            .collect::<Vec<_>>()
-                            .join(", ");
-                        let ret = return_type.clone().unwrap_or_else(|| "unknown".to_string());
                         exports.push(SymbolInfo {
                             name: mname.clone(),
-                            detail: format!("{}::define {}({}) -> {}", module, mname, param_str, ret),
+                            detail: format!("{}::{}", module, function_detail(mname, params, return_type)),
                             docstring: docstring.clone(),
                             kind: CompletionItemKind::METHOD,
                         });
@@ -949,9 +907,9 @@ fn all_builtins() -> Vec<SymbolInfo> {
 
 fn builtin_fn(name: &str, param: &str, ret: &str, doc: &str) -> SymbolInfo {
     let detail = if param.is_empty() {
-        format!("{}() -> {}", name, ret)
+        format!("{} -> {}", name, ret)
     } else {
-        format!("{}({}: any) -> {}", name, param, ret)
+        format!("{} with <{}> -> {}", name, param, ret)
     };
     SymbolInfo {
         name: name.to_string(),
