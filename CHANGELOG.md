@@ -17,6 +17,12 @@
 - Improved hover: variable/function signature is shown as a syntax-highlighted `period` code block on the first line, variables defined inside blocks (e.g. inside `while`) also show hover, and keywords like `show` now have hover docs.
 - Fixed hover token-length matching for multi-character keywords (`show`, `returns`, etc.).
 - Restored `period/stdlib/` as a directory of `.period` source modules that the runtime loads on `import`. Built-in Rust modules (`math`, `string`, `random`, `time`) remain as fallback. Added `list` and `text` example modules.
+- Fixed syntax gaps found in docs.html audit:
+  - Keywords are now case-insensitive (`Let`, `LET`, `let`).
+  - `true`/`false` are now boolean values and `nothing` is the nothing value, not numbers.
+  - Zero-argument built-ins like `input` can be used without `with`.
+  - `import` resolves local modules from the importing file's directory, a `lib/` subfolder, or relative paths (`.helper`, `..helper`).
+  - Updated the grammar reference and module list in `docs/docs.html` to match the Rust implementation.
 - The installer now uninstalls the old VS Code extension before installing the new one, preventing version-downgrade issues.
 
 ### Full commit

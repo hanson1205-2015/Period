@@ -7,7 +7,7 @@ pub enum TokenKind {
     Define, With, Return, Be, To, And, Or, Not,
     Class, Init, New, Tell, The, Of, Import, From, Returns,
     // Literals
-    Number(f64), String(String), Ident(String),
+    Number(f64), String(String), Ident(String), Bool(bool), Nothing,
     // Operators
     Plus, Minus, Star, Slash, Percent, Power,
     EqEq, NotEq, Less, Greater, LessEq, GreaterEq,
@@ -177,7 +177,8 @@ impl<'a> Lexer<'a> {
             d if d.is_ascii_digit() => Some(TokenKind::Number(self.read_number())),
             a if a.is_alphabetic() || a == '_' => {
                 let name = self.read_identifier();
-                let kind = match name.as_str() {
+                let lower = name.to_ascii_lowercase();
+                let kind = match lower.as_str() {
                     "let" => TokenKind::Let, "set" => TokenKind::Set, "show" => TokenKind::Show,
                     "if" => TokenKind::If, "then" => TokenKind::Then, "otherwise" => TokenKind::Otherwise,
                     "while" => TokenKind::While, "repeat" => TokenKind::Repeat,
@@ -190,9 +191,9 @@ impl<'a> Lexer<'a> {
                     "the" => TokenKind::The, "of" => TokenKind::Of,
                     "import" => TokenKind::Import, "from" => TokenKind::From,
                     "returns" => TokenKind::Returns,
-                    "true" => TokenKind::Number(1.0),
-                    "false" => TokenKind::Number(0.0),
-                    "nothing" => TokenKind::Number(0.0),
+                    "true" => TokenKind::Bool(true),
+                    "false" => TokenKind::Bool(false),
+                    "nothing" => TokenKind::Nothing,
                     _ => TokenKind::Ident(name),
                 };
                 Some(kind)

@@ -393,6 +393,8 @@ fn token_len(kind: &TokenKind) -> u32 {
         TokenKind::Ident(s) => s.len() as u32,
         TokenKind::String(s) => s.len() as u32,
         TokenKind::Number(n) => format!("{}", n).len() as u32,
+        TokenKind::Bool(b) => if *b { 4 } else { 5 },
+        TokenKind::Nothing => 7,
         TokenKind::Let => 3,
         TokenKind::Set => 3,
         TokenKind::Show => 4,
@@ -937,7 +939,8 @@ fn check_program(program: &Program) -> Vec<Diagnostic> {
             Stmt::Import(paths) => {
                 imports.extend(paths.iter().cloned());
                 for path in paths {
-                    global.push(path.clone());
+                    let exposed = path.rsplit('.').next().unwrap_or(path);
+                    global.push(exposed.to_string());
                     global.extend(module_exports_names(path));
                 }
             }

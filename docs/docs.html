@@ -218,14 +218,12 @@ tell ada <span class="keyword">to</span> greet <span class="keyword">with</span>
       <p>Using an unqualified name that is exported by more than one imported module is an error.</p>
       <p>Period ships with the following built-in modules:</p>
       <ul>
-        <li><code>math</code> &mdash; trigonometry, roots, rounding, and constants</li>
-        <li><code>io</code> &mdash; read and write files</li>
-        <li><code>random</code> &mdash; random numbers, choice, and shuffle</li>
-        <li><code>string</code> &mdash; join, split, trim, case conversion, replace, contains, substring</li>
-        <li><code>time</code> &mdash; timestamps, sleeping, and formatting</li>
-        <li><code>json</code> &mdash; parse and stringify JSON</li>
-        <li><code>os</code> &mdash; directory listing, file existence checks, and path operations</li>
+        <li><code>math</code> &mdash; trigonometry, roots, and rounding</li>
+        <li><code>random</code> &mdash; random numbers</li>
+        <li><code>string</code> &mdash; case conversion</li>
+        <li><code>time</code> &mdash; timestamps</li>
       </ul>
+      <p>Additional standard-library modules can be placed in <code>period/stdlib/</code> (or next to the <code>period.exe</code> executable) and loaded with <code>import</code>. The current distribution includes <code>list</code> and <code>text</code> as examples.</p>
       <p>Local modules are loaded from the same directory as the importing file, or from a project <code>lib/</code> folder. Relative imports such as <code>.helper</code> and <code>..helper</code> are also supported.</p>
     </section>
 
@@ -279,10 +277,8 @@ Type a statement ending with '.' and press Enter. Use Ctrl+C or type 'exit.' to 
       <ul>
         <li>Syntax highlighting for <code>.period</code> files</li>
         <li>LSP-powered diagnostics with red/yellow squiggles</li>
-        <li>Hover information for keywords and built-ins</li>
+        <li>Hover information for keywords, built-ins, and user-defined symbols</li>
         <li>Auto-completion for keywords, built-ins, and defined names</li>
-        <li>Document formatting with automatic indentation</li>
-        <li>Go to Definition for variables and functions</li>
       </ul>
       <p>If the language server is not found automatically, set <code>period.languageServerPath</code> in VS Code settings to the full path of <code>period.exe</code>.</p>
     </section>
@@ -304,18 +300,18 @@ Type a statement ending with '.' and press Enter. Use Ctrl+C or type 'exit.' to 
 statement      := "let" &lt;identifier&gt; "be" &lt;expression&gt; "."
                 | "set" &lt;expression&gt; "to" &lt;expression&gt; "."
                 | "show" &lt;expression&gt; "."
-                | "if" &lt;expression&gt; "then" "." &lt;block&gt; ("otherwise" "." &lt;block&gt;)?
-                | "while" &lt;expression&gt; "repeat" "." &lt;block&gt;
-                | "for" &lt;identifier&gt; "in" &lt;expression&gt; "repeat" "." &lt;block&gt;
-                | "define" &lt;identifier&gt; ("with" &lt;params&gt;)? "." &lt;block&gt;
-                | "class" &lt;identifier&gt; "." &lt;class-body&gt;
+                | "if" &lt;expression&gt; (",")? "then" ":" &lt;block&gt; ("otherwise" ":" &lt;block&gt;)?
+                | "while" &lt;expression&gt; "repeat" ":" &lt;block&gt;
+                | "for" &lt;identifier&gt; "in" &lt;expression&gt; "repeat" ":" &lt;block&gt;
+                | "define" &lt;identifier&gt; ("with" &lt;params&gt;)? ("returns" &lt;type&gt;)? ":" &lt;block&gt;
+                | "class" &lt;identifier&gt; ":" &lt;class-body&gt;
                 | "return" &lt;expression&gt;? "."
                 | "import" &lt;module-path&gt; ("," &lt;module-path&gt;)* ("and" &lt;module-path&gt;)? "."
                 | &lt;expression&gt; "."
 block          := &lt;indent&gt; &lt;statement&gt;+ &lt;dedent&gt;
 class-body     := &lt;indent&gt; (&lt;init&gt; | &lt;method&gt;)+ &lt;dedent&gt;
-init           := "init" ("with" &lt;params&gt;)? "." &lt;block&gt;
-method         := "define" &lt;identifier&gt; ("with" &lt;params&gt;)? "." &lt;block&gt;
+init           := "init" ("with" &lt;params&gt;)? ":" &lt;block&gt;
+method         := "define" &lt;identifier&gt; ("with" &lt;params&gt;)? ("returns" &lt;type&gt;)? ":" &lt;block&gt;
 module-path    := "."* &lt;identifier&gt; ("." &lt;identifier&gt;)*
 expression     := &lt;or-expr&gt;
 or-expr        := &lt;and-expr&gt; ("or" &lt;and-expr&gt;)*
@@ -327,7 +323,7 @@ multiplicative := &lt;power&gt; (("*"|"/"|"%") &lt;power&gt;)*
 power          := &lt;unary&gt; ("**" &lt;power&gt;)?
 unary          := ("-"|"not") &lt;unary&gt; | &lt;call&gt;
 call           := &lt;primary&gt; ("from" &lt;module-path&gt;)? ("with" &lt;arguments&gt;)? ("[" &lt;expression&gt; "]")*
-primary        := &lt;number&gt; | &lt;string&gt; | "true" | "false" | "nothing" | "input" | "this"
+primary        := &lt;number&gt; | &lt;string&gt; | &lt;bool&gt; | "nothing" | "input" | "this"
                 | &lt;identifier&gt; | "(" &lt;expression&gt; ")" | "[" &lt;arguments&gt;? "]" | "{" &lt;pairs&gt;? "}"
                 | "new" &lt;primary&gt; ("with" &lt;arguments&gt;)?
                 | "tell" &lt;expression&gt; "to" &lt;identifier&gt; ("with" &lt;arguments&gt;)?

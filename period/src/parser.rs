@@ -429,6 +429,8 @@ impl Parser {
         match self.peek(0).kind.clone() {
             TokenKind::Number(n) => { self.advance(); Expr::Number(n) }
             TokenKind::String(s) => { self.advance(); Expr::String(s) }
+            TokenKind::Bool(b) => { self.advance(); Expr::Bool(b) }
+            TokenKind::Nothing => { self.advance(); Expr::Nothing }
             TokenKind::Ident(name) => {
                 let span = self.peek(0).span.clone();
                 self.advance();

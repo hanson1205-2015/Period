@@ -207,6 +207,7 @@ pub struct Interpreter {
     pub output: Vec<String>,
     modules: RefCell<HashMap<String, Rc<RefCell<Environment>>>>,
     silent: bool,
+    current_path: Option<PathBuf>,
 }
 
 impl Interpreter {
@@ -214,7 +215,11 @@ impl Interpreter {
         let globals = Environment::new();
         install_builtins(&*globals.borrow());
         let env = globals.clone();
-        Self { globals, env, output: Vec::new(), modules: RefCell::new(HashMap::new()), silent: false }
+        Self { globals, env, output: Vec::new(), modules: RefCell::new(HashMap::new()), silent: false, current_path: None }
+    }
+
+    pub fn set_current_path(&mut self, path: impl Into<PathBuf>) {
+        self.current_path = Some(path.into());
     }
 
     pub fn interpret(&mut self, program: &Program) -> Result<(), Control> {
@@ -351,7 +356,12 @@ impl Interpreter {
             Expr::Bool(b) => Ok(Value::Bool(*b)),
             Expr::Nothing => Ok(Value::Nothing),
             Expr::Variable { name, .. } => {
-                self.env.borrow().get(name).ok_or_else(|| Control::Error(format!("Undefined variable '{}'", name)))
+                let value = self.env.borrow().get(name).ok_or_else(|| Control::Error(format!("Undefined variable '{}'", name)))?;
+                // Zero-argument built-ins (like input) are called automatically when used as a value.
+                if let Value::BuiltIn { min_arity: 0, max_arity: 0, func, name: builtin_name } = &value {
+                    return func(&[]).map_err(|e| Control::Error(format!("{}: {}", builtin_name, e)));
+                }
+                Ok(value)
             }
             Expr::Binary { op, left, right } => {
                 let l = self.evaluate(left)?;
@@ -631,7 +641,7 @@ impl Interpreter {
             return Ok(());
         }
 
-        let env = if let Some(file) = find_module_file(path) {
+        let env = if let Some(file) = find_module_file(path, self.current_path.as_deref()) {
             self.load_period_module(path, &file)?
         } else {
             match path {
@@ -644,7 +654,8 @@ impl Interpreter {
         };
 
         self.modules.borrow_mut().insert(path.to_string(), env.clone());
-        self.env.borrow().define(path, Value::Module { name: path.to_string(), env: env.clone() });
+        let exposed_name = path.rsplit('.').next().unwrap_or(path);
+        self.env.borrow().define(exposed_name, Value::Module { name: path.to_string(), env: env.clone() });
         for (name, value) in env.borrow().values.borrow().iter() {
             self.env.borrow().define(name, value.clone());
         }
@@ -690,15 +701,59 @@ fn stdlib_locations() -> Vec<PathBuf> {
     locs
 }
 
-fn find_module_file(module: &str) -> Option<PathBuf> {
-    let file = format!("{}.period", module);
-    for loc in stdlib_locations() {
-        let path = loc.join(&file);
-        if path.is_file() {
-            return Some(path);
+fn find_module_file(module: &str, current_path: Option<&std::path::Path>) -> Option<PathBuf> {
+    for candidate in module_file_candidates(module, current_path) {
+        if candidate.is_file() {
+            return Some(candidate);
         }
     }
     None
+}
+
+fn module_file_candidates(module: &str, current_path: Option<&std::path::Path>) -> Vec<PathBuf> {
+    let mut candidates = Vec::new();
+
+    // Local modules relative to the importing file.
+    if let Some(current) = current_path {
+        let dir = if current.is_file() {
+            current.parent().unwrap_or(current)
+        } else {
+            current
+        };
+
+        let (relative_depth, parts) = parse_relative_module(module);
+        let mut base = dir.to_path_buf();
+        for _ in 0..relative_depth {
+            base = base.join("..");
+        }
+        let local_path = if parts.is_empty() {
+            base.clone()
+        } else {
+            base.join(parts.join(std::path::MAIN_SEPARATOR_STR))
+        };
+        candidates.push(local_path.with_extension("period"));
+        candidates.push(base.join("lib").join(parts.join(std::path::MAIN_SEPARATOR_STR)).with_extension("period"));
+    }
+
+    // Standard library locations.
+    let file = format!("{}.period", module);
+    for loc in stdlib_locations() {
+        candidates.push(loc.join(&file));
+    }
+
+    candidates
+}
+
+fn parse_relative_module(module: &str) -> (usize, Vec<&str>) {
+    let dots = module.chars().take_while(|&c| c == '.').count();
+    let rest = &module[dots..];
+    let parts: Vec<&str> = if rest.is_empty() {
+        Vec::new()
+    } else {
+        rest.split('.').collect()
+    };
+    // ".helper"  -> depth 0 (current dir), "..helper" -> depth 1 (one level up), etc.
+    (dots.saturating_sub(1), parts)
 }
 
 fn parse_module(source: &str) -> Result<Program, String> {

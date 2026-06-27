@@ -9,6 +9,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::env;
 use std::fs;
 use std::hash::{Hash, Hasher};
+use std::path::PathBuf;
 use std::process::{self, Command, Stdio};
 
 fn main() {
@@ -62,11 +63,12 @@ fn main() {
     }
 
     // General path: tree-walking interpreter.
-    run_interpreter(&program);
+    run_interpreter(&program, PathBuf::from(path));
 }
 
-fn run_interpreter(program: &ast::Program) -> ! {
+fn run_interpreter(program: &ast::Program, path: PathBuf) -> ! {
     let mut interp = interpreter::Interpreter::new();
+    interp.set_current_path(path);
     if let Err(ctrl) = interp.interpret(program) {
         eprintln!("runtime error: {:?}", ctrl);
         process::exit(1);
