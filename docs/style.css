@@ -541,6 +541,14 @@ pre code {
   z-index: 50;
 }
 
+@media (min-width: 861px) {
+  .sidebar {
+    top: 5rem;
+    height: calc(100vh - 5rem);
+    padding: 1.25rem;
+  }
+}
+
 .sidebar h4 {
   margin: 0 0 1rem;
   font-size: 0.85rem;
