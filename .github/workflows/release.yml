@@ -28,19 +28,16 @@ jobs:
           $ver = "${{ steps.ver.outputs.version }}"
           (Get-Content installer\period.iss) -replace '#define MyAppVersion "[^"]*"', "#define MyAppVersion `"$ver`"" | Set-Content installer\period.iss
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
 
-      - name: Install Python dependencies
+      - name: Build Period executable
+        shell: pwsh
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Build compiler executable with Nuitka
-        run: |
-          python -m nuitka --standalone --onefile --assume-yes-for-downloads --windows-icon-from-ico=assets/period.ico --company-name="Period Language" --product-name="Period" --file-version=${{ steps.ver.outputs.file_version }} --product-version=${{ steps.ver.outputs.file_version }} --output-dir=dist --output-filename=period compiler.py
+          New-Item -ItemType Directory -Force -Path dist
+          cd period
+          cargo build --release
+          Copy-Item ..\period\target\release\period.exe ..\dist\period.exe
 
       - name: Set up Node.js
         uses: actions/setup-node@v4

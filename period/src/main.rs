@@ -12,6 +12,10 @@ use std::process::{self, Command};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
+    if args.len() == 2 && (args[1] == "--version" || args[1] == "-v") {
+        println!("period {}", env!("CARGO_PKG_VERSION"));
+        process::exit(0);
+    }
     if args.len() != 2 {
         eprintln!("usage: period <file.period>");
         process::exit(1);
