@@ -34,11 +34,20 @@ period
 
 ## Building from Source
 
+The language is implemented entirely in Rust under `period-rs`.
+
 ```bash
-pip install -r requirements.txt
-python build.py                 # Builds dist/period.exe with Nuitka
-cd vscode-extension && npx @vscode/vsce package  # Builds the VSIX
+cd period-rs
+cargo build --release
 ```
+
+This produces `target/release/period.exe`. Run a program with:
+
+```bash
+period hello.period
+```
+
+Numeric programs are automatically compiled to native code via a Rust fast path; richer programs fall back to the built-in interpreter.
 
 ## Documentation
 

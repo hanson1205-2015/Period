@@ -1,0 +1,13 @@
+define factorial with n:
+    let result be 1.
+    while n > 1 repeat:
+        set result to result * n.
+        set n to n - 1.
+    return result.
+
+let total be 0.
+let i be 0.
+while i < 10000000 repeat:
+    set total to total + factorial with 10.
+    set i to i + 1.
+show total.

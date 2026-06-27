@@ -1,0 +1,6 @@
+import math, string.
+
+show "Hello".
+show upper from string with "period".
+show sqrt from math with 16.
+show sin from math with 0.
