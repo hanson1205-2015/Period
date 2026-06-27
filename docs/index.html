@@ -235,11 +235,12 @@ tell ada <span class="keyword">to</span> greet <span class="keyword">with</span>
           const base = data[baseIndex];
           const meta = chart.getDatasetMeta(0);
 
-          function drawText(text, tx, ty, color) {
-            ctx.textAlign = 'center';
+          function drawText(text, tx, ty, color, align = 'center') {
+            ctx.textAlign = align;
             ctx.font = '12px system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
             ctx.lineJoin = 'round';
-            ctx.lineWidth = 3;
+            ctx.setLineDash([]);
+            ctx.lineWidth = 2;
             ctx.strokeStyle = 'white';
             ctx.strokeText(text, tx, ty);
             ctx.fillStyle = color;
@@ -263,8 +264,7 @@ tell ada <span class="keyword">to</span> greet <span class="keyword">with</span>
           ctx.lineTo(x.right, yPixel);
           ctx.stroke();
 
-          ctx.textAlign = 'right';
-          drawText('C baseline', x.right - 8, yPixel - 6, 'rgba(217, 119, 6, 0.9)');
+          drawText('C baseline', x.right - 8, yPixel - 6, 'rgba(217, 119, 6, 0.9)', 'right');
           ctx.restore();
         }
       };
