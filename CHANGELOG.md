@@ -18,10 +18,10 @@
 - Fixed hover token-length matching for multi-character keywords (`show`, `returns`, etc.).
 - Restored `period/stdlib/` as a directory of `.period` source modules that the runtime loads on `import`. Built-in Rust modules (`math`, `string`, `random`, `time`) remain as fallback. Added `list` and `text` example modules.
 - Fixed syntax gaps found in docs.html audit:
-  - Keywords are now case-insensitive (`Let`, `LET`, `let`).
+  - Keywords and reserved words must be lowercase or capitalized (`let` or `Let`); other casings such as `LET` or `lEt` are lexer errors.
   - `true`/`false` are now boolean values and `nothing` is the nothing value, not numbers.
   - Zero-argument built-ins like `input` can be used without `with`.
-  - `import` resolves local modules from the importing file's directory, a `lib/` subfolder, or relative paths (`.helper`, `..helper`).
+  - `import` with a plain name resolves to built-in or standard-library modules only; local files must be imported with a relative path (`.helper`, `..helper`) or from a `lib/` folder.
   - Updated the grammar reference and module list in `docs/docs.html` to match the Rust implementation.
 - The installer now uninstalls the old VS Code extension before installing the new one, preventing version-downgrade issues.
 

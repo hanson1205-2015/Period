@@ -254,7 +254,7 @@ fn keyword_doc(kind: &TokenKind) -> Option<&'static str> {
         TokenKind::Return => "```period\nreturn <expression>.\n```\n\nReturn a value from a function.",
         TokenKind::Class => "```period\nclass <Name>:\n    ...\n```\n\nDefine a class.",
         TokenKind::New => "```period\nnew <Class>(<args>).\n```\n\nCreate a new instance of a class.",
-        TokenKind::Import => "```period\nimport <module>.\n```\n\nImport a built-in module.",
+        TokenKind::Import => "```period\nimport <module>.\n```\n\nImport a built-in or standard-library module. Use a leading dot (e.g. `.helper`) for local files.",
         TokenKind::From => "```period\nfrom <module> with <name>.\n```\n\nImport a specific name from a module.",
         TokenKind::Tell => "```period\ntell <object> <method> with <args>.\n```\n\nSend a message to an object.",
         _ => return None,

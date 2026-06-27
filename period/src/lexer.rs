@@ -178,6 +178,24 @@ impl<'a> Lexer<'a> {
             a if a.is_alphabetic() || a == '_' => {
                 let name = self.read_identifier();
                 let lower = name.to_ascii_lowercase();
+                let reserved = matches!(
+                    lower.as_str(),
+                    "let" | "set" | "show" | "if" | "then" | "otherwise" | "while" | "repeat"
+                    | "for" | "in" | "define" | "with" | "return" | "be" | "to" | "and" | "or"
+                    | "not" | "class" | "init" | "new" | "tell" | "the" | "of" | "import"
+                    | "from" | "returns" | "true" | "false" | "nothing"
+                );
+                if reserved {
+                    let first_upper = name.chars().next().map_or(false, |c| c.is_ascii_uppercase());
+                    let valid = name == lower
+                        || (name.len() > 1 && first_upper && name[1..] == lower[1..]);
+                    if !valid {
+                        self.error(&format!(
+                            "keyword '{}' must be lowercase or capitalized (e.g. '{}' or '{}')",
+                            name, lower, format!("{}{}", lower[..1].to_ascii_uppercase(), &lower[1..])
+                        ));
+                    }
+                }
                 let kind = match lower.as_str() {
                     "let" => TokenKind::Let, "set" => TokenKind::Set, "show" => TokenKind::Show,
                     "if" => TokenKind::If, "then" => TokenKind::Then, "otherwise" => TokenKind::Otherwise,

@@ -713,32 +713,34 @@ fn find_module_file(module: &str, current_path: Option<&std::path::Path>) -> Opt
 fn module_file_candidates(module: &str, current_path: Option<&std::path::Path>) -> Vec<PathBuf> {
     let mut candidates = Vec::new();
 
-    // Local modules relative to the importing file.
-    if let Some(current) = current_path {
-        let dir = if current.is_file() {
-            current.parent().unwrap_or(current)
-        } else {
-            current
-        };
+    if module.starts_with('.') {
+        // Relative local modules: .abc (current directory) or ..abc (parent directory).
+        if let Some(current) = current_path {
+            let dir = if current.is_file() {
+                current.parent().unwrap_or(current)
+            } else {
+                current
+            };
 
-        let (relative_depth, parts) = parse_relative_module(module);
-        let mut base = dir.to_path_buf();
-        for _ in 0..relative_depth {
-            base = base.join("..");
+            let (relative_depth, parts) = parse_relative_module(module);
+            let mut base = dir.to_path_buf();
+            for _ in 0..relative_depth {
+                base = base.join("..");
+            }
+            let local_path = if parts.is_empty() {
+                base.clone()
+            } else {
+                base.join(parts.join(std::path::MAIN_SEPARATOR_STR))
+            };
+            candidates.push(local_path.with_extension("period"));
+            candidates.push(base.join("lib").join(parts.join(std::path::MAIN_SEPARATOR_STR)).with_extension("period"));
         }
-        let local_path = if parts.is_empty() {
-            base.clone()
-        } else {
-            base.join(parts.join(std::path::MAIN_SEPARATOR_STR))
-        };
-        candidates.push(local_path.with_extension("period"));
-        candidates.push(base.join("lib").join(parts.join(std::path::MAIN_SEPARATOR_STR)).with_extension("period"));
-    }
-
-    // Standard library locations.
-    let file = format!("{}.period", module);
-    for loc in stdlib_locations() {
-        candidates.push(loc.join(&file));
+    } else {
+        // Plain module names resolve to the standard library or built-in modules only.
+        let file = format!("{}.period", module);
+        for loc in stdlib_locations() {
+            candidates.push(loc.join(&file));
+        }
     }
 
     candidates

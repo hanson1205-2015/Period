@@ -59,7 +59,7 @@
       <pre><code><span class="comment">-- This is a comment.</span>
 <span class="keyword">let</span> x <span class="keyword">be</span> <span class="number">10</span><span class="period">.</span>
 <span class="builtin">show</span> x<span class="period">.</span></code></pre>
-      <p>Period is case-insensitive for keywords. <code>Let</code>, <code>LET</code>, and <code>let</code> are all valid.</p>
+      <p>Keywords and reserved words (<code>let</code>, <code>if</code>, <code>true</code>, <code>nothing</code>, etc.) must be lowercase or capitalized: <code>let</code> and <code>Let</code> are valid, but <code>LET</code> or <code>lEt</code> are errors. Variable and function names are case-sensitive.</p>
     </section>
 
     <section id="variables">
@@ -200,7 +200,7 @@ tell ada <span class="keyword">to</span> greet <span class="keyword">with</span>
 
     <section id="imports">
       <h2>Imports</h2>
-      <p>Use <code>import</code> to bring in built-in or local modules. Multiple modules can be imported in one statement, separated by commas. The last separator may be replaced with <code>and</code>, but only one <code>and</code> is allowed.</p>
+      <p>Use <code>import</code> to bring in built-in or standard-library modules. Multiple modules can be imported in one statement, separated by commas. The last separator may be replaced with <code>and</code>, but only one <code>and</code> is allowed.</p>
       <pre><code><span class="keyword">import</span> math<span class="period">.</span>
 <span class="keyword">import</span> math, random, string<span class="period">.</span>
 <span class="keyword">import</span> math, random <span class="keyword">and</span> string<span class="period">.</span></code></pre>
@@ -224,7 +224,7 @@ tell ada <span class="keyword">to</span> greet <span class="keyword">with</span>
         <li><code>time</code> &mdash; timestamps</li>
       </ul>
       <p>Additional standard-library modules can be placed in <code>period/stdlib/</code> (or next to the <code>period.exe</code> executable) and loaded with <code>import</code>. The current distribution includes <code>list</code> and <code>text</code> as examples.</p>
-      <p>Local modules are loaded from the same directory as the importing file, or from a project <code>lib/</code> folder. Relative imports such as <code>.helper</code> and <code>..helper</code> are also supported.</p>
+      <p>Local modules must be imported with a relative path: <code>.helper</code> loads <code>helper.period</code> from the same directory as the importing file, and <code>..helper</code> loads it from the parent directory. A project <code>lib/</code> folder is also checked for relative imports. Plain module names such as <code>helper</code> only resolve to built-in or standard-library modules.</p>
     </section>
 
     <section id="builtins">
