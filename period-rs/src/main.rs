@@ -45,8 +45,7 @@ fn main() {
         if !exe_path.exists() {
             let rs_path = cache_dir.join(format!("period_{:016x}.rs", source_hash));
             fs::write(&rs_path, &rust_source).unwrap();
-            let rustc = r"C:\Users\kylez\.cargo\bin\rustc.exe";
-            let status = Command::new(rustc)
+            let status = Command::new("rustc")
                 .arg("-C").arg("opt-level=3")
                 .arg("-C").arg("target-cpu=native")
                 .arg("-o").arg(&exe_path)
