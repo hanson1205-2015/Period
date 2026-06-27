@@ -286,8 +286,8 @@ nav a.active {
 
 @media (max-width: 899px) {
   .bubble-menu-items {
-    align-items: flex-start;
-    padding-top: 120px;
+    align-items: center;
+    padding-top: 0;
   }
 
   .bubble-menu-items .pill-list {
