@@ -9,7 +9,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::env;
 use std::fs;
 use std::hash::{Hash, Hasher};
-use std::process::{self, Command};
+use std::process::{self, Command, Stdio};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -54,42 +54,62 @@ fn main() {
     };
 
     // Fast path: compile numeric programs to Rust and cache the executable.
-    if let Some(rust_source) = compiler::try_compile(&program) {
-        let mut hasher = DefaultHasher::new();
-        source.hash(&mut hasher);
-        let source_hash = hasher.finish();
-        let cache_dir = env::temp_dir().join("period_rs_cache");
-        fs::create_dir_all(&cache_dir).unwrap();
-        let exe_path = cache_dir.join(format!("period_{:016x}.exe", source_hash));
-        if !exe_path.exists() {
-            let rs_path = cache_dir.join(format!("period_{:016x}.rs", source_hash));
-            fs::write(&rs_path, &rust_source).unwrap();
-            let status = Command::new("rustc")
-                .arg("-C").arg("opt-level=3")
-                .arg("-C").arg("target-cpu=native")
-                .arg("-o").arg(&exe_path)
-                .arg(&rs_path)
-                .status()
-                .unwrap_or_else(|e| {
-                    eprintln!("failed to invoke rustc: {}", e);
-                    process::exit(1);
-                });
-            if !status.success() {
-                eprintln!("rustc failed");
-                process::exit(1);
-            }
+    if compiler::try_compile(&program).is_some() {
+        if let Some(code) = try_run_compiled(&source, &program) {
+            process::exit(code);
         }
-        let status = Command::new(&exe_path).status().unwrap_or_else(|e| {
-            eprintln!("failed to run executable: {}", e);
-            process::exit(1);
-        });
-        process::exit(status.code().unwrap_or(1));
+        eprintln!("rustc not available; falling back to interpreter.");
     }
 
     // General path: tree-walking interpreter.
+    run_interpreter(&program);
+}
+
+fn run_interpreter(program: &ast::Program) -> ! {
     let mut interp = interpreter::Interpreter::new();
-    if let Err(ctrl) = interp.interpret(&program) {
+    if let Err(ctrl) = interp.interpret(program) {
         eprintln!("runtime error: {:?}", ctrl);
         process::exit(1);
     }
+    process::exit(0);
+}
+
+fn try_run_compiled(source: &str, program: &ast::Program) -> Option<i32> {
+    let rust_source = compiler::try_compile(program)?;
+
+    // Verify rustc is on PATH before doing any work.
+    if !Command::new("rustc")
+        .arg("--version")
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .ok()?
+        .success()
+    {
+        return None;
+    }
+
+    let mut hasher = DefaultHasher::new();
+    source.hash(&mut hasher);
+    let source_hash = hasher.finish();
+    let cache_dir = env::temp_dir().join("period_rs_cache");
+    fs::create_dir_all(&cache_dir).ok()?;
+    let exe_path = cache_dir.join(format!("period_{:016x}.exe", source_hash));
+    if !exe_path.exists() {
+        let rs_path = cache_dir.join(format!("period_{:016x}.rs", source_hash));
+        fs::write(&rs_path, &rust_source).ok()?;
+        let status = Command::new("rustc")
+            .arg("-A").arg("warnings")
+            .arg("-C").arg("opt-level=3")
+            .arg("-C").arg("target-cpu=native")
+            .arg("-o").arg(&exe_path)
+            .arg(&rs_path)
+            .status()
+            .ok()?;
+        if !status.success() {
+            return None;
+        }
+    }
+    let status = Command::new(&exe_path).status().ok()?;
+    Some(status.code().unwrap_or(1))
 }
