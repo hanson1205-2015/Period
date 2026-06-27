@@ -25,7 +25,7 @@
       "patterns": [
         {
           "name": "meta.import.period",
-          "begin": "\\b([Ii]mport|[Ff]rom)\\b",
+          "begin": "\\b(import|from)\\b",
           "beginCaptures": {
             "1": { "name": "keyword.control.period" }
           },
@@ -43,7 +43,7 @@
       "patterns": [
         {
           "name": "meta.class.declaration.period",
-          "begin": "^[ \\t]*([Cc]lass)\\b\\s+",
+          "begin": "\\b(class)\\b\\s+",
           "beginCaptures": {
             "1": { "name": "storage.type.period" }
           },
@@ -125,23 +125,8 @@
     "keyword": {
       "patterns": [
         {
-          "comment": "Capitalized keywords are only valid at the start of a line.",
-          "name": "keyword.control.period",
-          "match": "^[ \\t]*(Define|Class|Init|If|Then|Otherwise|While|For|In|Repeat|Return|Returns|Import|Let|Be|Set|To|With|This|New|Tell|Of|The|From|And|Or|Not)\\b"
-        },
-        {
           "name": "keyword.control.period",
           "match": "\\b(define|class|init|if|then|otherwise|while|for|in|repeat|return|returns|import|let|be|set|to|with|this|new|tell|of|the|from|and|or|not)\\b"
-        },
-        {
-          "comment": "Capitalized built-ins at the start of a line.",
-          "name": "support.function.builtin.period",
-          "match": "^[ \\t]*(Show|Input)\\b"
-        },
-        {
-          "comment": "Capitalized constants at the start of a line.",
-          "name": "constant.language.period",
-          "match": "^[ \\t]*(True|False|Nothing)\\b"
         },
         {
           "name": "support.type.builtin.period",

@@ -31,7 +31,6 @@ pub struct Lexer<'a> {
     indent_stack: Vec<usize>,
     pending: Vec<Token>,
     at_line_start: bool,
-    first_on_line: bool,
 }
 
 impl<'a> Lexer<'a> {
@@ -44,7 +43,6 @@ impl<'a> Lexer<'a> {
             indent_stack: vec![0],
             pending: Vec::new(),
             at_line_start: true,
-            first_on_line: true,
         }
     }
 
@@ -54,14 +52,6 @@ impl<'a> Lexer<'a> {
         }
         loop {
             if let Some(kind) = self.lex_token() {
-                match kind {
-                    TokenKind::Newline => {
-                        self.at_line_start = true;
-                        self.first_on_line = true;
-                    }
-                    TokenKind::Indent | TokenKind::Dedent => {}
-                    _ => self.first_on_line = false,
-                }
                 return Token { kind, span: self.span() };
             }
             if self.peek_char().is_none() {
@@ -195,21 +185,8 @@ impl<'a> Lexer<'a> {
                     | "not" | "class" | "init" | "new" | "tell" | "the" | "of" | "import"
                     | "from" | "returns" | "true" | "false" | "nothing"
                 );
-                if reserved {
-                    let first_upper = name.chars().next().map_or(false, |c| c.is_ascii_uppercase());
-                    let valid = name == lower
-                        || (self.first_on_line && name.len() > 1 && first_upper && name[1..] == lower[1..]);
-                    if !valid {
-                        let hint = if self.first_on_line {
-                            format!("'{}' or '{}'", lower, format!("{}{}", lower[..1].to_ascii_uppercase(), &lower[1..]))
-                        } else {
-                            format!("'{}'", lower)
-                        };
-                        self.error(&format!(
-                            "keyword '{}' must be {}; capitalized forms are only allowed at the start of a line",
-                            name, hint
-                        ));
-                    }
+                if reserved && name != lower {
+                    self.error(&format!("keyword '{}' must be lowercase", name));
                 }
                 let kind = match lower.as_str() {
                     "let" => TokenKind::Let, "set" => TokenKind::Set, "show" => TokenKind::Show,

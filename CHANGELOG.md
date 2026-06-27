@@ -18,7 +18,7 @@
 - Fixed hover token-length matching for multi-character keywords (`show`, `returns`, etc.).
 - Restored `period/stdlib/` as a directory of `.period` source modules that the runtime loads on `import`. Built-in Rust modules (`math`, `string`, `random`, `time`) are now also exposed as stdlib `.period` wrappers, while their native implementations remain available as a fallback. Added `list` and `text` example modules.
 - Fixed syntax gaps found in docs.html audit:
-  - Keywords and reserved words must be lowercase, except that the first keyword of a line may be capitalized (`Let x be 10.` is valid, `let x Be 10.` and `LET x be 10.` are errors).
+  - Keywords and reserved words must be lowercase; any capitalization (e.g. `Let` or `LET`) is a lexer error.
   - `true`/`false` are now boolean values and `nothing` is the nothing value, not numbers.
   - Zero-argument built-ins like `input` can be used without `with`.
   - `import` with a plain name resolves to built-in or standard-library modules only; local files must be imported with a relative path (`.helper`, `..helper`) or from a `lib/` folder.
