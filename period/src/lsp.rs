@@ -182,6 +182,16 @@ fn hover(
         }
     };
 
+    if let Some(doc) = keyword_doc(&token.kind) {
+        return Ok(Some(Hover {
+            contents: HoverContents::Markup(MarkupContent {
+                kind: MarkupKind::Markdown,
+                value: doc.to_string(),
+            }),
+            range: None,
+        }));
+    }
+
     let name = match &token.kind {
         TokenKind::Ident(n) => n.clone(),
         _ => return Ok(None),
@@ -221,6 +231,31 @@ fn hover(
         }),
         range: None,
     }))
+}
+
+fn keyword_doc(kind: &TokenKind) -> Option<&'static str> {
+    Some(match kind {
+        TokenKind::Show => "```period\nshow <expression>.\n```\n\nPrint the value of an expression.",
+        TokenKind::Let => "```period\nlet <name> be <expression>.\n```\n\nDeclare a new variable.",
+        TokenKind::Set => "```period\nset <target> to <expression>.\n```\n\nAssign a new value to an existing variable, index, or property.",
+        TokenKind::If => "```period\nif <condition>, then:\n    ...\n```\n\nConditionally execute a block.",
+        TokenKind::Then => "Part of an `if` statement: `if <condition>, then:`.",
+        TokenKind::Otherwise => "```period\notherwise:\n    ...\n```\n\nElse branch of an `if` statement.",
+        TokenKind::While => "```period\nwhile <condition> repeat:\n    ...\n```\n\nLoop while a condition is true.",
+        TokenKind::Repeat => "Part of a `while` loop: `while <condition> repeat:`.",
+        TokenKind::For => "```period\nfor <var> in <iterable> repeat:\n    ...\n```\n\nIterate over a list or range.",
+        TokenKind::In => "Part of a `for` loop: `for <var> in <iterable>`.",
+        TokenKind::Define => "```period\ndefine <name> with <params> returns <type>:\n    ...\n```\n\nDefine a function.",
+        TokenKind::With => "Used in function definitions and imports: `define f with x.` / `from math with sin.`",
+        TokenKind::Returns => "Used in function signatures: `define f() returns number:`.",
+        TokenKind::Return => "```period\nreturn <expression>.\n```\n\nReturn a value from a function.",
+        TokenKind::Class => "```period\nclass <Name>:\n    ...\n```\n\nDefine a class.",
+        TokenKind::New => "```period\nnew <Class>(<args>).\n```\n\nCreate a new instance of a class.",
+        TokenKind::Import => "```period\nimport <module>.\n```\n\nImport a built-in module.",
+        TokenKind::From => "```period\nfrom <module> with <name>.\n```\n\nImport a specific name from a module.",
+        TokenKind::Tell => "```period\ntell <object> <method> with <args>.\n```\n\nSend a message to an object.",
+        _ => return None,
+    })
 }
 
 fn completion(
@@ -355,14 +390,40 @@ fn token_len(kind: &TokenKind) -> u32 {
         TokenKind::Ident(s) => s.len() as u32,
         TokenKind::String(s) => s.len() as u32,
         TokenKind::Number(n) => format!("{}", n).len() as u32,
-        TokenKind::Let | TokenKind::Set | TokenKind::Show | TokenKind::New | TokenKind::For | TokenKind::And | TokenKind::Not => 3,
-        TokenKind::If | TokenKind::In | TokenKind::Be | TokenKind::To => 2,
-        TokenKind::Then | TokenKind::Tell | TokenKind::The | TokenKind::Of => 4,
-        TokenKind::While | TokenKind::Class | TokenKind::Init | TokenKind::From => 5,
-        TokenKind::Repeat | TokenKind::Return | TokenKind::Import | TokenKind::Define => 6,
-        TokenKind::Otherwise | TokenKind::Returns => 8,
+        TokenKind::Let => 3,
+        TokenKind::Set => 3,
+        TokenKind::Show => 4,
+        TokenKind::If => 2,
+        TokenKind::Then => 4,
+        TokenKind::Otherwise => 9,
+        TokenKind::While => 5,
+        TokenKind::Repeat => 6,
+        TokenKind::For => 3,
+        TokenKind::In => 2,
+        TokenKind::Define => 6,
         TokenKind::With => 4,
-        _ => 1,
+        TokenKind::Return => 6,
+        TokenKind::Be => 2,
+        TokenKind::To => 2,
+        TokenKind::And => 3,
+        TokenKind::Or => 2,
+        TokenKind::Not => 3,
+        TokenKind::Class => 5,
+        TokenKind::Init => 4,
+        TokenKind::New => 3,
+        TokenKind::Tell => 4,
+        TokenKind::The => 3,
+        TokenKind::Of => 2,
+        TokenKind::Import => 6,
+        TokenKind::From => 4,
+        TokenKind::Returns => 7,
+        TokenKind::Comma | TokenKind::Dot | TokenKind::Colon
+        | TokenKind::LParen | TokenKind::RParen | TokenKind::LBracket | TokenKind::RBracket
+        | TokenKind::LBrace | TokenKind::RBrace | TokenKind::Plus | TokenKind::Minus
+        | TokenKind::Star | TokenKind::Slash | TokenKind::Percent | TokenKind::Power => 1,
+        TokenKind::EqEq | TokenKind::NotEq | TokenKind::LessEq | TokenKind::GreaterEq => 2,
+        TokenKind::Less | TokenKind::Greater => 1,
+        TokenKind::Indent | TokenKind::Dedent | TokenKind::Newline | TokenKind::Eof => 0,
     }
 }
 
