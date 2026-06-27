@@ -92,6 +92,14 @@ impl<'a> Lexer<'a> {
                 else if c == '\t' { spaces += 4; self.advance(); }
                 else { break; }
             }
+            if self.peek_char() == Some('\r') {
+                self.advance();
+                if self.peek_char() == Some('\n') {
+                    self.advance();
+                }
+                self.at_line_start = true;
+                return self.lex_token();
+            }
             if self.peek_char() == Some('\n') {
                 // blank line
                 self.advance();
@@ -117,7 +125,7 @@ impl<'a> Lexer<'a> {
 
         let c = self.peek_char()?;
         match c {
-            ' ' | '\t' => { self.advance(); self.lex_token() }
+            ' ' | '\t' | '\r' => { self.advance(); self.lex_token() }
             '\n' => { self.advance(); self.at_line_start = true; Some(TokenKind::Newline) }
             '-' => {
                 self.advance();

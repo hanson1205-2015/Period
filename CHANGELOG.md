@@ -11,6 +11,7 @@
 - Docstrings are now preserved and shown in hover popups.
 - Diagnostics for parse/lex errors and undefined names.
 - Fixed LSP server startup when the VS Code: client passes extra stdio flags.
+- Fixed lexer panic on Windows CRLF line endings.
 - The installer now uninstalls the old VS Code extension before installing the new one, preventing version-downgrade issues.
 
 ### Full commit
