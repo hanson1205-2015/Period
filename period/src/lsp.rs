@@ -361,10 +361,28 @@ fn parse_error_to_diagnostic(msg: &str) -> Diagnostic {
     } else {
         (1, 1, msg.to_string())
     };
+
+    // For invalid-keyword errors, underline the whole keyword. The lexer reports
+    // the column just past the token, so the range spans col-len..col.
+    let (start_char, end_char) = if let Some(kw_start) = message.find("keyword '") {
+        let after = &message[kw_start + "keyword '".len()..];
+        if let Some(end_quote) = after.find('\'') {
+            let word = &after[..end_quote];
+            let word_len = word.chars().count() as u32;
+            let end = col.saturating_sub(1);
+            let start = end.saturating_sub(word_len);
+            (start, end)
+        } else {
+            (col.saturating_sub(1), col)
+        }
+    } else {
+        (col.saturating_sub(1), col)
+    };
+
     Diagnostic {
         range: Range {
-            start: Position { line: line.saturating_sub(1), character: col.saturating_sub(1) },
-            end: Position { line: line.saturating_sub(1), character: col },
+            start: Position { line: line.saturating_sub(1), character: start_char },
+            end: Position { line: line.saturating_sub(1), character: end_char },
         },
         severity: Some(DiagnosticSeverity::ERROR),
         code: None,
