@@ -198,7 +198,7 @@ greet <span class="keyword">with</span> <span class="string">"World"</span><span
 <span class="keyword">let</span> ada <span class="keyword">be</span> new Person <span class="keyword">with</span> <span class="string">"Ada"</span>, <span class="number">42</span><span class="period">.</span>
 tell ada <span class="keyword">to</span> greet <span class="keyword">with</span> <span class="string">"Hello"</span><span class="period">.</span>
 <span class="builtin">show</span> the age <span class="keyword">of</span> ada<span class="period">.</span></code></pre>
-      <p>Create instances with <code>new ClassName with args</code>, call methods with <code>tell object to method with args</code>, and read properties with <code>the property of object</code>.</p>
+      <p>Create instances with <code>new &lt;ClassName&gt; with &lt;args&gt;</code>, call methods with <code>tell &lt;object&gt; to &lt;method&gt; with &lt;args&gt;</code>, and read properties with <code>the &lt;property&gt; of &lt;object&gt;</code>.</p>
     </section>
 
     <section id="imports">
@@ -236,21 +236,21 @@ tell ada <span class="keyword">to</span> greet <span class="keyword">with</span>
       <h2>Built-in Functions</h2>
       <p>Period provides a small set of built-in functions. They are called like any other function using <code>with</code>.</p>
 
-      <h3><code>length with value</code></h3>
+      <h3><code>length with &lt;value&gt;</code></h3>
       <p>Returns the number of characters in a string, elements in a list, or keys in a dictionary.</p>
       <pre><code><span class="builtin">show</span> length <span class="keyword">with</span> <span class="string">"hello"</span><span class="period">.</span>  <span class="comment">-- 5</span>
 <span class="builtin">show</span> length <span class="keyword">with</span> [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>]<span class="period">.</span>  <span class="comment">-- 3</span></code></pre>
 
-      <h3><code>string with value</code></h3>
+      <h3><code>string with &lt;value&gt;</code></h3>
       <p>Converts a value to its string representation.</p>
       <pre><code><span class="builtin">show</span> string <span class="keyword">with</span> <span class="number">42</span><span class="period">.</span>  <span class="comment">-- "42"</span></code></pre>
 
-      <h3><code>number with value</code></h3>
+      <h3><code>number with &lt;value&gt;</code></h3>
       <p>Parses a string or converts a value to a number. Booleans become 1 or 0.</p>
       <pre><code><span class="builtin">show</span> number <span class="keyword">with</span> <span class="string">"3.14"</span><span class="period">.</span>  <span class="comment">-- 3.14</span></code></pre>
 
-      <h3><code>type with value</code></h3>
-      <p>Returns the type name as a string: <code>nothing</code>, <code>boolean</code>, <code>integer</code>, <code>number</code>, <code>string</code>, <code>list</code>, <code>dictionary</code>, <code>function</code>, <code>built-in</code>, <code>class</code>, or <code>instance of ClassName</code>.</p>
+      <h3><code>type with &lt;value&gt;</code></h3>
+      <p>Returns the type name as a string: <code>nothing</code>, <code>boolean</code>, <code>integer</code>, <code>number</code>, <code>string</code>, <code>list</code>, <code>dictionary</code>, <code>function</code>, <code>built-in</code>, <code>class</code>, or <code>instance of &lt;ClassName&gt;</code>.</p>
       <pre><code><span class="builtin">show</span> type <span class="keyword">with</span> [<span class="number">1</span>, <span class="number">2</span>]<span class="period">.</span>  <span class="comment">-- "list"</span></code></pre>
 
       <h3><code>input</code></h3>
@@ -303,38 +303,38 @@ Type a statement ending with '.' and press Enter. Use Ctrl+C or type 'exit.' to 
     <section id="grammar">
       <h2>Grammar Reference</h2>
       <p>A concise reference for the Period language grammar.</p>
-      <pre><code>program        := statement*
-statement      := "let" IDENTIFIER "be" expression "."
-                | "set" expression "to" expression "."
-                | "show" expression "."
-                | "if" expression "then" "." block ("otherwise" "." block)?
-                | "while" expression "repeat" "." block
-                | "define" IDENTIFIER ("with" params)? "." block
-                | "class" IDENTIFIER "." class-body
-                | "return" expression? "."
-                | "import" module-path ("," module-path)* ("and" module-path)? "."
-                | expression "."
-block          := INDENT statement+ DEDENT
-class-body     := INDENT (init | method)+ DEDENT
-init           := "init" ("with" params)? "." block
-method         := "define" IDENTIFIER ("with" params)? "." block
-module-path    := "."* IDENTIFIER ("." IDENTIFIER)*
-expression     := or_expr
-or_expr        := and_expr ("or" and_expr)*
-and_expr       := not_expr ("and" not_expr)*
-not_expr       := "not" not_expr | comparison
-comparison     := additive (("=="|"!="|"<"|">"|"<="|">=") additive)?
-additive       := multiplicative (("+"|"-") multiplicative)*
-multiplicative := power (("*"|"/"|"%") power)*
-power          := unary ("**" power)?
-unary          := ("-"|"not") unary | call
-call           := primary ("from" module-path)? ("with" arguments)? ("[" expression "]")*
-primary        := NUMBER | STRING | "true" | "false" | "nothing" | "input" | "this"
-                | IDENTIFIER | "(" expression ")" | "[" arguments? "]" | "{" pairs? "}"
-                | "new" primary ("with" arguments)?
-                | "tell" expression "to" IDENTIFIER ("with" arguments)?
-                | "the" IDENTIFIER "of" expression
-property       := primary IDENTIFIER</code></pre>
+      <pre><code>program        := &lt;statement&gt;*
+statement      := "let" &lt;identifier&gt; "be" &lt;expression&gt; "."
+                | "set" &lt;expression&gt; "to" &lt;expression&gt; "."
+                | "show" &lt;expression&gt; "."
+                | "if" &lt;expression&gt; "then" "." &lt;block&gt; ("otherwise" "." &lt;block&gt;)?
+                | "while" &lt;expression&gt; "repeat" "." &lt;block&gt;
+                | "define" &lt;identifier&gt; ("with" &lt;params&gt;)? "." &lt;block&gt;
+                | "class" &lt;identifier&gt; "." &lt;class-body&gt;
+                | "return" &lt;expression&gt;? "."
+                | "import" &lt;module-path&gt; ("," &lt;module-path&gt;)* ("and" &lt;module-path&gt;)? "."
+                | &lt;expression&gt; "."
+block          := &lt;indent&gt; &lt;statement&gt;+ &lt;dedent&gt;
+class-body     := &lt;indent&gt; (&lt;init&gt; | &lt;method&gt;)+ &lt;dedent&gt;
+init           := "init" ("with" &lt;params&gt;)? "." &lt;block&gt;
+method         := "define" &lt;identifier&gt; ("with" &lt;params&gt;)? "." &lt;block&gt;
+module-path    := "."* &lt;identifier&gt; ("." &lt;identifier&gt;)*
+expression     := &lt;or-expr&gt;
+or-expr        := &lt;and-expr&gt; ("or" &lt;and-expr&gt;)*
+and-expr       := &lt;not-expr&gt; ("and" &lt;not-expr&gt;)*
+not-expr       := "not" &lt;not-expr&gt; | &lt;comparison&gt;
+comparison     := &lt;additive&gt; (("=="|"!="|"<"|">"|"<="|">=") &lt;additive&gt;)?
+additive       := &lt;multiplicative&gt; (("+"|"-") &lt;multiplicative&gt;)*
+multiplicative := &lt;power&gt; (("*"|"/"|"%") &lt;power&gt;)*
+power          := &lt;unary&gt; ("**" &lt;power&gt;)?
+unary          := ("-"|"not") &lt;unary&gt; | &lt;call&gt;
+call           := &lt;primary&gt; ("from" &lt;module-path&gt;)? ("with" &lt;arguments&gt;)? ("[" &lt;expression&gt; "]")*
+primary        := &lt;number&gt; | &lt;string&gt; | "true" | "false" | "nothing" | "input" | "this"
+                | &lt;identifier&gt; | "(" &lt;expression&gt; ")" | "[" &lt;arguments&gt;? "]" | "{" &lt;pairs&gt;? "}"
+                | "new" &lt;primary&gt; ("with" &lt;arguments&gt;)?
+                | "tell" &lt;expression&gt; "to" &lt;identifier&gt; ("with" &lt;arguments&gt;)?
+                | "the" &lt;identifier&gt; "of" &lt;expression&gt;
+property       := &lt;primary&gt; &lt;identifier&gt;</code></pre>
     </section>
 
     <section id="tips">
@@ -378,6 +378,7 @@ property       := primary IDENTIFIER</code></pre>
       update();
     })();
   </script>
+  <script type="module" src="copy-code.js"></script>
   <script type="module" src="bubble-menu.js"></script>
 </body>
 </html>
