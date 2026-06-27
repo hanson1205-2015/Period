@@ -71,8 +71,8 @@ const SIDEBAR_CLOSE_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="22" h
   let sidebarOpen = false;
   let sidebarToggle = null;
 
-  // Sidebar toggle only makes sense when the fixed sidebar is hidden (mobile/narrow).
-  if (isDocs && window.innerWidth <= 860) {
+  // Sidebar toggle for docs pages; desktop hides it via CSS.
+  if (isDocs) {
     sidebarToggle = document.createElement("button");
     sidebarToggle.type = "button";
     sidebarToggle.className = "bubble sidebar-toggle-bubble";

@@ -553,8 +553,12 @@ pre code {
     box-shadow: none;
   }
 
+  .bubble-menu .sidebar-toggle-bubble {
+    display: none;
+  }
+
   .sidebar {
-    padding: 0 1.25rem 1.25rem;
+    padding: 1.25rem;
   }
 }
 
