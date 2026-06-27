@@ -357,9 +357,14 @@ impl Interpreter {
             Expr::Nothing => Ok(Value::Nothing),
             Expr::Variable { name, .. } => {
                 let value = self.env.borrow().get(name).ok_or_else(|| Control::Error(format!("Undefined variable '{}'", name)))?;
-                // Zero-argument built-ins (like input) are called automatically when used as a value.
-                if let Value::BuiltIn { min_arity: 0, max_arity: 0, func, name: builtin_name } = &value {
-                    return func(&[]).map_err(|e| Control::Error(format!("{}: {}", builtin_name, e)));
+                // Zero-argument functions (like input or random) are called automatically when used as a value.
+                if let Value::BuiltIn { min_arity: 0, max_arity: 0, .. } = &value {
+                    return self.call_value(&value, vec![]);
+                }
+                if let Value::Function { params, .. } = &value {
+                    if params.is_empty() {
+                        return self.call_value(&value, vec![]);
+                    }
                 }
                 Ok(value)
             }
@@ -780,6 +785,17 @@ fn install_builtins(env: &Environment) {
     env.define("type", Value::BuiltIn { name: "type".to_string(), min_arity: 1, max_arity: 1, func: builtin_type });
     env.define("input", Value::BuiltIn { name: "input".to_string(), min_arity: 0, max_arity: 0, func: builtin_input });
     env.define("range", Value::BuiltIn { name: "range".to_string(), min_arity: 1, max_arity: 3, func: builtin_range });
+    install_module_builtins(env);
+}
+
+fn install_module_builtins(env: &Environment) {
+    // Expose built-in module functions under internal names so stdlib .period
+    // wrappers can delegate to them without polluting the public namespace.
+    for module in &[make_math_module(), make_random_module(), make_string_module(), make_time_module()] {
+        for (name, value) in module.borrow().values.borrow().iter() {
+            env.define(&format!("__{}__", name), value.clone());
+        }
+    }
 }
 
 fn builtin_length(args: &[Value]) -> Result<Value, String> {

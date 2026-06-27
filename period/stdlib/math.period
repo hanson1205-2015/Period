@@ -1,0 +1,24 @@
+-- Math functions.
+
+define sin with value:
+    return __sin__ with value.
+
+define cos with value:
+    return __cos__ with value.
+
+define tan with value:
+    return __tan__ with value.
+
+define sqrt with value:
+    return __sqrt__ with value.
+
+define abs with value:
+    return __abs__ with value.
+
+define floor with value:
+    return __floor__ with value.
+
+define ceil with value:
+    return __ceil__ with value.
+
+let pi be __pi__.

@@ -1,0 +1,7 @@
+-- String utilities.
+
+define upper with value:
+    return __upper__ with value.
+
+define lower with value:
+    return __lower__ with value.

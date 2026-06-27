@@ -216,14 +216,16 @@ tell ada <span class="keyword">to</span> greet <span class="keyword">with</span>
 <span class="builtin">show</span> sin <span class="keyword">from</span> math <span class="keyword">with</span> <span class="number">5</span><span class="period">.</span>
 <span class="keyword">let</span> joined <span class="keyword">be</span> join <span class="keyword">from</span> string <span class="keyword">with</span> <span class="string">"-"</span>, [<span class="string">"a"</span>, <span class="string">"b"</span>]<span class="period">.</span></code></pre>
       <p>Using an unqualified name that is exported by more than one imported module is an error.</p>
-      <p>Period ships with the following built-in modules:</p>
+      <p>Period ships with the following modules, which live as editable <code>.period</code> files in <code>period/stdlib/</code> and are backed by native implementations:</p>
       <ul>
         <li><code>math</code> &mdash; trigonometry, roots, and rounding</li>
         <li><code>random</code> &mdash; random numbers</li>
         <li><code>string</code> &mdash; case conversion</li>
         <li><code>time</code> &mdash; timestamps</li>
+        <li><code>list</code> &mdash; list utilities</li>
+        <li><code>text</code> &mdash; text utilities</li>
       </ul>
-      <p>Additional standard-library modules can be placed in <code>period/stdlib/</code> (or next to the <code>period.exe</code> executable) and loaded with <code>import</code>. The current distribution includes <code>list</code> and <code>text</code> as examples.</p>
+      <p>If a stdlib file is missing, the native built-in implementation is used as a fallback.</p>
       <p>Local modules must be imported with a relative path: <code>.helper</code> loads <code>helper.period</code> from the same directory as the importing file, and <code>..helper</code> loads it from the parent directory. A project <code>lib/</code> folder is also checked for relative imports. Plain module names such as <code>helper</code> only resolve to built-in or standard-library modules.</p>
     </section>
 

@@ -16,7 +16,7 @@
 - Fixed false-positive "undefined variable" diagnostics for variables defined earlier in the same block (e.g. inside `while`/`if` bodies).
 - Improved hover: variable/function signature is shown as a syntax-highlighted `period` code block on the first line, variables defined inside blocks (e.g. inside `while`) also show hover, and keywords like `show` now have hover docs.
 - Fixed hover token-length matching for multi-character keywords (`show`, `returns`, etc.).
-- Restored `period/stdlib/` as a directory of `.period` source modules that the runtime loads on `import`. Built-in Rust modules (`math`, `string`, `random`, `time`) remain as fallback. Added `list` and `text` example modules.
+- Restored `period/stdlib/` as a directory of `.period` source modules that the runtime loads on `import`. Built-in Rust modules (`math`, `string`, `random`, `time`) are now also exposed as stdlib `.period` wrappers, while their native implementations remain available as a fallback. Added `list` and `text` example modules.
 - Fixed syntax gaps found in docs.html audit:
   - Keywords and reserved words must be lowercase, except that the first keyword of a line may be capitalized (`Let x be 10.` is valid, `let x Be 10.` and `LET x be 10.` are errors).
   - `true`/`false` are now boolean values and `nothing` is the nothing value, not numbers.
@@ -25,6 +25,7 @@
   - Updated the grammar reference and module list in `docs/docs.html` to match the Rust implementation.
 - Fixed an LSP server crash when lexing files containing invalid keyword casing; such errors are now reported as diagnostics instead of crashing the server.
 - Updated VS Code: syntax highlighting so module names in `import` / `from` statements are colored green, and common functions exported by built-in/standard-library modules (e.g. `sin`, `upper`, `sum`) are colored yellow.
+- Zero-argument user-defined functions are now auto-called when used as values, matching zero-argument built-ins.
 - The installer now uninstalls the old VS Code extension before installing the new one, preventing version-downgrade issues.
 
 ### Full commit
