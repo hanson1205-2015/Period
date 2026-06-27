@@ -11,6 +11,8 @@ dist/
 *.build/
 *.dist/
 *.onefile-build/
+period-rs/target/
+period-rs/Cargo.lock
 
 # Sphinx build
 sphinx-docs/build/

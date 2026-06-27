@@ -2,18 +2,9 @@
 """Command-line compiler and REPL for the Period programming language."""
 import argparse
 import os
+import subprocess
 import sys
 from pathlib import Path
-
-from period.c_backend import run_native
-from period.interpreter import Interpreter
-from period.lexer import Lexer
-from period.lsp_server import LSPServer
-from period.parser import Parser
-from period.py_backend import run as run_py
-from period.semantic import SemanticChecker
-from period.vm import run as run_vm
-
 
 def format_diagnostics(source: str, diagnostics, filename: str = "<stdin>") -> str:
     lines = source.splitlines()
@@ -38,6 +29,10 @@ def run_source(
     use_jit: bool = False,
     use_vm: bool = False,
 ) -> int:
+    from period.lexer import Lexer
+    from period.parser import Parser
+    from period.semantic import SemanticChecker
+
     lexer = Lexer(source, filename)
     tokens = lexer.scan()
 
@@ -55,6 +50,7 @@ def run_source(
         return 1
 
     if use_native:
+        from period.c_backend import run_native
         ok, stdout, stderr = run_native(program)
         if not ok:
             print(f"native backend failed: {stderr}", file=sys.stderr)
@@ -74,6 +70,8 @@ def run_source(
         use_vm = True
 
     if use_vm:
+        from period.py_backend import run as run_py
+        from period.vm import run as run_vm
         ok, output, stderr = run_py(program)
         if ok:
             if print_output:
@@ -87,6 +85,7 @@ def run_source(
         print(f"vm backend failed: {stderr}", file=sys.stderr)
         print("falling back to interpreter.", file=sys.stderr)
 
+    from period.interpreter import Interpreter
     interpreter = Interpreter()
     try:
         interpreter.interpret(program, filename)
@@ -97,12 +96,39 @@ def run_source(
     return 0
 
 
+def _try_rust_backend(path: Path) -> int:
+    """Run the Rust-native compiler if it is available. Returns its exit code."""
+    exe_candidates = [
+        Path(__file__).with_name("period-rs.exe"),
+        Path(__file__).parent / "period-rs" / "target" / "release" / "period-rs.exe",
+    ]
+    exe = next((c for c in exe_candidates if c.exists()), None)
+    if exe is None:
+        return -1
+    result = subprocess.run([str(exe), str(path)], capture_output=True, text=True)
+    if result.returncode == 0:
+        if result.stdout:
+            print(result.stdout, end="")
+        return 0
+    # Unsupported constructs produce a non-zero exit; let the Python stack
+    # report the issue and fall back gracefully.
+    return result.returncode
+
+
 def run_file(path: Path, use_native: bool = False, use_jit: bool = False, use_vm: bool = False) -> int:
+    if not (use_native or use_jit or use_vm):
+        rust_code = _try_rust_backend(path)
+        if rust_code == 0:
+            return 0
     source = path.read_text(encoding="utf-8")
     return run_source(source, str(path), use_native=use_native, use_jit=use_jit, use_vm=use_vm)
 
 
 def run_repl():
+    from period.interpreter import Interpreter
+    from period.lexer import Lexer
+    from period.parser import Parser
+
     print("Period programming language REPL.")
     print("Type a statement ending with '.' and press Enter. Use Ctrl+C or type 'exit.' to quit.")
     print()
@@ -178,6 +204,7 @@ def main():
     args = argparser.parse_args()
 
     if args.lsp or args.stdio:
+        from period.lsp_server import LSPServer
         server = LSPServer()
         server.run()
         return 0
