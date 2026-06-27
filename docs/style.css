@@ -542,20 +542,9 @@ pre code {
 }
 
 @media (min-width: 861px) {
-  .bubble-menu:not(.home-page) {
-    left: auto;
-    right: 1rem;
-    top: 1rem;
-    width: auto;
-    background: transparent;
-    padding: 0;
-    border: none;
-    box-shadow: none;
-  }
-
   .sidebar {
-    top: 0;
-    height: 100vh;
+    top: 5rem;
+    height: calc(100vh - 5rem);
     padding: 0 1.25rem 1.25rem;
   }
 }
