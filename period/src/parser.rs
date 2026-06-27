@@ -61,6 +61,7 @@ impl Parser {
             TokenKind::Init => self.parse_init(),
             TokenKind::Class => self.parse_class(),
             TokenKind::Import => self.parse_import(),
+            TokenKind::Ellipsis => { self.advance(); Stmt::Pass }
             _ => self.parse_expr_statement(),
         }
     }

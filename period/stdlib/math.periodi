@@ -2,30 +2,30 @@
 
 define sin with value returns number:
     "Return the sine of a value."
-    return 0.
+    ...
 
 define cos with value returns number:
     "Return the cosine of a value."
-    return 0.
+    ...
 
 define tan with value returns number:
     "Return the tangent of a value."
-    return 0.
+    ...
 
 define sqrt with value returns number:
     "Return the square root of a value."
-    return 0.
+    ...
 
 define abs with value returns number:
     "Return the absolute value."
-    return 0.
+    ...
 
 define floor with value returns number:
     "Round down to the nearest integer."
-    return 0.
+    ...
 
 define ceil with value returns number:
     "Round up to the nearest integer."
-    return 0.
+    ...
 
 let pi be 0.

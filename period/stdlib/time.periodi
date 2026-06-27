@@ -2,4 +2,4 @@
 
 define now returns number:
     "Return the current Unix timestamp."
-    return 0.
+    ...

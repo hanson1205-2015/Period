@@ -12,7 +12,7 @@ pub enum TokenKind {
     Plus, Minus, Star, Slash, Percent, Power,
     EqEq, NotEq, Less, Greater, LessEq, GreaterEq,
     // Punctuation
-    Comma, Dot, Colon, LParen, RParen, LBracket, RBracket, LBrace, RBrace,
+    Comma, Dot, Ellipsis, Colon, LParen, RParen, LBracket, RBracket, LBrace, RBrace,
     // Indentation
     Indent, Dedent, Newline, Eof,
 }
@@ -136,7 +136,20 @@ impl<'a> Lexer<'a> {
                     Some(TokenKind::Minus)
                 }
             }
-            '.' => { self.advance(); Some(TokenKind::Dot) }
+            '.' => {
+                self.advance();
+                if self.peek_char() == Some('.') {
+                    self.advance();
+                    if self.peek_char() == Some('.') {
+                        self.advance();
+                        Some(TokenKind::Ellipsis)
+                    } else {
+                        self.error("unexpected '..'")
+                    }
+                } else {
+                    Some(TokenKind::Dot)
+                }
+            }
             ',' => { self.advance(); Some(TokenKind::Comma) }
             ':' => { self.advance(); Some(TokenKind::Colon) }
             '(' => { self.advance(); Some(TokenKind::LParen) }

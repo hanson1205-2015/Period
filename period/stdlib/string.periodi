@@ -2,8 +2,8 @@
 
 define upper with value returns string:
     "Convert a string to uppercase."
-    return "".
+    ...
 
 define lower with value returns string:
     "Convert a string to lowercase."
-    return "".
+    ...

@@ -80,6 +80,7 @@ pub enum Stmt {
     Class { name: String, init: Option<Init>, methods: Vec<Stmt>, docstring: Option<String> },
     Import(Vec<String>),
     Expr(Expr),
+    Pass,
 }
 
 #[derive(Debug, Clone)]

@@ -456,6 +456,7 @@ fn token_len(kind: &TokenKind) -> u32 {
         TokenKind::Import => 6,
         TokenKind::From => 4,
         TokenKind::Returns => 7,
+        TokenKind::Ellipsis => 3,
         TokenKind::Comma | TokenKind::Dot | TokenKind::Colon
         | TokenKind::LParen | TokenKind::RParen | TokenKind::LBracket | TokenKind::RBracket
         | TokenKind::LBrace | TokenKind::RBrace | TokenKind::Plus | TokenKind::Minus

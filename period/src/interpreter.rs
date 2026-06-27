@@ -299,6 +299,7 @@ impl Interpreter {
                 for path in paths { self.import_module(path)?; }
             }
             Stmt::Expr(expr) => { self.evaluate(expr)?; }
+            Stmt::Pass => {}
         }
         Ok(())
     }
