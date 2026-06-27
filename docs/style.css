@@ -536,7 +536,7 @@ pre code {
   background: var(--surface);
   border-right: 1px solid var(--border);
   border-radius: 0;
-  padding: 5rem 1.25rem 1.25rem;
+  padding: 4rem 1.25rem 1.25rem;
   overflow-y: auto;
   z-index: 50;
 }
@@ -545,7 +545,7 @@ pre code {
   .sidebar {
     top: 5rem;
     height: calc(100vh - 5rem);
-    padding: 1.25rem;
+    padding: 0 1.25rem 1.25rem;
   }
 }
 
