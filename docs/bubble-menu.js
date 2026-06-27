@@ -5,29 +5,21 @@ const SIDEBAR_OPEN_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="22" he
 const SIDEBAR_CLOSE_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
 
 (function () {
-  const header = document.querySelector("header");
-  if (!header) return;
-
-  const nav = header.querySelector("nav");
-  const links = nav ? Array.from(nav.querySelectorAll("a")) : [];
-  if (!links.length) return;
-
-
-
-  const menuItems = links.map((link) => ({
-    label: link.textContent.trim(),
-    href: link.getAttribute("href"),
-    ariaLabel: link.textContent.trim(),
+  const menuItems = [
+    { label: "Home", href: "index.html" },
+    { label: "Docs", href: "docs.html" },
+    { label: "Examples", href: "examples.html" },
+    { label: "About", href: "about.html" },
+  ].map((item) => ({
+    ...item,
+    ariaLabel: item.label,
     rotation: Math.random() > 0.5 ? 6 : -6,
-    hoverStyles: { bgColor: "var(--accent)", textColor: "#fff" }
+    hoverStyles: { bgColor: "var(--accent)", textColor: "#fff" },
   }));
 
   const currentPath = location.pathname.split("/").pop() || "index.html";
   const isHome = currentPath === "index.html" || currentPath === "";
   const isDocs = currentPath === "docs.html";
-
-  const logoImg = header.querySelector(".logo img");
-  const logoText = header.querySelector(".logo span");
 
   const menu = document.createElement("nav");
   menu.className = "bubble-menu" + (isHome ? " home-page" : "") + (isDocs ? " has-sidebar" : "");
@@ -35,8 +27,8 @@ const SIDEBAR_CLOSE_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="22" h
   menu.innerHTML = `
     <div class="bubble logo-bubble" aria-label="Logo">
       <span class="logo-content">
-        ${logoImg ? `<img src="${logoImg.src}" alt="Logo" class="bubble-logo">` : ""}
-        ${logoText ? `<span class="bubble-logo-text">${logoText.textContent}</span>` : ""}
+        <img src="period.svg" alt="Logo" class="bubble-logo">
+        <span class="bubble-logo-text">Period</span>
       </span>
     </div>
     <div class="bubble-actions">
@@ -73,7 +65,6 @@ const SIDEBAR_CLOSE_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="22" h
     </ul>
   `;
 
-  header.style.display = "none";
   document.body.prepend(menu);
   document.body.appendChild(overlay);
 
