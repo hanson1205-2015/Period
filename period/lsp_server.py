@@ -959,6 +959,8 @@ class LSPServer:
             "set": "`set <target> to <value>.`\n\nAssign a new value to an existing variable or property.",
             "if": "`if <condition> then.`\n`    <statements>`\n`[otherwise.`\n`    <statements>]`\n\nConditional statement using indentation.",
             "while": "`while <condition> repeat.`\n`    <statements>`\n\nLoop while the condition is true.",
+            "for": "`for <variable> in <iterable> repeat.`\n`    <statements>`\n\nIterate over a list, string, dictionary, or range.",
+            "in": "Used in `for` loops to introduce the iterable.",
             "define": "`define <name> [with <args>].`\n`    <statements>`\n\nDefine a function or method using indentation.",
             "return": "`return [value].`\n\nReturn a value from a function or method.",
             "class": "`class <Name>.`\n`    init [with <args>].`\n`        <statements>`\n`    define <method> [with <args>].`\n`        <statements>`\n\nDefine a class.",
@@ -1017,6 +1019,18 @@ class LSPServer:
                 "Examples:\n"
                 "- `type with 5.` returns `\"integer\"`.\n"
                 "- `type with [1, 2].` returns `\"list\"`."
+            ),
+            "range": (
+                "```period\n"
+                "range with <stop> -> list\n"
+                "range with <start>, <stop> -> list\n"
+                "range with <start>, <stop>, <step> -> list\n"
+                "```\n\n"
+                "Return a list of integers from `start` (inclusive) to `stop` (exclusive).\n\n"
+                "Examples:\n"
+                "- `range with 5.` returns `[0, 1, 2, 3, 4]`.\n"
+                "- `range with 2, 5.` returns `[2, 3, 4]`.\n"
+                "- `range with 0, 10, 2.` returns `[0, 2, 4, 6, 8]`."
             ),
             "any": (
                 "```period\n"
