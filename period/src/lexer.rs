@@ -68,8 +68,7 @@ impl<'a> Lexer<'a> {
     fn span(&self) -> Span { Span { line: self.line, col: self.col } }
 
     fn error(&self, msg: &str) -> ! {
-        eprintln!("lexer error at {}:{}: {}", self.line, self.col, msg);
-        std::process::exit(1);
+        panic!("lexer error at {}:{}: {}", self.line, self.col, msg);
     }
 
     fn peek_char(&mut self) -> Option<char> { self.chars.peek().map(|(_, c)| *c) }

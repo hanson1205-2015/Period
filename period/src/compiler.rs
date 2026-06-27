@@ -56,7 +56,7 @@ impl RustGen {
 
     fn gen_toplevel_stmt(&mut self, stmt: &Stmt) -> Result<(), Unsupported> {
         match stmt {
-            Stmt::Define { name, params, body } => self.gen_define(name, params, body),
+            Stmt::Define { name, params, body, .. } => self.gen_define(name, params, body),
             _ => self.gen_stmt(stmt),
         }
     }

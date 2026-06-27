@@ -2,6 +2,7 @@ mod ast;
 mod compiler;
 mod interpreter;
 mod lexer;
+mod lsp;
 mod parser;
 
 use std::collections::hash_map::DefaultHasher;
@@ -15,6 +16,13 @@ fn main() {
     if args.len() == 2 && (args[1] == "--version" || args[1] == "-v") {
         println!("period {}", env!("CARGO_PKG_VERSION"));
         process::exit(0);
+    }
+    if args.len() == 2 && args[1] == "--lsp" {
+        if let Err(e) = lsp::run() {
+            eprintln!("lsp error: {}", e);
+            process::exit(1);
+        }
+        return;
     }
     if args.len() != 2 {
         eprintln!("usage: period <file.period>");
@@ -35,8 +43,15 @@ fn main() {
         if eof { break; }
     }
 
-    let mut p = parser::Parser::new(tokens);
-    let program = p.parse_program();
+    let program = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        parser::Parser::new(tokens).parse_program()
+    })) {
+        Ok(p) => p,
+        Err(_) => {
+            eprintln!("parse error");
+            process::exit(1);
+        }
+    };
 
     // Fast path: compile numeric programs to Rust and cache the executable.
     if let Some(rust_source) = compiler::try_compile(&program) {

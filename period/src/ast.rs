@@ -75,9 +75,9 @@ pub enum Stmt {
     While { cond: Expr, body: Vec<Stmt> },
     For { var: String, iterable: Expr, body: Vec<Stmt> },
     Return(Option<Expr>),
-    Define { name: String, params: Vec<(String, Option<String>)>, body: Vec<Stmt> },
+    Define { name: String, params: Vec<(String, Option<String>)>, return_type: Option<String>, docstring: Option<String>, body: Vec<Stmt> },
     Init(Init),
-    Class { name: String, init: Option<Init>, methods: Vec<Stmt> },
+    Class { name: String, init: Option<Init>, methods: Vec<Stmt>, docstring: Option<String> },
     Import(Vec<String>),
     Expr(Expr),
 }
@@ -86,6 +86,7 @@ pub enum Stmt {
 pub struct Init {
     pub params: Vec<(String, Option<String>)>,
     pub body: Vec<Stmt>,
+    pub docstring: Option<String>,
 }
 
 #[derive(Debug, Clone)]

@@ -40,8 +40,7 @@ impl Parser {
 
     fn error(&self, msg: &str) -> ! {
         let t = self.peek(0);
-        eprintln!("parse error at {}:{}: {}", t.span.line, t.span.col, msg);
-        std::process::exit(1);
+        panic!("parse error at {}:{}: {}", t.span.line, t.span.col, msg);
     }
 
     fn skip_newlines(&mut self) {
@@ -157,18 +156,20 @@ impl Parser {
             self.advance();
             Some(self.expect_ident("expected return type"))
         } else { None };
-        let _ = return_type;
         self.expect(TokenKind::Colon, "expected ':' after function signature");
         let raw_body = self.parse_block();
-        let body = self.strip_docstring(raw_body);
-        Stmt::Define { name, params, body }
+        let (docstring, body) = self.strip_docstring(raw_body);
+        Stmt::Define { name, params, return_type, docstring, body }
     }
 
-    fn strip_docstring(&self, mut stmts: Vec<Stmt>) -> Vec<Stmt> {
-        while let Some(Stmt::Expr(Expr::String(_))) = stmts.first() {
+    fn strip_docstring(&self, mut stmts: Vec<Stmt>) -> (Option<String>, Vec<Stmt>) {
+        let mut docstring = None;
+        while let Some(Stmt::Expr(Expr::String(s))) = stmts.first() {
+            docstring = Some(s.clone());
             stmts.remove(0);
+            break;
         }
-        stmts
+        (docstring, stmts)
     }
 
     fn parse_init(&mut self) -> Stmt {
@@ -178,8 +179,9 @@ impl Parser {
             self.parse_params()
         } else { Vec::new() };
         self.expect(TokenKind::Colon, "expected ':' after init signature");
-        let body = self.parse_block();
-        Stmt::Init(Init { params, body })
+        let raw_body = self.parse_block();
+        let (docstring, body) = self.strip_docstring(raw_body);
+        Stmt::Init(Init { params, body, docstring })
     }
 
     fn parse_class(&mut self) -> Stmt {
@@ -187,7 +189,7 @@ impl Parser {
         let name = self.expect_ident("expected class name");
         self.expect(TokenKind::Colon, "expected ':' after class name");
         let raw_members = self.parse_block();
-        let members = self.strip_docstring(raw_members);
+        let (docstring, members) = self.strip_docstring(raw_members);
         let mut init = None;
         let mut methods = Vec::new();
         for m in members {
@@ -199,7 +201,7 @@ impl Parser {
                 _ => self.error_with("class body may only contain init and methods", &m),
             }
         }
-        Stmt::Class { name, init, methods }
+        Stmt::Class { name, init, methods, docstring }
     }
 
     fn parse_import(&mut self) -> Stmt {
@@ -277,8 +279,7 @@ impl Parser {
     }
 
     fn error_with(&self, msg: &str, stmt: &Stmt) -> ! {
-        eprintln!("parse error: {}: {:?}", msg, stmt);
-        std::process::exit(1);
+        panic!("parse error: {}: {:?}", msg, stmt);
     }
 
     // Expressions ---------------------------------------------------------

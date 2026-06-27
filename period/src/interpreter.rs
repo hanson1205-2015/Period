@@ -256,7 +256,7 @@ impl Interpreter {
                 let v = match value { Some(e) => self.evaluate(e)?, None => Value::Nothing };
                 return Err(Control::Return(v));
             }
-            Stmt::Define { name, params, body } => {
+            Stmt::Define { name, params, body, .. } => {
                 let func = Value::Function {
                     name: name.clone(),
                     params: params.iter().map(|(n, _)| n.clone()).collect(),
@@ -266,11 +266,11 @@ impl Interpreter {
                 self.env.borrow().define(name, func);
             }
             Stmt::Init(_) => {}
-            Stmt::Class { name, init, methods } => {
+            Stmt::Class { name, init, methods, .. } => {
                 let mut method_map = HashMap::new();
                 for m in methods {
-                    if let Stmt::Define { name: mname, params, body } = m {
-                        method_map.insert(mname.clone(), Stmt::Define { name: mname.clone(), params: params.clone(), body: body.clone() });
+                    if let Stmt::Define { name: mname, params, body, .. } = m {
+                        method_map.insert(mname.clone(), Stmt::Define { name: mname.clone(), params: params.clone(), return_type: None, docstring: None, body: body.clone() });
                     }
                 }
                 self.env.borrow().define(name, Value::Class { name: name.clone(), init: init.clone(), methods: method_map });
