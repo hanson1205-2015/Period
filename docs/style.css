@@ -108,9 +108,16 @@ nav a.active {
   width: auto;
   min-height: var(--bubble-size);
   height: var(--bubble-size);
+  max-width: calc(100% - 120px);
   padding: 0 14px;
   border-radius: calc(var(--bubble-size) / 2);
   gap: 8px;
+}
+
+.bubble-menu .logo-content {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .bubble-menu .logo-content {
@@ -1078,16 +1085,11 @@ footer {
     gap: 1rem;
     padding: 1rem;
   }
-  .logo span,
-  .bubble-logo-text {
-    display: none;
-  }
-  .home .logo span,
-  .home .bubble-logo-text {
-    display: inline;
-  }
   nav a {
     margin: 0 0.6rem;
+  }
+  body {
+    padding-top: 76px;
   }
   main {
     padding: 1rem;
