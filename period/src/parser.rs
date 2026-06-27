@@ -447,6 +447,7 @@ impl Parser {
             TokenKind::String(s) => { self.advance(); Expr::String(s) }
             TokenKind::Bool(b) => { self.advance(); Expr::Bool(b) }
             TokenKind::Nothing => { self.advance(); Expr::Nothing }
+            TokenKind::Ellipsis => { self.advance(); Expr::Ellipsis }
             TokenKind::Ident(name) => {
                 let span = self.peek(0).span.clone();
                 self.advance();

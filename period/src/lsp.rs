@@ -718,7 +718,7 @@ fn infer_expr_with_funcs(expr: &Expr, func_returns: &HashMap<String, String>) ->
         Expr::Number(_) => "number".to_string(),
         Expr::String(_) => "string".to_string(),
         Expr::Bool(_) => "boolean".to_string(),
-        Expr::Nothing => "nothing".to_string(),
+        Expr::Nothing | Expr::Ellipsis => "nothing".to_string(),
         Expr::List(_) => "list".to_string(),
         Expr::Dict(_) => "dictionary".to_string(),
         Expr::New { class, .. } => {

@@ -28,4 +28,4 @@ define ceil with value returns number:
     "Round up to the nearest integer."
     ...
 
-let pi be 0.
+let pi be ... .

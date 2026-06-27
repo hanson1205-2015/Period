@@ -23,6 +23,7 @@ pub enum Expr {
     Qualified { name: String, module: String },
     List(Vec<Expr>),
     Dict(Vec<(Expr, Expr)>),
+    Ellipsis,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -356,6 +356,7 @@ impl Interpreter {
             Expr::String(s) => Ok(Value::String(s.clone())),
             Expr::Bool(b) => Ok(Value::Bool(*b)),
             Expr::Nothing => Ok(Value::Nothing),
+            Expr::Ellipsis => Ok(Value::Nothing),
             Expr::Variable { name, .. } => {
                 let value = self.env.borrow().get(name).ok_or_else(|| Control::Error(format!("Undefined variable '{}'", name)))?;
                 // Zero-argument functions (like input or random) are called automatically when used as a value.
