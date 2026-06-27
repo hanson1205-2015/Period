@@ -10,7 +10,9 @@ from period.interpreter import Interpreter
 from period.lexer import Lexer
 from period.lsp_server import LSPServer
 from period.parser import Parser
+from period.py_backend import run as run_py
 from period.semantic import SemanticChecker
+from period.vm import run as run_vm
 
 
 def format_diagnostics(source: str, diagnostics, filename: str = "<stdin>") -> str:
@@ -33,6 +35,7 @@ def run_source(
     filename: str = "<stdin>",
     print_output: bool = True,
     use_native: bool = False,
+    use_vm: bool = False,
 ) -> int:
     lexer = Lexer(source, filename)
     tokens = lexer.scan()
@@ -60,6 +63,20 @@ def run_source(
                 print(stdout, end="")
             return 0
 
+    if use_vm:
+        ok, output, stderr = run_py(program)
+        if ok:
+            if print_output:
+                for line in output:
+                    print(line)
+            return 0
+        print(f"python backend failed: {stderr}", file=sys.stderr)
+        ok, output, stderr = run_vm(program)
+        if ok:
+            return 0
+        print(f"vm backend failed: {stderr}", file=sys.stderr)
+        print("falling back to interpreter.", file=sys.stderr)
+
     interpreter = Interpreter()
     try:
         interpreter.interpret(program, filename)
@@ -70,9 +87,9 @@ def run_source(
     return 0
 
 
-def run_file(path: Path, use_native: bool = False) -> int:
+def run_file(path: Path, use_native: bool = False, use_vm: bool = False) -> int:
     source = path.read_text(encoding="utf-8")
-    return run_source(source, str(path), use_native=use_native)
+    return run_source(source, str(path), use_native=use_native, use_vm=use_vm)
 
 
 def run_repl():
@@ -138,6 +155,11 @@ def main():
         action="store_true",
         help="Compile the program to C and run the native executable (numeric subset only).",
     )
+    argparser.add_argument(
+        "--fast",
+        action="store_true",
+        help="Run the program on the internal bytecode VM (numeric subset only).",
+    )
     args = argparser.parse_args()
 
     if args.lsp or args.stdio:
@@ -150,7 +172,7 @@ def main():
         if not path.exists():
             print(f"error: file not found: {path}", file=sys.stderr)
             return 1
-        return run_file(path, use_native=args.native)
+        return run_file(path, use_native=args.native, use_vm=args.fast)
 
     run_repl()
     return 0
