@@ -542,9 +542,13 @@ pre code {
 }
 
 @media (min-width: 861px) {
+  .bubble-menu.has-sidebar {
+    display: none;
+  }
+
   .sidebar {
-    top: 5rem;
-    height: calc(100vh - 5rem);
+    top: 0;
+    height: 100vh;
     padding: 0 1.25rem 1.25rem;
   }
 }
@@ -555,6 +559,29 @@ pre code {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--muted);
+}
+
+.sidebar-site-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 0.75rem;
+}
+
+.sidebar-site-nav a {
+  display: block;
+  padding: 0.4rem 0.6rem;
+  border-radius: 0.5rem;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 0.95rem;
+}
+
+.sidebar-site-nav a:hover {
+  background: var(--surface-alt);
+  color: var(--accent);
 }
 
 .sidebar ul {
