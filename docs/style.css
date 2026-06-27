@@ -290,7 +290,20 @@ nav a.active {
     padding-top: 120px;
   }
 
+  .bubble-menu-items .pill-list {
+    max-width: 600px;
+    margin: 0 auto;
+  }
+
+  .bubble-menu-items .pill-list .pill-col {
+    flex: 0 0 50%;
+    margin-left: 0 !important;
+  }
+
   .bubble-menu-items .pill-link {
+    min-height: 90px;
+    font-size: clamp(1.1rem, 4vw, 1.8rem);
+    padding: clamp(0.75rem, 2vw, 1.5rem) 0;
     transform: rotate(var(--item-rot));
   }
 
