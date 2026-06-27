@@ -261,22 +261,46 @@ nav a.active {
   align-items: center;
   justify-content: center;
   position: relative;
-  transform: rotate(var(--item-rot));
-  transition: transform 0.2s ease, background 0.3s ease, color 0.3s ease;
+  transition: background 0.3s ease, color 0.3s ease;
   will-change: transform;
   box-sizing: border-box;
   white-space: nowrap;
   overflow: hidden;
 }
 
-.bubble-menu-items .pill-link:hover {
-  transform: rotate(var(--item-rot)) scale(1.06);
-  background: var(--hover-bg);
-  color: var(--hover-color);
+@media (min-width: 900px) {
+  .bubble-menu-items .pill-link {
+    transform: rotate(var(--item-rot));
+  }
+
+  .bubble-menu-items .pill-link:hover {
+    transform: rotate(var(--item-rot)) scale(1.06);
+    background: var(--hover-bg);
+    color: var(--hover-color);
+  }
+
+  .bubble-menu-items .pill-link:active {
+    transform: rotate(var(--item-rot)) scale(0.94);
+  }
 }
 
-.bubble-menu-items .pill-link:active {
-  transform: rotate(var(--item-rot)) scale(0.94);
+@media (max-width: 899px) {
+  .bubble-menu-items {
+    align-items: flex-start;
+    padding-top: 120px;
+  }
+
+  .bubble-menu-items .pill-link {
+    transform: rotate(var(--item-rot));
+  }
+
+  .bubble-menu-items .pill-link:hover {
+    transform: rotate(var(--item-rot)) scale(1.06);
+  }
+
+  .bubble-menu-items .pill-link:active {
+    transform: rotate(var(--item-rot)) scale(0.94);
+  }
 }
 
 .bubble-menu-items .pill-link.active {
@@ -289,13 +313,6 @@ nav a.active {
   will-change: transform, opacity;
   height: 1.2em;
   line-height: 1.2;
-}
-
-@media (max-width: 899px) {
-  .bubble-menu-items {
-    align-items: flex-start;
-    padding-top: 120px;
-  }
 }
 
 main {
