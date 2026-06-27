@@ -9,6 +9,9 @@
 </head>
 <body>
   <header>
+    <button class="sidebar-toggle" type="button" aria-label="Open documentation menu">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+    </button>
     <a class="logo" href="index.html">
       <img src="period.svg" alt="Period logo">
       <span>Period</span>
@@ -22,6 +25,7 @@
   </header>
 
   <main class="docs-layout">
+    <div class="sidebar-overlay"></div>
     <aside class="sidebar">
       <h4>Documentation</h4>
       <ul>
@@ -380,5 +384,25 @@ property       := &lt;primary&gt; &lt;identifier&gt;</code></pre>
   </script>
   <script type="module" src="copy-code.js"></script>
   <script type="module" src="bubble-menu.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const toggle = document.querySelector('.sidebar-toggle');
+      const overlay = document.querySelector('.sidebar-overlay');
+      function closeSidebar() {
+        document.body.classList.remove('sidebar-open');
+      }
+      if (toggle) {
+        toggle.addEventListener('click', () => {
+          document.body.classList.toggle('sidebar-open');
+        });
+      }
+      if (overlay) {
+        overlay.addEventListener('click', closeSidebar);
+      }
+      document.querySelectorAll('.sidebar a').forEach((link) => {
+        link.addEventListener('click', closeSidebar);
+      });
+    });
+  </script>
 </body>
 </html>
