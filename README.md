@@ -34,10 +34,10 @@ period
 
 ## Building from Source
 
-The language is implemented entirely in Rust under `period-rs`.
+The language is implemented entirely in Rust under `period`.
 
 ```bash
-cd period-rs
+cd period
 cargo build --release
 ```
 
