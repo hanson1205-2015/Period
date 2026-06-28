@@ -275,14 +275,6 @@ fn completion(
         None => return Ok(None),
     };
 
-    let program = match try_parse(&text).ok() {
-        Some(p) => p,
-        None => return Ok(None),
-    };
-    let mut symbols = index_program(&program);
-    symbols.extend(all_builtins());
-    dedup_symbols(&mut symbols);
-
     let line_text = text.lines().nth(params.text_document_position.position.line as usize).unwrap_or("");
 
     // An import statement ending with '.' is complete; don't offer completions after it,
@@ -291,6 +283,16 @@ fn completion(
     if trimmed.starts_with("import") && trimmed.ends_with('.') {
         return Ok(Some(CompletionResponse::Array(Vec::new())));
     }
+
+    let mut symbols = Vec::new();
+    symbols.extend(keyword_completions());
+    symbols.extend(all_builtins());
+
+    // If the file parses, also include user-defined symbols and imports.
+    if let Some(program) = try_parse(&text).ok() {
+        symbols.extend(index_program(&program));
+    }
+    dedup_symbols(&mut symbols);
 
     // If the line contains "<name> from <module>", filter to that module's exports.
     let module_hint = module_from_line(line_text);
@@ -924,6 +926,42 @@ fn all_builtins() -> Vec<SymbolInfo> {
     out.extend(module_exports("random"));
     out.extend(module_exports("time"));
     out
+}
+
+fn keyword_completions() -> Vec<SymbolInfo> {
+    let keywords = [
+        ("import", "import <module>."),
+        ("from", "<name> from <module>."),
+        ("with", "define <name> with <params>."),
+        ("define", "define <name> with <params> returns <type>:"),
+        ("returns", "Used in function signatures."),
+        ("return", "return <expression>."),
+        ("class", "class <Name>:"),
+        ("new", "new <Class>."),
+        ("tell", "tell <object> to <method> with <args>."),
+        ("if", "if <condition>, then:"),
+        ("then", "Part of an if statement."),
+        ("otherwise", "otherwise:"),
+        ("while", "while <condition> repeat:"),
+        ("repeat", "Part of a while/for statement."),
+        ("for", "for <var> in <iterable> repeat:"),
+        ("in", "Part of a for statement."),
+        ("let", "let <name> be <expression>."),
+        ("set", "set <target> to <expression>."),
+        ("show", "show <expression>."),
+        ("and", "Logical and."),
+        ("or", "Logical or."),
+        ("not", "Logical not."),
+    ];
+    keywords
+        .iter()
+        .map(|(name, detail)| SymbolInfo {
+            name: name.to_string(),
+            detail: detail.to_string(),
+            docstring: None,
+            kind: CompletionItemKind::KEYWORD,
+        })
+        .collect()
 }
 
 fn builtin_fn(name: &str, param: &str, ret: &str, doc: &str) -> SymbolInfo {
