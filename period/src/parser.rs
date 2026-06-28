@@ -218,7 +218,8 @@ impl Parser {
         Stmt::Import(paths)
     }
 
-    fn parse_module_path(&mut self) -> String {
+    fn parse_module_path(&mut self) -> (String, Span) {
+        let start = self.peek(0).span.clone();
         let mut dots = String::new();
         while self.check(&TokenKind::Dot) {
             dots.push('.');
@@ -229,7 +230,8 @@ impl Parser {
             self.advance();
             parts.push(self.expect_ident("expected module name"));
         }
-        format!("{}{}", dots, parts.join("."))
+        let path = format!("{}{}", dots, parts.join("."));
+        (path, start)
     }
 
     fn parse_expr_statement(&mut self) -> Stmt {
@@ -419,7 +421,7 @@ impl Parser {
             } else if self.check(&TokenKind::From) {
                 // qualified reference: name from module
                 self.advance();
-                let module = self.parse_module_path();
+                let module = self.parse_module_path().0;
                 if let Expr::Variable { name, .. } = expr {
                     expr = Expr::Qualified { name, module };
                 } else {

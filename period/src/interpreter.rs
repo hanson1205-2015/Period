@@ -296,7 +296,7 @@ impl Interpreter {
                 self.env.borrow().define(name, Value::Class { name: name.clone(), init: init.clone(), methods: method_map });
             }
             Stmt::Import(paths) => {
-                for path in paths { self.import_module(path)?; }
+                for (path, _) in paths { self.import_module(path)?; }
             }
             Stmt::Expr(expr) => { self.evaluate(expr)?; }
             Stmt::Pass => {}

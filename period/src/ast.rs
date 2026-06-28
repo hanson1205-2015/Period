@@ -79,7 +79,7 @@ pub enum Stmt {
     Define { name: String, params: Vec<(String, Option<String>)>, return_type: Option<String>, docstring: Option<String>, body: Vec<Stmt> },
     Init(Init),
     Class { name: String, init: Option<Init>, methods: Vec<Stmt>, docstring: Option<String> },
-    Import(Vec<String>),
+    Import(Vec<(String, Span)>),
     Expr(Expr),
     Pass,
 }

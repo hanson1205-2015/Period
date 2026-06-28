@@ -602,7 +602,7 @@ fn index_program(program: &Program) -> Vec<SymbolInfo> {
                 }
             }
             Stmt::Import(paths) => {
-                for path in paths {
+                for (path, _) in paths {
                     imports.push(path.clone());
                     let mut exports = module_exports(path);
                     let export_names: Vec<String> = exports.iter().map(|e| e.name.clone()).collect();
@@ -695,7 +695,7 @@ fn collect_symbols(stmt: &Stmt, func_returns: &HashMap<String, String>, symbols:
             for m in methods { collect_symbols(m, func_returns, symbols); }
         }
         Stmt::Import(paths) => {
-            for path in paths {
+            for (path, _) in paths {
                 let mut exports = module_exports(path);
                 let export_names: Vec<String> = exports.iter().map(|e| e.name.clone()).collect();
                 symbols.push(SymbolInfo {
@@ -877,6 +877,13 @@ fn stdlib_module_exports(module: &str) -> Option<Vec<SymbolInfo>> {
     Some(exports)
 }
 
+fn is_valid_module(module: &str) -> bool {
+    if module.starts_with('.') {
+        return true; // local file import, validated at runtime
+    }
+    matches!(module, "math" | "string" | "random" | "time")
+}
+
 fn module_exports(module: &str) -> Vec<SymbolInfo> {
     if let Some(exports) = stdlib_module_exports(module) {
         return exports;
@@ -1000,8 +1007,11 @@ fn check_program(program: &Program) -> Vec<Diagnostic> {
             Stmt::Define { name, .. } => global.push(name.clone()),
             Stmt::Class { name, .. } => global.push(name.clone()),
             Stmt::Import(paths) => {
-                imports.extend(paths.iter().cloned());
-                for path in paths {
+                for (path, span) in paths {
+                    imports.push(path.clone());
+                    if !is_valid_module(path) {
+                        diags.push(make_diagnostic(span, path, "module not found"));
+                    }
                     let exposed = path.rsplit('.').next().unwrap_or(path);
                     global.push(exposed.to_string());
                     global.extend(module_exports_names(path));
