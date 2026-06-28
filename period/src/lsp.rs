@@ -283,8 +283,14 @@ fn completion(
     symbols.extend(all_builtins());
     dedup_symbols(&mut symbols);
 
-    // If the line contains "<name> from <module>", filter to that module's exports.
     let line_text = text.lines().nth(params.text_document_position.position.line as usize).unwrap_or("");
+
+    // A trailing period ends a Period statement; don't offer completions after it.
+    if line_text.trim_end().ends_with('.') {
+        return Ok(Some(CompletionResponse::Array(Vec::new())));
+    }
+
+    // If the line contains "<name> from <module>", filter to that module's exports.
     let module_hint = module_from_line(line_text);
     if let Some(module) = module_hint {
         symbols.retain(|s| s.detail.starts_with(&format!("{}::", module)));
