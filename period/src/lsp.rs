@@ -159,6 +159,11 @@ struct SymbolInfo {
     kind: CompletionItemKind,
 }
 
+fn dedup_symbols(symbols: &mut Vec<SymbolInfo>) {
+    let mut seen = std::collections::HashSet::new();
+    symbols.retain(|s| seen.insert(s.name.clone()));
+}
+
 fn hover(
     documents: &Arc<Mutex<HashMap<Url, String>>>,
     params: HoverParams,
@@ -276,6 +281,7 @@ fn completion(
     };
     let mut symbols = index_program(&program);
     symbols.extend(all_builtins());
+    dedup_symbols(&mut symbols);
 
     // If the line contains "<name> from <module>", filter to that module's exports.
     let line_text = text.lines().nth(params.text_document_position.position.line as usize).unwrap_or("");
@@ -602,6 +608,7 @@ fn index_program(program: &Program) -> Vec<SymbolInfo> {
             _ => {}
         }
     }
+    dedup_symbols(&mut symbols);
     symbols
 }
 
@@ -635,6 +642,7 @@ fn index_program_all(program: &Program) -> Vec<SymbolInfo> {
     for stmt in &program.statements {
         collect_symbols(stmt, &func_returns, &mut symbols);
     }
+    dedup_symbols(&mut symbols);
     symbols
 }
 
