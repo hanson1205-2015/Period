@@ -12,6 +12,34 @@ use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
 use std::process::{self, Command, Stdio};
 
+/// Print a nicely formatted parse/lexer error with file location and caret.
+fn report_parse_error(path: &str, source: &str, msg: &str) {
+    // Expected formats: "lexer error at L:C: ..." or "parse error at L:C: ..."
+    let (line, col, reason) = if let Some(rest) = msg.strip_prefix("parse error at ") {
+        parse_error_location(rest, msg)
+    } else if let Some(rest) = msg.strip_prefix("lexer error at ") {
+        parse_error_location(rest, msg)
+    } else {
+        (1, 1, msg.to_string())
+    };
+
+    eprintln!("{}:{}:{}: error: {}", path, line, col, reason);
+    if let Some(src_line) = source.lines().nth(line.saturating_sub(1)) {
+        eprintln!("    {} | {}", line, src_line);
+        let indent = 7 + col.saturating_sub(1);
+        eprintln!("{}^", " ".repeat(indent));
+    }
+}
+
+fn parse_error_location(rest: &str, fallback: &str) -> (usize, usize, String) {
+    let mut parts = rest.splitn(2, ": ");
+    let loc = parts.next().unwrap_or("1:1");
+    let mut loc_parts = loc.splitn(2, ':');
+    let line: usize = loc_parts.next().and_then(|s| s.parse().ok()).unwrap_or(1);
+    let col: usize = loc_parts.next().and_then(|s| s.parse().ok()).unwrap_or(1);
+    (line, col, parts.next().unwrap_or(fallback).to_string())
+}
+
 /// If the source is nothing but `show "literal".` (with optional whitespace),
 /// print the literal and return true. This lets trivial programs run faster than
 /// a compiled C hello-world by avoiding the interpreter pipeline entirely.
@@ -37,6 +65,9 @@ fn try_fast_show(source: &str) -> bool {
 }
 
 fn main() {
+    // Suppress Rust's default panic backtrace so we can print our own user-friendly errors.
+    std::panic::set_hook(Box::new(|_| {}));
+
     let args: Vec<String> = env::args().collect();
     if args.iter().any(|a| a == "--version" || a == "-v") {
         println!("period {}", env!("CARGO_PKG_VERSION"));
@@ -78,8 +109,15 @@ fn main() {
         parser::Parser::new(tokens).parse_program()
     })) {
         Ok(p) => p,
-        Err(_) => {
-            eprintln!("parse error");
+        Err(e) => {
+            let msg = if let Some(s) = e.downcast_ref::<&str>() {
+                s.to_string()
+            } else if let Some(s) = e.downcast_ref::<String>() {
+                s.clone()
+            } else {
+                "parse error".to_string()
+            };
+            report_parse_error(path, &source, &msg);
             process::exit(1);
         }
     };
