@@ -43,12 +43,17 @@
 
       <section id="install">
       <h2>Installation & First Steps</h2>
-      <p>Download the latest <code>Period-Setup.exe</code> from the <a href="finish_install.html">download page</a> and run it. The installer will:</p>
+      <p>On Windows, download the latest <code>Period-Setup.exe</code> from the <a href="finish_install.html">download page</a> and run it. The installer will:</p>
       <ul>
         <li>Install <code>period.exe</code> to <code>C:\Program Files\Period</code>.</li>
         <li>Add Period to your system PATH.</li>
         <li>Install the VS Code extension automatically.</li>
       </ul>
+      <p>On Linux or macOS, build from source with Rust:</p>
+      <pre><code>cd period
+cargo build --release
+sudo cp target/release/period /usr/local/bin/period</code></pre>
+      <p>For the JIT numeric backend on Unix, install <a href="https://bellard.org/tcc/">TCC</a> and ensure <code>tcc</code> is on your PATH. Period will fall back to the interpreter if TCC is not available.</p>
       <p>After installation, verify it works:</p>
       <pre><code>period --version</code></pre>
       <p>Run your first program:</p>

@@ -323,10 +323,12 @@ fn find_tcc() -> Option<PathBuf> {
     }
     // Fall back to PATH.
     if let Ok(path) = env::var("PATH") {
-        for dir in path.split(';') {
-            let candidate = PathBuf::from(dir).join("tcc.exe");
-            if candidate.exists() {
-                return Some(candidate);
+        for dir in env::split_paths(&path) {
+            for name in ["tcc.exe", "tcc"] {
+                let candidate = dir.join(name);
+                if candidate.exists() {
+                    return Some(candidate);
+                }
             }
         }
     }

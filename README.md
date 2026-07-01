@@ -34,20 +34,41 @@ period
 
 ## Building from Source
 
-The language is implemented entirely in Rust under `period`.
+The language is implemented in Rust under `period/`. On Windows the release build also produces a small C wrapper (`period.exe`) for extra-fast startup; on Linux and macOS you can use the Rust binary directly.
+
+### Windows
 
 ```bash
 cd period
 cargo build --release
 ```
 
-This produces `target/release/period.exe`. Run a program with:
+This produces `target/release/period.exe`. The full distribution (including the TCC JIT compiler) is built with:
+
+```bash
+python scripts/build_dist.py
+```
+
+### Linux / macOS
+
+```bash
+cd period
+cargo build --release
+```
+
+The binary is at `target/release/period`. Copy or symlink it to your PATH:
+
+```bash
+sudo cp target/release/period /usr/local/bin/period
+```
+
+For the JIT numeric backend, install [TCC](https://bellard.org/tcc/) (`tcc`) and make sure it is on your PATH. Without TCC, numeric programs fall back to the interpreter.
+
+Run a program with:
 
 ```bash
 period hello.period
 ```
-
-Numeric programs are automatically compiled to native code via a Rust fast path; richer programs fall back to the built-in interpreter.
 
 ## Documentation
 
