@@ -14,7 +14,7 @@ const SIDEBAR_CLOSE_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="22" h
   ].map((item) => ({
     ...item,
     ariaLabel: item.label,
-    rotation: Math.random() > 0.5 ? 6 : -6,
+    rotation: Math.round((Math.random() * 24 - 12) * 100) / 100,
     hoverStyles: { bgColor: "var(--accent)", textColor: "#fff" },
   }));
 
