@@ -6,6 +6,7 @@ Run with:
 """
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import tempfile
@@ -18,6 +19,24 @@ PERIOD_EXE = DIST / "period.exe"
 TCC_EXE = ROOT / ".tools" / "tcc" / "tcc" / "tcc.exe"
 
 NS = [1_000_000, 5_000_000]
+
+
+def augment_path() -> None:
+    """Add common Windows install locations to PATH so winget-installed
+    toolchains are discoverable even when the current shell was not restarted."""
+    additions = []
+    candidates = [
+        Path(r"C:\Program Files\Go\bin"),
+        Path(r"C:\Program Files\dotnet"),
+    ]
+    for c in candidates:
+        if c.exists():
+            additions.append(str(c))
+    if Path(r"C:\Program Files\Eclipse Adoptium").exists():
+        for jdk_bin in Path(r"C:\Program Files\Eclipse Adoptium").glob("jdk-*/bin"):
+            additions.append(str(jdk_bin))
+    if additions:
+        os.environ["PATH"] = os.environ.get("PATH", "") + ";" + ";".join(additions)
 
 
 def has_dotnet_sdk() -> bool:
@@ -111,7 +130,7 @@ def source_for(lang: str, n: int) -> str:
         )
     if lang == "java":
         return (
-            f"public class Main {{\n"
+            f"class Main {{\n"
             f"    public static void main(String[] args) {{\n"
             f"        long s = 0;\n"
             f"        long n = {n}L;\n"
@@ -244,7 +263,11 @@ def run(cmd: list[str], source: str, ext: str, n: int, runs: int = 3) -> float |
         if result.returncode != 0:
             print(f"dotnet build failed: {result.stderr}")
             return None
-        run_cmd = [str(proj_dir / "bin" / "Release" / "net*" / f"{proj_dir.name}.exe")]
+        exe_candidates = list((proj_dir / "bin" / "Release").glob("net*/*.exe"))
+        if not exe_candidates:
+            print("dotnet build did not produce an executable")
+            return None
+        run_cmd = [str(exe_candidates[0])]
     elif ext == ".ps1":
         run_cmd = ["powershell", "-ExecutionPolicy", "Bypass", "-File", str(src)]
     else:
@@ -262,11 +285,18 @@ def run(cmd: list[str], source: str, ext: str, n: int, runs: int = 3) -> float |
     src.unlink(missing_ok=True)
     if ext in compiled_exts:
         exe.unlink(missing_ok=True)
+    if ext == ".java":
+        for cls in src.parent.glob("*.class"):
+            cls.unlink(missing_ok=True)
+    if ext == ".cs":
+        shutil.rmtree(proj_dir, ignore_errors=True)
 
     return sum(times) / len(times) * 1000
 
 
 def main() -> None:
+    augment_path()
+
     if not PERIOD_EXE.exists():
         print(f"Period not found at {PERIOD_EXE}; run scripts/build_dist.py first")
         return
@@ -281,13 +311,6 @@ def main() -> None:
         ("Go", ["go"], ".go"),
         ("Java", ["javac"], ".java"),
         ("C#", ["dotnet"], ".cs"),
-        ("Node.js", ["node"], ".js"),
-        ("Perl", ["perl"], ".pl"),
-        ("Ruby", ["ruby"], ".rb"),
-        ("PHP", ["php"], ".php"),
-        ("Lua", ["lua"], ".lua"),
-        ("Python", ["python"], ".py"),
-        ("PowerShell", ["powershell"], ".ps1"),
     ]
 
     # The dotnet runtime alone is not enough to compile C#; require the SDK.
@@ -301,13 +324,6 @@ def main() -> None:
         "Go": "go",
         "Java": "java",
         "C#": "csharp",
-        "Node.js": "node",
-        "Perl": "perl",
-        "Ruby": "ruby",
-        "PHP": "php",
-        "Lua": "lua",
-        "Python": "python",
-        "PowerShell": "powershell",
     }
 
     print(f"{'Language':<12}", end="")
