@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## 1.0.5.1 (2026-07-01)
+
+### What's new
+
+- Removed `.` from the LSP completion trigger characters, so typing a statement terminator no longer pops up unwanted autocomplete suggestions in the VS Code extension.
+- Split GitHub Release note generation into its own workflow to prevent the same notes from being appended three times (once per platform job).
+
+### Full commit
+
+`v1.0.5.1`
+
 ## 1.0.5 (2026-07-01)
 
 ### What's new
