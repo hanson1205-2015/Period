@@ -42,41 +42,53 @@
       const platform = params.get('platform') || 'windows';
       const downloadUrl = params.get('url') || 'https://github.com/ExploreMaths/Period/releases/latest';
 
-      const content = {
-        windows: {
-          title: 'Your Windows download is started.',
-          steps: [
-            'Run <code>Period-Setup.exe</code> and follow the prompts.',
-            'Open a terminal and type <code>period --version</code> to verify the install.',
-            'Read the <a href="docs.html#install">installation notes</a> or browse the <a href="examples.html">examples</a>.'
-          ]
-        },
-        linux: {
-          title: 'Your Linux download is started.',
-          steps: [
-            'Extract the tarball: <code>tar -xzf period-*-linux.tar.gz</code>.',
-            'Add the <code>period</code> binary to your PATH, or run it directly from the extracted folder.',
-            'Open a terminal and type <code>period --version</code> to verify the install.',
-            'Read the <a href="docs.html#install">installation notes</a> or browse the <a href="examples.html">examples</a>.'
-          ]
-        },
-        macos: {
-          title: 'Your macOS download is started.',
-          steps: [
-            'Extract the tarball: <code>tar -xzf period-*-macos.tar.gz</code>.',
-            'Add the <code>period</code> binary to your PATH, or run it directly from the extracted folder.',
-            'Open a terminal and type <code>period --version</code> to verify the install.',
-            'Read the <a href="docs.html#install">installation notes</a> or browse the <a href="examples.html">examples</a>.'
-          ]
-        }
+      function detectPackageType(url) {
+        if (url.endsWith('.deb')) return 'deb';
+        if (url.endsWith('.pkg')) return 'pkg';
+        if (url.endsWith('.exe')) return 'exe';
+        if (url.endsWith('.tar.gz') || url.endsWith('.tgz')) return 'tarball';
+        // Fallback to platform-based guess.
+        return platform === 'windows' ? 'exe' : 'tarball';
+      }
+
+      const packageType = detectPackageType(downloadUrl);
+
+      const titles = {
+        windows: 'Your Windows download is started.',
+        linux: 'Your Linux download is started.',
+        macos: 'Your macOS download is started.',
       };
 
-      const info = content[platform] || content.windows;
-      document.getElementById('finish-title').textContent = info.title;
+      const steps = {
+        exe: [
+          'Run <code>Period-Setup.exe</code> and follow the prompts.',
+          'Open a terminal and type <code>period --version</code> to verify the install.',
+          'Read the <a href="docs.html#install">installation notes</a> or browse the <a href="examples.html">examples</a>.'
+        ],
+        deb: [
+          'Install the package: <code>sudo dpkg -i period-*-amd64.deb</code>.',
+          'If dependencies are missing, run <code>sudo apt-get install -f</code>.',
+          'Open a terminal and type <code>period --version</code> to verify the install.',
+          'Read the <a href="docs.html#install">installation notes</a> or browse the <a href="examples.html">examples</a>.'
+        ],
+        pkg: [
+          'Open the downloaded <code>period-*-macos.pkg</code> and follow the installer prompts.',
+          'Open a terminal and type <code>period --version</code> to verify the install.',
+          'Read the <a href="docs.html#install">installation notes</a> or browse the <a href="examples.html">examples</a>.'
+        ],
+        tarball: [
+          'Extract the tarball: <code>tar -xzf period-*.tar.gz</code>.',
+          'Add the <code>period</code> binary to your PATH, or run it directly from the extracted folder.',
+          'Open a terminal and type <code>period --version</code> to verify the install.',
+          'Read the <a href="docs.html#install">installation notes</a> or browse the <a href="examples.html">examples</a>.'
+        ]
+      };
+
+      document.getElementById('finish-title').textContent = titles[platform] || titles.windows;
       document.getElementById('manual-download').href = downloadUrl;
 
       const stepsList = document.getElementById('finish-steps');
-      stepsList.innerHTML = info.steps.map((step) => `<li>${step}</li>`).join('');
+      stepsList.innerHTML = (steps[packageType] || steps.tarball).map((step) => `<li>${step}</li>`).join('');
 
       (function startDownload() {
         if (location.search.includes('started=1')) return;
