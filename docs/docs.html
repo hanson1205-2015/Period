@@ -28,7 +28,6 @@
         <li><a href="#files">File I/O</a></li>
         <li><a href="#exceptions">Exceptions</a></li>
         <li><a href="#exports">Exports</a></li>
-        <li><a href="#packages">Packages</a></li>
         <li><a href="#repl">REPL</a></li>
         <li><a href="#vscode">VS Code</a></li>
         <li><a href="#errors">Errors</a></li>
@@ -310,19 +309,6 @@ tell ada <span class="keyword">to</span> greet <span class="keyword">with</span>
 
 <span class="keyword">export</span> publicFn<span class="period">.</span></code></pre>
       <p>When a module contains an <code>export</code> statement, only the listed names are imported. Built-in modules always export their documented names.</p>
-    </section>
-
-    <section id="packages">
-      <h2>Packages</h2>
-      <p>A simple package manager is built into the <code>period</code> command. Installed packages are saved to a local <code>period_packages/</code> directory and can be imported by name.</p>
-      <pre><code>$ period install greet
-Installed greet -> period_packages/greet.period
-
-<span class="comment">-- In your program:</span>
-<span class="keyword">import</span> greet<span class="period">.</span>
-<span class="builtin">show</span> greet<span class="period">.</span></code></pre>
-      <p>By default, packages are downloaded from the registry at <code>https://raw.githubusercontent.com/ExploreMaths/period-packages/main</code>. You can override this with the <code>PERIOD_REGISTRY</code> environment variable, or install directly from a URL:</p>
-      <pre><code>$ period install https://example.com/path/to/mylib.period</code></pre>
     </section>
 
     <section id="repl">
