@@ -107,3 +107,83 @@ jobs:
             vscode-extension/period-language-${{ steps.ver.outputs.version }}.vsix
           fail_on_unmatched_files: true
           generate_release_notes: true
+
+  build-linux:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: ver
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build Period binary
+        run: |
+          cd period
+          cargo build --release
+
+      - name: Package Linux release
+        run: |
+          mkdir -p dist
+          cp period/target/release/period dist/period
+          cp -r period/stdlib dist/stdlib
+          cp -r docs dist/docs
+          cp -r examples dist/examples
+          cp README.md dist/README.md
+          cp LICENSE dist/LICENSE
+          tar -czf "period-${{ steps.ver.outputs.version }}-linux.tar.gz" -C dist .
+
+      - name: Upload Linux release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: period-${{ steps.ver.outputs.version }}-linux.tar.gz
+          fail_on_unmatched_files: true
+          generate_release_notes: true
+
+  build-macos:
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: ver
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build Period binary
+        run: |
+          cd period
+          cargo build --release
+
+      - name: Package macOS release
+        run: |
+          mkdir -p dist
+          cp period/target/release/period dist/period
+          cp -R period/stdlib dist/stdlib
+          cp -R docs dist/docs
+          cp -R examples dist/examples
+          cp README.md dist/README.md
+          cp LICENSE dist/LICENSE
+          tar -czf "period-${{ steps.ver.outputs.version }}-macos.tar.gz" -C dist .
+
+      - name: Upload macOS release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: period-${{ steps.ver.outputs.version }}-macos.tar.gz
+          fail_on_unmatched_files: true
+          generate_release_notes: true
