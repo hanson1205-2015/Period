@@ -6,7 +6,7 @@ on:
       - 'v*'
 
 jobs:
-  build:
+  build-windows:
     runs-on: windows-latest
     permissions:
       contents: write
@@ -99,12 +99,26 @@ jobs:
             & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\period.iss
           }
 
-      - name: Upload installer to release
+      - name: Package Windows portable archive
+        shell: pwsh
+        run: |
+          $ver = "${{ steps.ver.outputs.version }}"
+          $archive = "period-$ver-windows.zip"
+          New-Item -ItemType Directory -Force -Path portable | Out-Null
+          Copy-Item -Path dist\* -Destination portable\ -Recurse -Force
+          Copy-Item -Path docs -Destination portable\ -Recurse -Force
+          Copy-Item -Path examples -Destination portable\ -Recurse -Force
+          Copy-Item -Path README.md -Destination portable\
+          Copy-Item -Path LICENSE -Destination portable\
+          Compress-Archive -Path portable\* -DestinationPath $archive -Force
+
+      - name: Upload Windows release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             dist/Period-Setup.exe
             vscode-extension/period-language-${{ steps.ver.outputs.version }}.vsix
+            period-${{ steps.ver.outputs.version }}-windows.zip
           fail_on_unmatched_files: true
           generate_release_notes: true
 

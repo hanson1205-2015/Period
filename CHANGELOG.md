@@ -7,6 +7,7 @@
 ### What's new
 
 - Added Linux and macOS release tarballs to GitHub Releases, shipping the `period` binary, standard library, docs, examples, README, and license.
+- Added a Windows portable ZIP archive (`period-{version}-windows.zip`) to GitHub Releases alongside the installer and VS Code extension.
 - Windows installer now builds the full distribution via `scripts/build_dist.py`, including the fast-path wrapper, `period-core.exe`, bundled TCC, and standard library.
 - JIT compiler auto-selection: numeric programs are compiled to a cached DLL using the best available C compiler (Clang, GCC, or MSVC), falling back to the bundled TCC.
 - General 8x loop unrolling for pure numeric `while` loops.
