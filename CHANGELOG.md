@@ -24,6 +24,30 @@
 - Long-running numeric loops are now faster than the equivalent C program compiled with TCC by caching a JIT DLL and running it in-process via the `period.exe` wrapper.
 - Updated `docs/index.html` performance chart to use `benchmark_long.py` results with 1M and 5M iteration bars.
 
+## 1.0.2 (2026-06-27)
+
+### What's new
+
+- Bumped the VS Code: extension to v1.0.2.
+- Added LSP diagnostics for parse/lex errors, undefined names, and invalid keyword capitalization.
+- Added hover docs for keywords and improved hover/completion details with Period `with` syntax.
+- Fixed LSP crashes on lexer errors and false-positive "undefined variable" diagnostics inside blocks.
+- Enforced lowercase keywords and restricted plain imports to built-in/stdlib modules.
+- Exposed built-in modules as loadable `stdlib/` `.period` wrappers and added `.periodi` interface files.
+- Added `...` placeholder expression/body for stub/interface files.
+- Allowed docstrings without a trailing `.` inside block bodies.
+- Improved VS Code: syntax highlighting for module names, exported functions, and keyword capitalization.
+- Fixed lexer panic on Windows CRLF line endings.
+
+## 1.0.1 (2026-06-27)
+
+### What's new
+
+- Runtime and compile-time errors now print the offending source line with a caret (`^`), similar to Python.
+- The C/JIT backend maps TCC compile errors back to the original Period source location.
+- Long-running numeric loops are now faster than the equivalent C program compiled with TCC by caching a JIT DLL and running it in-process via the `period.exe` wrapper.
+- Updated `docs/index.html` performance chart to use `benchmark_long.py` results with 1M and 5M iteration bars.
+
 ## 1.0.1 (2026-06-27)
 
 ### What's new
