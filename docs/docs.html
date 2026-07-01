@@ -93,10 +93,11 @@
 <span class="keyword">let</span> empty <span class="keyword">be</span> nothing<span class="period">.</span></code></pre>
 
       <h3>Lists</h3>
-      <p>Lists are ordered, mutable collections. Use brackets for indexing. Negative indexing is not supported.</p>
+      <p>Lists are ordered, mutable collections. Use brackets for indexing. Negative indices count from the end of the list.</p>
       <pre><code><span class="keyword">let</span> numbers <span class="keyword">be</span> [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>]<span class="period">.</span>
 <span class="builtin">show</span> numbers[<span class="number">0</span>]<span class="period">.</span>
-<span class="keyword">set</span> numbers[<span class="number">0</span>] <span class="keyword">to</span> <span class="number">10</span><span class="period">.</span>
+<span class="builtin">show</span> numbers[-<span class="number">1</span>]<span class="period">.</span>
+<span class="keyword">set</span> numbers[-<span class="number">1</span>] <span class="keyword">to</span> <span class="number">10</span><span class="period">.</span>
 <span class="builtin">show</span> length <span class="keyword">with</span> numbers<span class="period">.</span></code></pre>
 
       <h3>Dictionaries</h3>
