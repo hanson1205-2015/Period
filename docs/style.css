@@ -261,7 +261,7 @@ nav a.active {
   align-items: center;
   justify-content: center;
   position: relative;
-  transition: background 0.3s ease, color 0.3s ease;
+  transition: background 0.3s ease, color 0.3s ease, transform 0.3s ease;
   will-change: transform;
   box-sizing: border-box;
   white-space: nowrap;
