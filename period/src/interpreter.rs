@@ -19,6 +19,11 @@ pub enum Value {
     Nothing,
     List(Rc<RefCell<Vec<Value>>>),
     Dict(Rc<RefCell<HashMap<ValueKey, Value>>>),
+    Range {
+        start: i64,
+        stop: i64,
+        step: i64,
+    },
     Function {
         name: String,
         params: Vec<String>,
@@ -61,6 +66,7 @@ impl std::fmt::Debug for Value {
             Value::Instance { class, .. } => write!(f, "<instance of {:?}>", class),
             Value::BuiltIn { name, .. } => write!(f, "<built-in {}>", name),
             Value::Module { name, .. } => write!(f, "<module {}>", name),
+            Value::Range { start, stop, step } => write!(f, "range({}, {}, {})", start, stop, step),
         }
     }
 }
@@ -75,6 +81,10 @@ impl PartialEq for Value {
             (Value::Nothing, Value::Nothing) => true,
             (Value::List(a), Value::List(b)) => a.borrow().eq(&*b.borrow()),
             (Value::Dict(a), Value::Dict(b)) => a.borrow().eq(&*b.borrow()),
+            (
+                Value::Range { start: a, stop: b, step: c },
+                Value::Range { start: d, stop: e, step: f },
+            ) => a == d && b == e && c == f,
             _ => false,
         }
     }
@@ -95,6 +105,7 @@ impl Value {
             Value::String(s) => Ok(ValueKey::String(s.clone())),
             Value::Bool(b) => Ok(ValueKey::Bool(*b)),
             Value::Nothing => Ok(ValueKey::Nothing),
+            Value::Range { .. } => Err("range is not hashable".to_string()),
             _ => Err(format!("{} is not hashable", self.type_name())),
         }
     }
@@ -113,6 +124,7 @@ impl Value {
             Value::Instance { .. } => "instance",
             Value::BuiltIn { .. } => "built-in",
             Value::Module { .. } => "module",
+            Value::Range { .. } => "range",
         }
     }
 
@@ -138,6 +150,7 @@ impl Value {
             Value::Instance { class, .. } => format!("<instance of {:?}>", class),
             Value::BuiltIn { name, .. } => format!("<built-in {}>", name),
             Value::Module { name, .. } => format!("<module {}>", name),
+            Value::Range { start, stop, step } => format!("range({}, {}, {})", start, stop, step),
         }
     }
 }
@@ -315,15 +328,32 @@ impl Interpreter {
             }
             Stmt::For { var, iterable, body } => {
                 let iter_value = self.evaluate(iterable)?;
-                let items = self.iterable_items(&iter_value)?;
-                for item in items {
-                    let env = Environment::with_parent(self.env.clone());
-                    env.borrow().define(var, item);
-                    let old = self.env.clone();
-                    self.env = env;
-                    let result = self.execute_block(body);
-                    self.env = old;
-                    result?;
+                match iter_value {
+                    Value::Range { start, stop, step } => {
+                        let mut i = start;
+                        while (step > 0 && i < stop) || (step < 0 && i > stop) {
+                            let env = Environment::with_parent(self.env.clone());
+                            env.borrow().define(var, Value::Integer(i));
+                            let old = self.env.clone();
+                            self.env = env;
+                            let result = self.execute_block(body);
+                            self.env = old;
+                            result?;
+                            i += step;
+                        }
+                    }
+                    _ => {
+                        let items = self.iterable_items(&iter_value)?;
+                        for item in items {
+                            let env = Environment::with_parent(self.env.clone());
+                            env.borrow().define(var, item);
+                            let old = self.env.clone();
+                            self.env = env;
+                            let result = self.execute_block(body);
+                            self.env = old;
+                            result?;
+                        }
+                    }
                 }
             }
             Stmt::Return(value) => {
@@ -462,6 +492,11 @@ impl Interpreter {
                     Value::String(s) => {
                         let i = self.as_index(&idx, s.len())?;
                         Ok(Value::String(s.chars().nth(i).unwrap().to_string()))
+                    }
+                    Value::Range { start, stop, step } => {
+                        let len = range_len(start, stop, step);
+                        let i = self.as_index(&idx, len as usize)?;
+                        Ok(Value::Integer(start + step * (i as i64)))
                     }
                     _ => Err(Control::Error(format!("Cannot index into {}", obj.type_name()))),
                 }
@@ -880,8 +915,18 @@ fn builtin_length(args: &[Value]) -> Result<Value, String> {
         Value::String(s) => Ok(Value::Integer(s.len() as i64)),
         Value::List(l) => Ok(Value::Integer(l.borrow().len() as i64)),
         Value::Dict(d) => Ok(Value::Integer(d.borrow().len() as i64)),
+        Value::Range { start, stop, step } => Ok(Value::Integer(range_len(*start, *stop, *step))),
         _ => Err("Cannot get length".to_string()),
     }
+}
+
+fn range_len(start: i64, stop: i64, step: i64) -> i64 {
+    if step == 0 || (step > 0 && start >= stop) || (step < 0 && start <= stop) {
+        return 0;
+    }
+    let diff = if step > 0 { stop - start } else { start - stop };
+    let abs_step = step.abs();
+    (diff + abs_step - 1) / abs_step
 }
 
 fn builtin_string(args: &[Value]) -> Result<Value, String> {
@@ -919,13 +964,7 @@ fn builtin_range(args: &[Value]) -> Result<Value, String> {
         _ => unreachable!(),
     };
     if step == 0 { return Err("range step cannot be zero".to_string()); }
-    let mut items = Vec::new();
-    let mut i = start;
-    while (step > 0 && i < stop) || (step < 0 && i > stop) {
-        items.push(Value::Integer(i));
-        i += step;
-    }
-    Ok(Value::List(Rc::new(RefCell::new(items))))
+    Ok(Value::Range { start, stop, step })
 }
 
 fn make_module(values: Vec<(&str, Value)>) -> Rc<RefCell<Environment>> {

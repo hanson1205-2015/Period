@@ -452,6 +452,10 @@ impl CGen {
                     Expr::Variable { name, .. } => name.clone(),
                     _ => return Self::unsupported(),
                 };
+                // Built-ins that return/operate on strings are not supported by the numeric JIT backend.
+                if name == "string" || name == "input" {
+                    return Self::unsupported();
+                }
                 let args_str: Result<Vec<_>, _> = args.iter().map(|a| self.gen_expr(a)).collect();
                 Ok(format!("{}({})", name, args_str?.join(", ")))
             }

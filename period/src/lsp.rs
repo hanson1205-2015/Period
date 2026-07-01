@@ -1174,7 +1174,7 @@ fn all_builtins() -> Vec<SymbolInfo> {
     out.push(builtin_fn("number", "value", "number", "Convert a value to a number."));
     out.push(builtin_fn("type", "value", "string", "Return the type name of a value."));
     out.push(builtin_fn("input", "", "string", "Read a line of input from the user."));
-    out.push(builtin_fn("range", "stop", "list", "Return a list of integers from 0 to stop-1."));
+    out.push(builtin_fn("range", "stop", "range", "Return a lazy range of integers from 0 to stop-1."));
     out.extend(module_exports("math"));
     out.extend(module_exports("string"));
     out.extend(module_exports("random"));
