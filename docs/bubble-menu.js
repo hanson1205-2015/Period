@@ -122,6 +122,19 @@ const SIDEBAR_CLOSE_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="22" h
   const labels = Array.from(overlay.querySelectorAll(".pill-label"));
   let isOpen = false;
 
+  function randomRotation() {
+    return Math.round((Math.random() * 24 - 12) * 100) / 100;
+  }
+
+  function prepareRotations() {
+    bubbles.forEach((bubble) => {
+      bubble.style.setProperty('--item-rot', `${randomRotation()}deg`);
+    });
+  }
+
+  // Set initial rotations for the first open.
+  prepareRotations();
+
   const open = () => {
     isOpen = true;
     toggle.classList.add("open");
@@ -134,8 +147,6 @@ const SIDEBAR_CLOSE_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="22" h
     gsap.set(labels, { y: 24, autoAlpha: 0 });
 
     bubbles.forEach((bubble, i) => {
-      const rotation = Math.round((Math.random() * 24 - 12) * 100) / 100;
-      bubble.style.setProperty('--item-rot', `${rotation}deg`);
       const delay = i * 0.1 + gsap.utils.random(-0.03, 0.03);
       const tl = gsap.timeline({ delay });
       tl.fromTo(
@@ -158,6 +169,9 @@ const SIDEBAR_CLOSE_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="22" h
     toggle.setAttribute("aria-pressed", "false");
     toggle.setAttribute("aria-expanded", "false");
     overlay.setAttribute("aria-hidden", "true");
+
+    // Pick the angles for the next open while the menu is still hidden/animating out.
+    prepareRotations();
 
     gsap.killTweensOf([...bubbles, ...labels]);
     gsap.to(labels, { y: 24, autoAlpha: 0, duration: 0.2, ease: "power3.in" });
