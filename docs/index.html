@@ -82,7 +82,7 @@
       <div class="chart-wrapper">
         <canvas id="perfChart"></canvas>
       </div>
-      <p class="chart-note">Benchmarked with <code>benchmark_long.py</code>. Period compiles the loop to a cached DLL and runs it in-process, so both 1M and 5M iterations beat the equivalent C program compiled with TCC.</p>
+      <p class="chart-note">Benchmarked with <code>benchmark_long.py</code>. The C column is compiled with an optimizing compiler (MSVC <code>cl /O2</code>, GCC <code>-O2</code>, or Clang <code>-O2</code>) when available, otherwise with the bundled TCC using <code>-O2</code>. Period compiles the loop to a cached DLL and runs it in-process, so both 1M and 5M iterations beat the equivalent C program.</p>
     </section>
 
     <section id="hello-period">

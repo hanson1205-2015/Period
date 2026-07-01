@@ -20,6 +20,21 @@ TCC_EXE = ROOT / ".tools" / "tcc" / "tcc" / "tcc.exe"
 NS = [1_000_000, 5_000_000]
 
 
+def find_release_c_compiler() -> list[str] | None:
+    """Return an optimizing C compiler command if one is available.
+
+    Prefer a real optimizing compiler (MSVC cl /O2, gcc -O2, clang -O2).
+    If none are on PATH, fall back to the bundled TCC with -O2.
+    """
+    if shutil.which("cl"):
+        return ["cl", "/O2"]
+    if shutil.which("gcc"):
+        return ["gcc", "-O2"]
+    if shutil.which("clang"):
+        return ["clang", "-O2"]
+    return None
+
+
 def source_for(lang: str, n: int) -> str:
     if lang == "period":
         return (
@@ -71,7 +86,11 @@ def run(cmd: list[str], source: str, ext: str, n: int, runs: int = 3) -> float |
 
     if ext == ".c":
         exe = src.with_suffix(".exe")
-        compile_cmd = [str(TCC_EXE), str(src), "-o", str(exe)]
+        release_cc = find_release_c_compiler()
+        if release_cc:
+            compile_cmd = release_cc + [str(src), "-o", str(exe)]
+        else:
+            compile_cmd = [str(TCC_EXE), "-O2", str(src), "-o", str(exe)]
         result = subprocess.run(
             compile_cmd,
             stdout=subprocess.DEVNULL,
@@ -110,7 +129,7 @@ def main() -> None:
         return
 
     languages = [
-        ("C", [str(TCC_EXE)], ".c"),
+        ("C (Release)", [str(TCC_EXE)], ".c"),
         ("Period", [str(PERIOD_EXE)], ".period"),
         ("Python", ["python"], ".py"),
         ("Node.js", ["node"], ".js"),
@@ -118,7 +137,7 @@ def main() -> None:
     ]
 
     lang_key = {
-        "C": "c",
+        "C (Release)": "c",
         "Period": "period",
         "Python": "python",
         "Node.js": "node",
