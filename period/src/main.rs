@@ -146,27 +146,9 @@ fn main() {
         process::exit(code);
     }
 
-    let mut lexer = lexer::Lexer::new(&source);
-    let mut tokens = Vec::new();
-    loop {
-        let t = lexer.next_token();
-        let eof = matches!(t.kind, lexer::TokenKind::Eof);
-        tokens.push(t);
-        if eof { break; }
-    }
-
-    let program = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        parser::Parser::new(tokens).parse_program()
-    })) {
+    let program = match parse_source(&source) {
         Ok(p) => p,
-        Err(e) => {
-            let msg = if let Some(s) = e.downcast_ref::<&str>() {
-                s.to_string()
-            } else if let Some(s) = e.downcast_ref::<String>() {
-                s.clone()
-            } else {
-                "parse error".to_string()
-            };
+        Err(msg) => {
             report_parse_error(path, &source, &msg);
             process::exit(1);
         }
@@ -174,7 +156,8 @@ fn main() {
 
     // Semantic check before compilation so source-level errors are reported
     // with Period source locations instead of leaking raw C compiler output.
-    let sem_errors = lsp::program_diagnostics(&program);
+    let current_path = std::env::current_dir().ok().map(|cwd| cwd.join(path));
+    let sem_errors = lsp::program_diagnostics(&program, current_path.as_deref());
     if !sem_errors.is_empty() {
         for (span, msg) in sem_errors {
             report_source_error(path, &source, &span, &msg);
@@ -408,18 +391,17 @@ fn find_c_compiler() -> Option<(PathBuf, Vec<String>)> {
 }
 
 fn parse_source(source: &str) -> Result<ast::Program, String> {
-    let mut lexer = lexer::Lexer::new(source);
-    let mut tokens = Vec::new();
-    loop {
-        let t = lexer.next_token();
-        let eof = matches!(t.kind, lexer::TokenKind::Eof);
-        tokens.push(t);
-        if eof {
-            break;
-        }
-    }
-
     match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut lexer = lexer::Lexer::new(source);
+        let mut tokens = Vec::new();
+        loop {
+            let t = lexer.next_token();
+            let eof = matches!(t.kind, lexer::TokenKind::Eof);
+            tokens.push(t);
+            if eof {
+                break;
+            }
+        }
         parser::Parser::new(tokens).parse_program()
     })) {
         Ok(p) => Ok(p),

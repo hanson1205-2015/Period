@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    name: Test
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build Period
+        working-directory: period
+        run: cargo build
+
+      - name: Run cargo test
+        working-directory: period
+        run: cargo test
+
+      - name: Run example programs
+        shell: bash
+        run: .github/scripts/run_examples.sh
+
+      - name: Run integration tests
+        shell: bash
+        run: python .github/scripts/run_tests.py
+
+  build-release:
+    name: Build Release
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build Period (release)
+        working-directory: period
+        run: cargo build --release

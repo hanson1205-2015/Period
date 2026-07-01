@@ -649,8 +649,9 @@ fn publish_diagnostics(
     };
 
     let mut diagnostics = Vec::new();
+    let current_path = uri.to_file_path().ok().map(|p| p.as_path().to_path_buf());
     match try_parse(&text) {
-        Ok(program) => diagnostics.extend(check_program(&program)),
+        Ok(program) => diagnostics.extend(check_program(&program, current_path.as_deref())),
         Err(d) => diagnostics.push(d),
     }
 
@@ -1247,8 +1248,8 @@ fn module_from_line(line: &str) -> Option<String> {
     None
 }
 
-pub fn program_diagnostics(program: &Program) -> Vec<(Span, String)> {
-    check_program(program)
+pub fn program_diagnostics(program: &Program, current_path: Option<&std::path::Path>) -> Vec<(Span, String)> {
+    check_program(program, current_path)
         .into_iter()
         .map(|d| {
             let span = Span {
@@ -1260,7 +1261,7 @@ pub fn program_diagnostics(program: &Program) -> Vec<(Span, String)> {
         .collect()
 }
 
-fn check_program(program: &Program) -> Vec<Diagnostic> {
+fn check_program(program: &Program, current_path: Option<&std::path::Path>) -> Vec<Diagnostic> {
     let mut diags = Vec::new();
     let mut imports: Vec<String> = Vec::new();
 
@@ -1279,7 +1280,11 @@ fn check_program(program: &Program) -> Vec<Diagnostic> {
                     } else {
                         let exposed = path.rsplit('.').next().unwrap_or(path);
                         global.push(exposed.to_string());
-                        global.extend(module_exports_names(path));
+                        if path.starts_with('.') {
+                            global.extend(local_module_exports_names(path, current_path));
+                        } else {
+                            global.extend(module_exports_names(path));
+                        }
                     }
                 }
             }
@@ -1402,11 +1407,12 @@ fn check_expr(expr: &Expr, scope: &[String], imports: &[String], diags: &mut Vec
             for a in args { check_expr(a, scope, imports, diags); }
         }
         Expr::Qualified { name, module } => {
-            if imports.contains(module) {
+            if imports.contains(module) && !module.starts_with('.') {
                 if !module_exports_names(module).contains(&name.clone()) {
                     // module export missing; no span available in this variant
                 }
             }
+            // Local modules are validated at runtime; skip static export checks here.
         }
         Expr::New { class, args } => {
             if let Expr::Variable { name, span } = class.as_ref() {
@@ -1451,6 +1457,77 @@ fn is_defined(name: &str, scope: &[String]) -> bool {
 
 fn module_exports_names(module: &str) -> Vec<String> {
     module_exports(module).into_iter().map(|s| s.name).collect()
+}
+
+/// Resolve a relative module name (e.g. `.helper` or `..helper`) to a file path
+/// starting from the directory containing `current_path`.
+fn resolve_local_module_path(module: &str, current_path: Option<&std::path::Path>) -> Option<std::path::PathBuf> {
+    let current = current_path?;
+    let dir = if current.is_file() {
+        current.parent().unwrap_or(current)
+    } else {
+        current
+    };
+
+    let dots = module.chars().take_while(|&c| c == '.').count();
+    let rest = &module[dots..];
+    let parts: Vec<&str> = if rest.is_empty() {
+        Vec::new()
+    } else {
+        rest.split('.').collect()
+    };
+
+    // Match interpreter semantics: `.helper` -> current dir, `..helper` -> parent dir, etc.
+    let depth = dots.saturating_sub(1);
+    let mut base = dir.to_path_buf();
+    for _ in 0..depth {
+        base = base.join("..");
+    }
+    let local_path = if parts.is_empty() {
+        base.clone()
+    } else {
+        base.join(parts.join(std::path::MAIN_SEPARATOR_STR))
+    };
+    Some(local_path.with_extension("period"))
+}
+
+/// Collect top-level exported names from a local `.period` file.
+/// Falls back to an empty list if the file cannot be read or parsed.
+fn local_module_exports_names(module: &str, current_path: Option<&std::path::Path>) -> Vec<String> {
+    let path = match resolve_local_module_path(module, current_path) {
+        Some(p) => p,
+        None => return Vec::new(),
+    };
+    let source = match std::fs::read_to_string(&path) {
+        Ok(s) => s,
+        Err(_) => return Vec::new(),
+    };
+    let program = match try_parse(&source) {
+        Ok(p) => p,
+        Err(_) => return Vec::new(),
+    };
+
+    let mut names = Vec::new();
+    let mut explicit_exports: Vec<String> = Vec::new();
+    let mut has_export = false;
+    for stmt in &program.statements {
+        match stmt {
+            Stmt::Define { name, .. } => names.push(name.clone()),
+            Stmt::Class { name, .. } => names.push(name.clone()),
+            Stmt::Let { name, .. } => names.push(name.clone()),
+            Stmt::Read { name, .. } => names.push(name.clone()),
+            Stmt::Export(exported) => {
+                has_export = true;
+                explicit_exports.extend(exported.iter().cloned());
+            }
+            _ => {}
+        }
+    }
+    if has_export {
+        explicit_exports
+    } else {
+        names
+    }
 }
 
 fn make_diagnostic(span: &Span, name: &str, message: &str) -> Diagnostic {

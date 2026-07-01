@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+## 1.0.5 (2026-07-01)
+
+### What's new
+
+- Fixed local/relative module imports (`import .helper.`) being incorrectly rejected by the pre-runtime semantic check introduced in 1.0.4.
+- Fixed the REPL and file mode crashing with no output when given lexer-invalid input such as `..`; they now report a friendly parse error instead.
+- Added a cross-platform CI workflow (`.github/workflows/ci.yml`) that runs `cargo test`, all example programs, and an expanded integration test suite on every push and pull request.
+
+### Full commit
+
+`v1.0.5`
+
 ## 1.0.4 (2026-07-01)
 
 ### What's new
