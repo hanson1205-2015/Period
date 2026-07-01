@@ -126,9 +126,13 @@ const SIDEBAR_CLOSE_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="22" h
     return Math.round((Math.random() * 24 - 12) * 100) / 100;
   }
 
+  const rotations = new Map();
+
   function prepareRotations() {
     bubbles.forEach((bubble) => {
-      bubble.style.setProperty('--item-rot', `${randomRotation()}deg`);
+      const rotation = randomRotation();
+      rotations.set(bubble, rotation);
+      bubble.style.setProperty('--item-rot', `${rotation}deg`);
     });
   }
 
@@ -147,12 +151,13 @@ const SIDEBAR_CLOSE_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="22" h
     gsap.set(labels, { y: 24, autoAlpha: 0 });
 
     bubbles.forEach((bubble, i) => {
+      const rotation = rotations.get(bubble) || 0;
       const delay = i * 0.1 + gsap.utils.random(-0.03, 0.03);
       const tl = gsap.timeline({ delay });
       tl.fromTo(
         bubble,
-        { scale: 0, transformOrigin: "50% 50%" },
-        { scale: 1, duration: 0.5, ease: "back.out(1.5)", clearProps: "transform" }
+        { scale: 0, rotation: rotation, transformOrigin: "50% 50%" },
+        { scale: 1, rotation: rotation, duration: 0.5, ease: "back.out(1.5)", clearProps: "transform" }
       );
       tl.to(
         labels[i],
