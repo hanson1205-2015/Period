@@ -15,6 +15,7 @@
 - Cross-platform build notes for Linux/macOS and PATH-aware TCC lookup.
 - Documentation clarifications for `integer` vs `number` and property access syntax.
 - Interactive REPL: run `period` with no arguments to evaluate statements line-by-line.
+- VS Code: / LSP "Go to Definition" for variables, function/class/method names, parameters, loop variables, and catch variables.
 
 ## 1.0.3 (2026-06-28)
 

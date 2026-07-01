@@ -8,8 +8,8 @@ use std::sync::{Arc, Mutex};
 use lsp_server::{Connection, Message, Notification, Request, Response};
 use lsp_types::{
     CompletionItem, CompletionItemKind, CompletionOptions, CompletionParams,
-    CompletionResponse, Diagnostic, DiagnosticSeverity, Hover, HoverContents, HoverOptions,
-    HoverParams, HoverProviderCapability, MarkupContent, MarkupKind,
+    CompletionResponse, Diagnostic, DiagnosticSeverity, GotoDefinitionParams, Hover, HoverContents,
+    HoverOptions, HoverParams, HoverProviderCapability, Location, MarkupContent, MarkupKind,
     Position, PublishDiagnosticsParams, Range, ServerCapabilities, TextDocumentContentChangeEvent,
     TextDocumentItem, TextDocumentSyncCapability, TextDocumentSyncKind, Url,
 };
@@ -31,6 +31,7 @@ pub fn run() -> Result<(), Box<dyn Error>> {
             trigger_characters: Some(vec![".".to_string(), " ".to_string()]),
             ..Default::default()
         }),
+        definition_provider: Some(lsp_types::OneOf::Left(true)),
         ..Default::default()
     })?;
 
@@ -79,6 +80,16 @@ fn handle_request(
         "textDocument/completion" => {
             let params: CompletionParams = serde_json::from_value(req.params)?;
             let result = completion(documents, params)?;
+            let result_value = serde_json::to_value(result)?;
+            connection.sender.send(Message::Response(Response {
+                id,
+                result: Some(result_value),
+                error: None,
+            }))?;
+        }
+        "textDocument/definition" => {
+            let params: GotoDefinitionParams = serde_json::from_value(req.params)?;
+            let result = definition(documents, params)?;
             let result_value = serde_json::to_value(result)?;
             connection.sender.send(Message::Response(Response {
                 id,
@@ -317,6 +328,212 @@ fn completion(
         .collect();
 
     Ok(Some(CompletionResponse::Array(items)))
+}
+
+fn definition(
+    documents: &Arc<Mutex<HashMap<Url, String>>>,
+    params: GotoDefinitionParams,
+) -> Result<Option<Vec<Location>>, Box<dyn Error>> {
+    let uri = params.text_document_position_params.text_document.uri;
+    let pos = params.text_document_position_params.position;
+    let text = match documents.lock().unwrap().get(&uri) {
+        Some(t) => t.clone(),
+        None => return Ok(None),
+    };
+
+    let tokens = match lex_tokens(&text) {
+        Ok(t) => t,
+        Err(_) => return Ok(None),
+    };
+    let token = match find_token(&tokens, pos) {
+        Some(t) => t,
+        None => return Ok(None),
+    };
+    let name = match &token.kind {
+        TokenKind::Ident(n) => n.clone(),
+        _ => return Ok(None),
+    };
+
+    let mut locations = Vec::new();
+    for (def_name, span) in collect_local_definitions(&tokens) {
+        if def_name == name {
+            locations.push(Location {
+                uri: uri.clone(),
+                range: span_to_range(&span, def_name.len() as u32),
+            });
+        }
+    }
+
+    if locations.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(locations))
+    }
+}
+
+fn span_to_range(span: &Span, len: u32) -> Range {
+    let line = (span.line as u32).saturating_sub(1);
+    let end_col = (span.col as u32).saturating_sub(1);
+    let start_col = end_col.saturating_sub(len);
+    Range {
+        start: Position { line, character: start_col },
+        end: Position { line, character: end_col },
+    }
+}
+
+fn ident_name(kind: &TokenKind) -> Option<String> {
+    if let TokenKind::Ident(name) = kind {
+        Some(name.clone())
+    } else {
+        None
+    }
+}
+
+fn next_ident(start: usize, tokens: &[Token]) -> Option<usize> {
+    for (i, t) in tokens.iter().enumerate().skip(start) {
+        if matches!(t.kind, TokenKind::Ident(_)) {
+            return Some(i);
+        }
+    }
+    None
+}
+
+fn prev_significant(start: usize, tokens: &[Token]) -> Option<usize> {
+    for i in (0..start).rev() {
+        if !matches!(tokens[i].kind, TokenKind::Indent | TokenKind::Dedent | TokenKind::Newline) {
+            return Some(i);
+        }
+    }
+    None
+}
+
+fn next_significant(start: usize, tokens: &[Token]) -> Option<usize> {
+    for i in start..tokens.len() {
+        if !matches!(tokens[i].kind, TokenKind::Indent | TokenKind::Dedent | TokenKind::Newline) {
+            return Some(i);
+        }
+    }
+    None
+}
+
+fn collect_local_definitions(tokens: &[Token]) -> Vec<(String, Span)> {
+    let mut defs = Vec::new();
+    let mut i = 0;
+    while i < tokens.len() {
+        match &tokens[i].kind {
+            TokenKind::Let => {
+                // let [type] name be value.  The identifier just before 'be' is the variable.
+                if let Some(be_idx) = find_keyword_after(i, tokens, &TokenKind::Be) {
+                    if let Some(name_idx) = prev_ident_before(be_idx, tokens) {
+                        if let Some(name) = ident_name(&tokens[name_idx].kind) {
+                            defs.push((name, tokens[name_idx].span.clone()));
+                        }
+                    }
+                }
+            }
+            TokenKind::Read => {
+                // read name from path.
+                if let Some(from_idx) = find_keyword_after(i, tokens, &TokenKind::From) {
+                    if let Some(name_idx) = prev_ident_before(from_idx, tokens) {
+                        if let Some(name) = ident_name(&tokens[name_idx].kind) {
+                            defs.push((name, tokens[name_idx].span.clone()));
+                        }
+                    }
+                }
+            }
+            TokenKind::Catch => {
+                // catch var:
+                if let Some(colon_idx) = find_keyword_after(i, tokens, &TokenKind::Colon) {
+                    if let Some(name_idx) = prev_ident_before(colon_idx, tokens) {
+                        if let Some(name) = ident_name(&tokens[name_idx].kind) {
+                            defs.push((name, tokens[name_idx].span.clone()));
+                        }
+                    }
+                }
+            }
+            TokenKind::For => {
+                // for var in iterable
+                if let Some(in_idx) = find_keyword_after(i, tokens, &TokenKind::In) {
+                    if let Some(name_idx) = prev_ident_before(in_idx, tokens) {
+                        if let Some(name) = ident_name(&tokens[name_idx].kind) {
+                            defs.push((name, tokens[name_idx].span.clone()));
+                        }
+                    }
+                }
+            }
+            TokenKind::Define | TokenKind::Class => {
+                if let Some(name_idx) = next_ident(i + 1, tokens) {
+                    if let Some(name) = ident_name(&tokens[name_idx].kind) {
+                        defs.push((name, tokens[name_idx].span.clone()));
+                    }
+                }
+            }
+            TokenKind::With => {
+                if is_definition_with(i, tokens) {
+                    collect_params(i + 1, tokens, &mut defs);
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    defs
+}
+
+fn find_keyword_after(start: usize, tokens: &[Token], target: &TokenKind) -> Option<usize> {
+    for i in start..tokens.len() {
+        if matches!(tokens[i].kind, TokenKind::Eof) {
+            break;
+        }
+        if std::mem::discriminant(&tokens[i].kind) == std::mem::discriminant(target) {
+            return Some(i);
+        }
+    }
+    None
+}
+
+fn prev_ident_before(start: usize, tokens: &[Token]) -> Option<usize> {
+    for i in (0..start).rev() {
+        if matches!(tokens[i].kind, TokenKind::Ident(_)) {
+            return Some(i);
+        }
+    }
+    None
+}
+
+fn is_definition_with(idx: usize, tokens: &[Token]) -> bool {
+    // init with ...
+    if let Some(prev) = prev_significant(idx, tokens) {
+        if matches!(tokens[prev].kind, TokenKind::Init) {
+            return true;
+        }
+        // define name with ...
+        if let Some(prev2) = prev_significant(prev, tokens) {
+            if matches!(tokens[prev2].kind, TokenKind::Define) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+fn collect_params(start: usize, tokens: &[Token], defs: &mut Vec<(String, Span)>) {
+    for i in start..tokens.len() {
+        match &tokens[i].kind {
+            TokenKind::Colon | TokenKind::Returns | TokenKind::Eof => break,
+            TokenKind::Ident(name) => {
+                if let Some(next) = next_significant(i + 1, tokens) {
+                    match tokens[next].kind {
+                        TokenKind::Comma | TokenKind::Returns | TokenKind::Colon => {
+                            defs.push((name.clone(), tokens[i].span.clone()));
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
 }
 
 fn lex_tokens(source: &str) -> Result<Vec<Token>, String> {
