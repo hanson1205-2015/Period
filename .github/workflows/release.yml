@@ -31,13 +31,19 @@ jobs:
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Build Period executable
+      - name: Download bundled TCC
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path dist
-          cd period
-          cargo build --release
-          Copy-Item ..\period\target\release\period.exe ..\dist\period.exe
+          New-Item -ItemType Directory -Force -Path .tools\tcc
+          Invoke-WebRequest -Uri "https://download.savannah.nongnu.org/releases/tinycc/tcc-0.9.27-win64-bin.zip" -OutFile "$env:RUNNER_TEMP\tcc.zip" -MaximumRedirection 5
+          Expand-Archive -Path "$env:RUNNER_TEMP\tcc.zip" -DestinationPath ".tools\tcc" -Force
+          if (-not (Test-Path ".tools\tcc\tcc\tcc.exe")) {
+            Write-Error "TCC extraction did not produce the expected layout"
+          }
+
+      - name: Build Period distribution
+        shell: pwsh
+        run: python scripts/build_dist.py
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -52,7 +58,7 @@ jobs:
         working-directory: vscode-extension
         run: |
           npm install
-          npx @vscode/vsce package --allow-missing-repository -o period-language.vsix
+          npx @vscode/vsce package --allow-missing-repository
 
       - name: Install Inno Setup
         run: choco install innosetup --yes
@@ -98,6 +104,6 @@ jobs:
         with:
           files: |
             dist/Period-Setup.exe
-            vscode-extension/period-language.vsix
+            vscode-extension/period-language-${{ steps.ver.outputs.version }}.vsix
           fail_on_unmatched_files: true
           generate_release_notes: true
