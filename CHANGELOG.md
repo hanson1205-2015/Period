@@ -6,6 +6,7 @@
 
 ### What's new
 
+- Added Linux `.deb` (`period-{version}-amd64.deb`) and macOS `.pkg` (`period-{version}-macos.pkg`) installers to GitHub Releases.
 - Added Linux and macOS release tarballs to GitHub Releases, shipping the `period` binary, standard library, docs, examples, README, and license.
 - Added a Windows portable ZIP archive (`period-{version}-windows.zip`) to GitHub Releases alongside the installer and VS Code extension.
 - Windows installer now builds the full distribution via `scripts/build_dist.py`, including the fast-path wrapper, `period-core.exe`, bundled TCC, and standard library.

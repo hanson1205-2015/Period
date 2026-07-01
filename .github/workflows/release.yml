@@ -155,10 +155,30 @@ jobs:
           cp LICENSE dist/LICENSE
           tar -czf "period-${{ steps.ver.outputs.version }}-linux.tar.gz" -C dist .
 
+      - name: Build .deb package
+        run: |
+          VERSION="${{ steps.ver.outputs.version }}"
+          STAGE="deb-build/period-${VERSION}"
+          mkdir -p "${STAGE}/DEBIAN"
+          mkdir -p "${STAGE}/usr/local/bin"
+          mkdir -p "${STAGE}/usr/local/share/period/stdlib"
+          mkdir -p "${STAGE}/usr/local/share/doc/period"
+          cp period/target/release/period "${STAGE}/usr/local/bin/period"
+          chmod 755 "${STAGE}/usr/local/bin/period"
+          cp -r period/stdlib/* "${STAGE}/usr/local/share/period/stdlib/"
+          cp -r docs "${STAGE}/usr/local/share/doc/period/"
+          cp -r examples "${STAGE}/usr/local/share/doc/period/"
+          cp README.md "${STAGE}/usr/local/share/doc/period/"
+          cp LICENSE "${STAGE}/usr/local/share/doc/period/"
+          printf 'Package: period\nVersion: %s\nSection: devel\nPriority: optional\nArchitecture: amd64\nDepends: libc6\nMaintainer: Period Language <period@example.com>\nDescription: Period programming language interpreter and LSP server\n' "$VERSION" > "${STAGE}/DEBIAN/control"
+          dpkg-deb --build "${STAGE}" "period-${VERSION}-amd64.deb"
+
       - name: Upload Linux release
         uses: softprops/action-gh-release@v2
         with:
-          files: period-${{ steps.ver.outputs.version }}-linux.tar.gz
+          files: |
+            period-${{ steps.ver.outputs.version }}-linux.tar.gz
+            period-${{ steps.ver.outputs.version }}-amd64.deb
           fail_on_unmatched_files: true
           generate_release_notes: true
 
@@ -195,9 +215,31 @@ jobs:
           cp LICENSE dist/LICENSE
           tar -czf "period-${{ steps.ver.outputs.version }}-macos.tar.gz" -C dist .
 
+      - name: Build .pkg installer
+        run: |
+          VERSION="${{ steps.ver.outputs.version }}"
+          ROOT="pkg-root"
+          mkdir -p "${ROOT}/usr/local/bin"
+          mkdir -p "${ROOT}/usr/local/share/period/stdlib"
+          mkdir -p "${ROOT}/usr/local/share/doc/period"
+          cp period/target/release/period "${ROOT}/usr/local/bin/period"
+          chmod 755 "${ROOT}/usr/local/bin/period"
+          cp -R period/stdlib/* "${ROOT}/usr/local/share/period/stdlib/"
+          cp -R docs "${ROOT}/usr/local/share/doc/period/"
+          cp -R examples "${ROOT}/usr/local/share/doc/period/"
+          cp README.md "${ROOT}/usr/local/share/doc/period/"
+          cp LICENSE "${ROOT}/usr/local/share/doc/period/"
+          pkgbuild --root "${ROOT}" \
+            --identifier com.period-lang.period \
+            --version "${VERSION}" \
+            --install-location / \
+            "period-${VERSION}-macos.pkg"
+
       - name: Upload macOS release
         uses: softprops/action-gh-release@v2
         with:
-          files: period-${{ steps.ver.outputs.version }}-macos.tar.gz
+          files: |
+            period-${{ steps.ver.outputs.version }}-macos.tar.gz
+            period-${{ steps.ver.outputs.version }}-macos.pkg
           fail_on_unmatched_files: true
           generate_release_notes: true

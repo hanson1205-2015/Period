@@ -1023,6 +1023,10 @@ fn stdlib_locations() -> Vec<PathBuf> {
     if let Ok(exe) = env::current_exe() {
         if let Some(parent) = exe.parent() {
             locs.push(parent.join("stdlib"));
+            // FHS-style install layout (e.g. /usr/local/bin/period -> /usr/local/share/period/stdlib)
+            if let Some(grandparent) = parent.parent() {
+                locs.push(grandparent.join("share").join("period").join("stdlib"));
+            }
         }
     }
     if let Ok(cwd) = env::current_dir() {
