@@ -62,7 +62,7 @@ impl fmt::Display for UnaryOp {
 
 #[derive(Debug, Clone)]
 pub enum AssignTarget {
-    Variable(String),
+    Variable { name: String, span: Span },
     Index { object: Box<Expr>, index: Box<Expr> },
     Property { object: Box<Expr>, name: String },
 }

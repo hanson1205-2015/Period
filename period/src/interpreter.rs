@@ -374,7 +374,7 @@ impl Interpreter {
 
     fn assign_target(&mut self, target: &AssignTarget, value: Value) -> Result<(), Control> {
         match target {
-            AssignTarget::Variable(name) => {
+            AssignTarget::Variable { name, .. } => {
                 self.env.borrow().set(name, value).map_err(Control::Error)?;
             }
             AssignTarget::Index { object, index } => {

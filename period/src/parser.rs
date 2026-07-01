@@ -126,7 +126,7 @@ impl Parser {
     fn parse_assign_target(&mut self) -> AssignTarget {
         let expr = self.parse_expression();
         match expr {
-            Expr::Variable { name, .. } => AssignTarget::Variable(name),
+            Expr::Variable { name, span } => AssignTarget::Variable { name, span },
             Expr::Index { object, index } => AssignTarget::Index { object, index },
             Expr::Property { object, name } => AssignTarget::Property { object, name },
             _ => self.error("invalid assignment target"),

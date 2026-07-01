@@ -16,6 +16,8 @@
 - Documentation clarifications for `integer` vs `number` and property access syntax.
 - Interactive REPL: run `period` with no arguments to evaluate statements line-by-line.
 - VS Code: / LSP "Go to Definition" for variables, function/class/method names, parameters, loop variables, and catch variables.
+- LSP diagnostics now flag undefined variables in `set` assignment targets (`set c to 3.` where `c` is undeclared).
+- CLI prints semantic errors with source locations before falling back to the interpreter, avoiding raw C compiler output for source-level mistakes.
 
 ## 1.0.3 (2026-06-28)
 

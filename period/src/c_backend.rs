@@ -252,7 +252,7 @@ impl CGen {
 
     fn gen_assign_target(&mut self, target: &AssignTarget) -> Result<String, Unsupported> {
         match target {
-            AssignTarget::Variable(name) => Ok(name.clone()),
+            AssignTarget::Variable { name, .. } => Ok(name.clone()),
             AssignTarget::Index { .. } => Self::unsupported(),
             AssignTarget::Property { .. } => Self::unsupported(),
         }

@@ -1243,6 +1243,19 @@ fn module_from_line(line: &str) -> Option<String> {
     None
 }
 
+pub fn program_diagnostics(program: &Program) -> Vec<(Span, String)> {
+    check_program(program)
+        .into_iter()
+        .map(|d| {
+            let span = Span {
+                line: (d.range.start.line + 1) as usize,
+                col: (d.range.end.character + 1) as usize,
+            };
+            (span, d.message)
+        })
+        .collect()
+}
+
 fn check_program(program: &Program) -> Vec<Diagnostic> {
     let mut diags = Vec::new();
     let mut imports: Vec<String> = Vec::new();
@@ -1352,7 +1365,11 @@ fn check_stmt(stmt: &Stmt, scope: &mut Vec<String>, imports: &[String], diags: &
 
 fn check_assign_target(target: &AssignTarget, scope: &[String], imports: &[String], diags: &mut Vec<Diagnostic>) {
     match target {
-        AssignTarget::Variable(_) => {}
+        AssignTarget::Variable { name, span } => {
+            if !is_defined(name, scope) {
+                diags.push(make_diagnostic(span, name, &format!("undefined variable '{}'", name)));
+            }
+        }
         AssignTarget::Index { object, index } => {
             check_expr(object, scope, imports, diags);
             check_expr(index, scope, imports, diags);

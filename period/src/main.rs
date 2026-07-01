@@ -172,12 +172,26 @@ fn main() {
         }
     };
 
+    // Semantic check before compilation so source-level errors are reported
+    // with Period source locations instead of leaking raw C compiler output.
+    let sem_errors = lsp::program_diagnostics(&program);
+    if !sem_errors.is_empty() {
+        for (span, msg) in sem_errors {
+            report_source_error(path, &source, &span, &msg);
+        }
+        process::exit(1);
+    }
+
     // Fast path: compile numeric programs to C via TCC and cache a DLL.
     if c_backend::try_compile_c(&program, path).is_some() {
         if let Some(code) = try_run_compiled(&source, &program, path) {
             process::exit(code);
         }
-        eprintln!("TCC not available; falling back to interpreter.");
+        if find_tcc().is_some() {
+            eprintln!("compilation failed; falling back to interpreter.");
+        } else {
+            eprintln!("TCC not available; falling back to interpreter.");
+        }
     }
 
     // General path: tree-walking interpreter.
@@ -204,9 +218,21 @@ fn report_runtime_error(path: &str, source: &str, ctrl: &interpreter::Control) {
                 eprintln!("{}^", " ".repeat(indent));
             }
         }
+        interpreter::Control::Error(msg) => {
+            eprintln!("{}: runtime error: {}", path, msg);
+        }
         _ => {
             eprintln!("{}: runtime error: {:?}", path, ctrl);
         }
+    }
+}
+
+fn report_source_error(path: &str, source: &str, span: &ast::Span, msg: &str) {
+    eprintln!("{}:{}:{}: error: {}", path, span.line, span.col, msg);
+    if let Some(src_line) = source.lines().nth(span.line.saturating_sub(1)) {
+        eprintln!("    {} | {}", span.line, src_line);
+        let indent = 7 + span.col.saturating_sub(1);
+        eprintln!("{}^", " ".repeat(indent));
     }
 }
 
@@ -260,7 +286,6 @@ fn try_run_compiled(source: &str, program: &ast::Program, path: &str) -> Option<
             if report_compile_error(path, source, &c_path, &stderr, &line_map) {
                 process::exit(1);
             }
-            eprintln!("{}", stderr.trim());
             return None;
         }
     }
