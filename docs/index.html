@@ -273,17 +273,17 @@ tell ada <span class="keyword">to</span> greet <span class="keyword">with</span>
               data: [9.1, 10.1, 72.9, 192.0, 145.3],
               backgroundColor: [
                 'rgba(217, 119, 6, 0.9)',
-                'rgba(120, 113, 108, 0.6)',
-                'rgba(120, 113, 108, 0.6)',
-                'rgba(120, 113, 108, 0.6)',
-                'rgba(120, 113, 108, 0.6)'
+                'rgba(59, 130, 246, 0.9)',
+                'rgba(168, 85, 247, 0.9)',
+                'rgba(34, 197, 94, 0.9)',
+                'rgba(234, 179, 8, 0.9)'
               ],
               borderColor: [
                 'rgba(217, 119, 6, 1)',
-                'rgba(120, 113, 108, 1)',
-                'rgba(120, 113, 108, 1)',
-                'rgba(120, 113, 108, 1)',
-                'rgba(120, 113, 108, 1)'
+                'rgba(59, 130, 246, 1)',
+                'rgba(168, 85, 247, 1)',
+                'rgba(34, 197, 94, 1)',
+                'rgba(234, 179, 8, 1)'
               ],
               borderWidth: 1,
               borderRadius: 6,
@@ -293,18 +293,18 @@ tell ada <span class="keyword">to</span> greet <span class="keyword">with</span>
               label: '5,000,000 iterations',
               data: [11.0, 13.6, 181.5, 198.8, 918.5],
               backgroundColor: [
-                'rgba(217, 119, 6, 0.7)',
-                'rgba(120, 113, 108, 0.4)',
-                'rgba(120, 113, 108, 0.4)',
-                'rgba(120, 113, 108, 0.4)',
-                'rgba(120, 113, 108, 0.4)'
+                'rgba(217, 119, 6, 0.65)',
+                'rgba(59, 130, 246, 0.65)',
+                'rgba(168, 85, 247, 0.65)',
+                'rgba(34, 197, 94, 0.65)',
+                'rgba(234, 179, 8, 0.65)'
               ],
               borderColor: [
                 'rgba(217, 119, 6, 1)',
-                'rgba(120, 113, 108, 1)',
-                'rgba(120, 113, 108, 1)',
-                'rgba(120, 113, 108, 1)',
-                'rgba(120, 113, 108, 1)'
+                'rgba(59, 130, 246, 1)',
+                'rgba(168, 85, 247, 1)',
+                'rgba(34, 197, 94, 1)',
+                'rgba(234, 179, 8, 1)'
               ],
               borderWidth: 1,
               borderRadius: 6,
@@ -316,7 +316,20 @@ tell ada <span class="keyword">to</span> greet <span class="keyword">with</span>
           responsive: true,
           maintainAspectRatio: false,
           plugins: {
-            legend: { display: false },
+            legend: {
+              display: true,
+              position: 'bottom',
+              labels: {
+                generateLabels: (chart) => chart.data.datasets.map((ds, i) => ({
+                  text: ds.label,
+                  fillStyle: i === 0 ? 'rgba(87, 83, 78, 0.9)' : 'rgba(168, 162, 154, 0.9)',
+                  strokeStyle: 'transparent',
+                  lineWidth: 0,
+                  hidden: chart.getDatasetMeta(i).hidden,
+                  datasetIndex: i
+                }))
+              }
+            },
             tooltip: {
               callbacks: {
                 label: (item) => `${item.raw} ms`
