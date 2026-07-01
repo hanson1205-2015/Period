@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+### What's new
+
+- String interpolation: `"Hello, {name}!"` and `"1 + 2 = {1 + 2}"`.
+- `else` is accepted as an alias for `otherwise` in `if` statements.
+- Dot property access and assignment: `ada.age` and `set this.name to ...`.
+- Compound type annotations: `list of integer`, `dictionary of string to number`, and generic type variables.
+- File I/O statements: `read x from "file.txt"` and `write x to "file.txt"`.
+- Exception handling: `try: ... catch err: ...`.
+- Explicit module exports: `export name1, name2.`.
+- Basic package manager: `period install <package-or-url>` with `period_packages/` lookup.
+- Cross-platform build notes for Linux/macOS and PATH-aware TCC lookup.
+- Documentation clarifications for `integer` vs `number` and property access syntax.
+
 ## 1.0.3 (2026-06-28)
 
 ### What's new
