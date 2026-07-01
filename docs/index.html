@@ -82,7 +82,7 @@
       <div class="chart-wrapper">
         <canvas id="perfChart"></canvas>
       </div>
-      <p class="chart-note">Benchmarked with <code>benchmark_long.py</code> (5,000,000 iterations, averaged over 10 runs). Two workloads are shown: summing 1..N, and counting numbers divisible by 3 or 5. C is compiled with the best available optimizing compiler (MSVC, GCC, Clang) and falls back to the bundled TCC if none are installed; Rust, Go, C# and Java use their normal release builds. Period compiles the program to a cached DLL using the same best-available C compiler, runs it in-process, and applies loop unrolling for pure numeric <code>while</code> loops.</p>
+      <p class="chart-note">Benchmarked with <a href="https://github.com/ExploreMaths/Period/blob/main/docs/benchmark_long.py"><code>benchmark_long.py</code></a> (5,000,000 iterations, averaged over 10 runs). Two workloads are shown: summing 1..N, and counting numbers divisible by 3 or 5. C is compiled with the best available optimizing compiler (MSVC, GCC, Clang) and falls back to the bundled TCC if none are installed; Rust, Go, C# and Java use their normal release builds. Period compiles the program to a cached DLL using the same best-available C compiler, runs it in-process, and applies loop unrolling for pure numeric <code>while</code> loops.</p>
     </section>
 
     <section id="hello-period">
