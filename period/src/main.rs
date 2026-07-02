@@ -166,14 +166,11 @@ fn main() {
     }
 
     // Fast path: compile numeric programs to C and cache a DLL.
+    // If the program cannot be compiled or run via the JIT backend, fall back
+    // silently to the tree-walking interpreter so users only see the program output.
     if c_backend::try_compile_c(&program, path).is_some() {
         if let Some(code) = try_run_compiled(&source, &program, path) {
             process::exit(code);
-        }
-        if find_c_compiler().is_some() {
-            eprintln!("compilation failed; falling back to interpreter.");
-        } else {
-            eprintln!("no C compiler available; falling back to interpreter.");
         }
     }
 
