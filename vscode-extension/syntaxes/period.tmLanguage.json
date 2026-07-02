@@ -181,13 +181,7 @@
         },
         {
           "begin": "\\{",
-          "beginCaptures": {
-            "0": { "name": "punctuation.section.embedded.begin.period" }
-          },
           "end": "\\}",
-          "endCaptures": {
-            "0": { "name": "punctuation.section.embedded.end.period" }
-          },
           "contentName": "meta.interpolation.period",
           "patterns": [
             { "include": "#identifier" },
