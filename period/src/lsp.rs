@@ -23,9 +23,7 @@ pub fn run() -> Result<(), Box<dyn Error>> {
     let (connection, io_threads) = Connection::stdio();
     let server_capabilities = serde_json::to_value(&ServerCapabilities {
         text_document_sync: Some(TextDocumentSyncCapability::Kind(TextDocumentSyncKind::FULL)),
-        hover_provider: Some(HoverProviderCapability::Options(HoverOptions {
-            work_done_progress_options: Default::default(),
-        })),
+        hover_provider: Some(HoverProviderCapability::Simple(true)),
         completion_provider: Some(CompletionOptions {
             resolve_provider: Some(false),
             trigger_characters: Some(vec![" ".to_string()]),
