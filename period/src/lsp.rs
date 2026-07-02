@@ -261,7 +261,8 @@ fn interpolated_ident_at(
     token: &crate::lexer::Token,
     pos: lsp_types::Position,
 ) -> Option<String> {
-    let start_col = (token.span.col as u32).saturating_sub(token_len(&token.kind));
+    // span.col is the 1-based column after the token, matching find_token's logic.
+    let start_col = (token.span.col as u32).saturating_sub(token_len(&token.kind)).saturating_sub(1);
     let offset_in_string = pos.character.saturating_sub(start_col);
     // Skip the opening quote.
     let mut current = 1u32;
@@ -275,12 +276,20 @@ fn interpolated_ident_at(
                 if offset_in_string >= current && offset_in_string < current + part_len {
                     let offset_in_expr = offset_in_string.saturating_sub(current + 1);
                     let sub_tokens = lex_tokens(s).ok()?;
-                    let sub_token = find_token(&sub_tokens, Position {
+                    // Try the exact token under the cursor first.
+                    if let Some(sub_token) = find_token(&sub_tokens, Position {
                         line: 0,
                         character: offset_in_expr,
-                    })?;
-                    if let TokenKind::Ident(name) = &sub_token.kind {
-                        return Some(name.clone());
+                    }) {
+                        if let TokenKind::Ident(name) = &sub_token.kind {
+                            return Some(name.clone());
+                        }
+                    }
+                    // Cursor is on a brace or between tokens; show the first identifier in the expression.
+                    for sub_token in sub_tokens {
+                        if let TokenKind::Ident(name) = &sub_token.kind {
+                            return Some(name.clone());
+                        }
                     }
                 }
                 current += part_len;
