@@ -184,10 +184,10 @@
           "begin": "\\{",
           "end": "\\}",
           "beginCaptures": {
-            "0": { "name": "punctuation.definition.template-expression.begin.period punctuation.definition.interpolation.begin.bracket.curly punctuation.section.embedded.begin" }
+            "0": { "name": "punctuation.definition.template-expression.begin" }
           },
           "endCaptures": {
-            "0": { "name": "punctuation.definition.template-expression.end.period punctuation.definition.interpolation.end.bracket.curly punctuation.section.embedded.end" }
+            "0": { "name": "punctuation.definition.template-expression.end" }
           },
           "contentName": "meta.embedded.period",
           "patterns": [

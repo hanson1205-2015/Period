@@ -1,0 +1,11 @@
+-- SYNTAX TEST "source.period" "interpolation braces"
+show "{a}".
+-- <- support.function.builtin.period
+--      ^ string.quoted.double.period
+--       ^ punctuation.definition.template-expression.begin.period
+--        ^ variable.other.period
+--         ^ punctuation.definition.template-expression.end.period
+--          ^ string.quoted.double.period
+--           ^ punctuation.terminator.statement.period
+{{{{}}}}
+-- <- source.period
