@@ -796,7 +796,7 @@ mod tests {
         let prog = parse("let xs be [1, 2, 3].");
         if let Stmt::Let { value: Expr::List(_, span), .. } = &prog.statements[0] {
             assert_eq!(span.line, 1);
-            assert_eq!(span.col, 10); // opening bracket '['
+            assert_eq!(span.col, 11); // opening bracket '['
         } else {
             panic!("expected let with list literal");
         }

@@ -141,7 +141,7 @@ impl<'a> Lexer<'a> {
             None => return Ok(None),
         };
         match c {
-            ' ' | '\t' | '\r' => { self.advance(); self.lex_token() }
+            ' ' | '\t' | '\r' => { self.advance(); Ok(None) }
             '\n' => { self.advance(); self.at_line_start = true; Ok(Some(TokenKind::Newline)) }
             '-' => {
                 self.advance();
