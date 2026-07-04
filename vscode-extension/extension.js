@@ -269,10 +269,17 @@ function runCurrentFile(context) {
     const filePath = editor.document.fileName;
     const executable = findRunExecutable(context);
 
+    // Run through the wrapper command name on PATH for a clean terminal command:
+    //   period "<file>"
+    // This requires Period to be on PATH (the installer does this). If for some
+    // reason the resolved executable is not the wrapper, fall back to the full path.
+    const base = path.basename(executable).toLowerCase();
+    const commandName = (base === 'period.exe' || base === 'period') ? 'period' : executable;
+
     const fileArg = JSON.stringify(filePath);
-    const command = executable.includes(' ')
-        ? `& ${JSON.stringify(executable)} ${fileArg}`
-        : `${executable} ${fileArg}`;
+    const command = commandName.includes(' ')
+        ? `& ${JSON.stringify(commandName)} ${fileArg}`
+        : `${commandName} ${fileArg}`;
 
     const terminal = vscode.window.terminals.find(t => t.name === 'Period')
         || vscode.window.createTerminal('Period');
