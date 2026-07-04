@@ -2,7 +2,7 @@
   "name": "period-language",
   "displayName": "Period Language",
   "description": "Language support for Period: an elegant programming language that ends every statement with a period.",
-  "version": "2.0.0-beta.4",
+  "version": "2.0.0-beta.5",
   "publisher": "period",
   "license": "MIT",
   "icon": "period.png",
