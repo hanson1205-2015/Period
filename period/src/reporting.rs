@@ -2,17 +2,29 @@
 
 use crate::ast::Span;
 
-fn source_caret_block(source: &str, span: &Span) -> Option<String> {
+fn quoted_token_len(msg: &str) -> usize {
+    // Many diagnostics mention the offending token in single quotes,
+    // e.g. "undefined variable 'ab'". Underline that whole token.
+    if let Some(start) = msg.find('\'') {
+        if let Some(end) = msg[start + 1..].find('\'') {
+            return msg[start + 1..start + 1 + end].chars().count().max(1);
+        }
+    }
+    1
+}
+
+fn source_caret_block(source: &str, span: &Span, underline_len: usize) -> Option<String> {
     let src_line = source.lines().nth(span.line.saturating_sub(1))?;
     let prefix = format!("    {} | ", span.line);
     let indent = prefix.len() + span.col.saturating_sub(1);
-    Some(format!("{}{}\n{}^", prefix, src_line, " ".repeat(indent)))
+    let marker = "^".repeat(underline_len.max(1));
+    Some(format!("{}{}\n{}{}", prefix, src_line, " ".repeat(indent), marker))
 }
 
 /// Report a source-level error with file location and caret.
 pub fn report_source_error(path: &str, source: &str, span: &Span, msg: &str) {
     eprintln!("{}:{}:{}: error: {}", path, span.line, span.col, msg);
-    if let Some(block) = source_caret_block(source, span) {
+    if let Some(block) = source_caret_block(source, span, quoted_token_len(msg)) {
         eprintln!("{}", block);
     }
 }
@@ -20,7 +32,7 @@ pub fn report_source_error(path: &str, source: &str, span: &Span, msg: &str) {
 /// Report a source-level warning with file location and caret.
 pub fn report_source_warning(path: &str, source: &str, span: &Span, msg: &str) {
     eprintln!("{}:{}:{}: warning: {}", path, span.line, span.col, msg);
-    if let Some(block) = source_caret_block(source, span) {
+    if let Some(block) = source_caret_block(source, span, quoted_token_len(msg)) {
         eprintln!("{}", block);
     }
 }
@@ -29,7 +41,7 @@ pub fn report_source_warning(path: &str, source: &str, span: &Span, msg: &str) {
 pub fn report_runtime_error(path: &str, source: &str, msg: &str, span: Option<&Span>) {
     if let Some(span) = span {
         eprintln!("{}:{}:{}: runtime error: {}", path, span.line, span.col, msg);
-        if let Some(block) = source_caret_block(source, span) {
+        if let Some(block) = source_caret_block(source, span, quoted_token_len(msg)) {
             eprintln!("{}", block);
         }
     } else {
@@ -68,7 +80,7 @@ mod tests {
         // "show 0/0." — '/' is at 1-indexed column 7.
         let source = "show 0/0.";
         let span = Span { line: 1, col: 7 };
-        let block = source_caret_block(source, &span).unwrap();
+        let block = source_caret_block(source, &span, 1).unwrap();
         let lines: Vec<&str> = block.lines().collect();
         assert_eq!(lines[0], "    1 | show 0/0.");
         let caret_line = lines[1];
@@ -83,11 +95,23 @@ mod tests {
         // Pad source so line 10 contains the expression.
         let source = "show 1.\nshow 2.\nshow 3.\nshow 4.\nshow 5.\nshow 6.\nshow 7.\nshow 8.\nshow 9.\nshow 100 / 0.";
         let span = Span { line: 10, col: 10 };
-        let block = source_caret_block(source, &span).unwrap();
+        let block = source_caret_block(source, &span, 1).unwrap();
         let lines: Vec<&str> = block.lines().collect();
         assert_eq!(lines[0], "    10 | show 100 / 0.");
         let slash_pos = lines[0].find('/').unwrap();
         let caret_pos = lines[1].find('^').unwrap();
         assert_eq!(caret_pos, slash_pos);
+    }
+
+    #[test]
+    fn underline_covers_quoted_token() {
+        let source = "show ab.";
+        let span = Span { line: 1, col: 6 };
+        // "undefined variable 'ab'" should underline both characters.
+        let len = quoted_token_len("undefined variable 'ab'");
+        assert_eq!(len, 2);
+        let block = source_caret_block(source, &span, len).unwrap();
+        let lines: Vec<&str> = block.lines().collect();
+        assert_eq!(lines[1], "             ^^");
     }
 }
