@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.0.0-beta.2 (2026-07-04)
+
+### Fixed
+
+- LSP diagnostics and hover no longer use stale token spans on same-indent lines; `show ab.` is now underlined starting at column 5 instead of column 0.
+- Hover resolves symbols with lexical scope and source position, so an undefined variable on line 2 is no longer incorrectly reported as `integer` because of a `let` on a later line.
+- Terminal error caret (`^`) is aligned with the exact source column and underlines the whole quoted token (`^^` for `ab`, `^^^` for `abc`).
+- VS Code extension run button uses the wrapper executable (`period`) and prefers a workspace-local compiler before falling back to PATH, avoiding accidental use of an older system-wide installation.
+
 ## 2.0.0-beta.1 (2026-07-03)
 
 ### Breaking redesign
