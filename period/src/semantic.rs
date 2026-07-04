@@ -23,7 +23,7 @@ fn check_program(program: &Program, current_path: Option<&Path>) -> Diagnostics 
 
     // Pre-collect top-level names so functions/classes/imports can be used before
     // their definition site (needed for recursion and cross-references).
-    let mut scope = Scope::new();
+    let mut scope = Scope::new(current_path);
     for name in builtin_globals() {
         scope.define(name, &Span { line: 0, col: 0 }, &mut warnings);
     }
@@ -53,7 +53,7 @@ fn check_program(program: &Program, current_path: Option<&Path>) -> Diagnostics 
                                 scope.add_forward_ref(&n);
                             }
                         } else {
-                            for n in module_exports_names(path) {
+                            for n in module_exports_names(path, scope.current_path.as_deref()) {
                                 scope.add_forward_ref(&n);
                             }
                         }
@@ -82,11 +82,12 @@ fn builtin_globals() -> Vec<&'static str> {
 struct Scope {
     frames: Vec<HashSet<String>>,
     forward_refs: HashSet<String>,
+    current_path: Option<PathBuf>,
 }
 
 impl Scope {
-    fn new() -> Self {
-        Self { frames: vec![HashSet::new()], forward_refs: HashSet::new() }
+    fn new(current_path: Option<&Path>) -> Self {
+        Self { frames: vec![HashSet::new()], forward_refs: HashSet::new(), current_path: current_path.map(PathBuf::from) }
     }
 
     fn push_frame(&mut self) {
@@ -251,7 +252,7 @@ fn check_expr(expr: &Expr, scope: &Scope, imports: &[String], errors: &mut Vec<(
         }
         Expr::Qualified { name, module, span } => {
             if imports.contains(module) && !module.starts_with("./") && !module.starts_with("../")
-                && !module_exports_names(module).contains(&name.clone()) {
+                && !module_exports_names(module, scope.current_path.as_deref()).contains(&name.clone()) {
                     // module export missing; span available for future diagnostics
                     let _ = span;
                 }
@@ -300,10 +301,17 @@ fn check_expr(expr: &Expr, scope: &Scope, imports: &[String], errors: &mut Vec<(
     }
 }
 
-/// Return the names exported by a built-in or standard-library module.
-pub fn module_exports_names(module: &str) -> Vec<String> {
+/// Return the names exported by a built-in, standard-library, or installed package module.
+///
+/// `current_path` is used to locate the project root for installed packages.
+pub fn module_exports_names(module: &str, current_path: Option<&Path>) -> Vec<String> {
     if let Some(names) = stdlib_module_export_names(module) {
         return names;
+    }
+    let root = project_root_from(current_path);
+    let installed = installed_module_exports_names(module, &root);
+    if !installed.is_empty() {
+        return installed;
     }
 
     match module {
@@ -320,6 +328,14 @@ pub fn module_exports_names(module: &str) -> Vec<String> {
     .collect()
 }
 
+fn project_root_from(current_path: Option<&Path>) -> PathBuf {
+    current_path
+        .and_then(|p| p.parent())
+        .map(PathBuf::from)
+        .or_else(|| env::current_dir().ok())
+        .unwrap_or_else(|| PathBuf::from("."))
+}
+
 pub(crate) fn is_valid_module(module: &str, current_path: Option<&Path>) -> bool {
     if module.starts_with("./") || module.starts_with("../") {
         // Local file imports can be validated statically when we know the
@@ -332,9 +348,12 @@ pub(crate) fn is_valid_module(module: &str, current_path: Option<&Path>) -> bool
     if matches!(module, "math" | "string" | "random" | "time") {
         return true;
     }
-    // Plain module names may also resolve to standard-library source files
-    // (e.g. `list.period`, `text.period`) or their `.periodi` interfaces.
-    find_stdlib_module(module).is_some() || find_stdlib_interface(module).is_some()
+    // Plain module names may also resolve to installed packages, standard-library
+    // source files (e.g. `list.period`), or their `.periodi` interfaces.
+    let root = project_root_from(current_path);
+    crate::package_manager::package_path_in(module, &root).is_some()
+        || find_stdlib_module(module).is_some()
+        || find_stdlib_interface(module).is_some()
 }
 
 pub(crate) fn find_stdlib_module(module: &str) -> Option<PathBuf> {
@@ -390,26 +409,31 @@ fn stdlib_locations() -> Vec<PathBuf> {
     locs
 }
 
+fn exports_from_program(program: &Program) -> Vec<String> {
+    let mut names = Vec::new();
+    let mut explicit_exports: Vec<String> = Vec::new();
+    let mut has_export = false;
+    for stmt in &program.statements {
+        match stmt {
+            Stmt::Define { name, .. } => names.push(name.clone()),
+            Stmt::Class { name, .. } => names.push(name.clone()),
+            Stmt::Let { name, .. } => names.push(name.clone()),
+            Stmt::Read { name, .. } => names.push(name.clone()),
+            Stmt::Export(exported) => {
+                has_export = true;
+                explicit_exports.extend(exported.iter().cloned());
+            }
+            _ => {}
+        }
+    }
+    if has_export { explicit_exports } else { names }
+}
+
 fn stdlib_module_export_names(module: &str) -> Option<Vec<String>> {
     let path = find_stdlib_module(module).or_else(|| find_stdlib_interface(module))?;
     let source = fs::read_to_string(&path).ok()?;
     let program = try_parse(&source).ok()?;
-
-    let mut names = Vec::new();
-    for stmt in &program.statements {
-        match stmt {
-            Stmt::Define { name, .. } => names.push(name.clone()),
-            Stmt::Class { name, init, .. } => {
-                names.push(name.clone());
-                if init.is_some() {
-                    names.push(format!("{}.__init__", name));
-                }
-            }
-            Stmt::Let { name, .. } => names.push(name.clone()),
-            _ => {}
-        }
-    }
-    Some(names)
+    Some(exports_from_program(&program))
 }
 
 /// Parse source text into a Program.
@@ -455,28 +479,23 @@ fn local_module_exports_names(module: &str, current_path: Option<&Path>) -> Vec<
         Ok(p) => p,
         Err(_) => return Vec::new(),
     };
+    exports_from_program(&program)
+}
 
-    let mut names = Vec::new();
-    let mut explicit_exports: Vec<String> = Vec::new();
-    let mut has_export = false;
-    for stmt in &program.statements {
-        match stmt {
-            Stmt::Define { name, .. } => names.push(name.clone()),
-            Stmt::Class { name, .. } => names.push(name.clone()),
-            Stmt::Let { name, .. } => names.push(name.clone()),
-            Stmt::Read { name, .. } => names.push(name.clone()),
-            Stmt::Export(exported) => {
-                has_export = true;
-                explicit_exports.extend(exported.iter().cloned());
-            }
-            _ => {}
-        }
-    }
-    if has_export {
-        explicit_exports
-    } else {
-        names
-    }
+fn installed_module_exports_names(module: &str, root: &Path) -> Vec<String> {
+    let path = match crate::package_manager::package_path_in(module, root) {
+        Some(p) => root.join(p),
+        None => return Vec::new(),
+    };
+    let source = match fs::read_to_string(&path) {
+        Ok(s) => s,
+        Err(_) => return Vec::new(),
+    };
+    let program = match try_parse(&source) {
+        Ok(p) => p,
+        Err(_) => return Vec::new(),
+    };
+    exports_from_program(&program)
 }
 
 #[cfg(test)]

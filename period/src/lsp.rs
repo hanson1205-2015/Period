@@ -1339,9 +1339,8 @@ fn function_return_type(name: &str) -> String {
     .to_string()
 }
 
-fn stdlib_module_exports(module: &str) -> Option<Vec<SymbolInfo>> {
-    let path = semantic::find_stdlib_module(module).or_else(|| semantic::find_stdlib_interface(module))?;
-    let source = std::fs::read_to_string(&path).ok()?;
+fn exports_from_path(module: &str, path: &std::path::Path) -> Option<Vec<SymbolInfo>> {
+    let source = std::fs::read_to_string(path).ok()?;
     let program = semantic::try_parse(&source).ok()?;
 
     let mut func_returns: HashMap<String, String> = HashMap::new();
@@ -1405,8 +1404,14 @@ fn stdlib_module_exports(module: &str) -> Option<Vec<SymbolInfo>> {
 }
 
 fn module_exports(module: &str) -> Vec<SymbolInfo> {
-    if let Some(exports) = stdlib_module_exports(module) {
-        return exports;
+    // Installed packages take priority, then stdlib source/interface modules.
+    if let Some(path) = crate::package_manager::package_path(module)
+        .or_else(|| semantic::find_stdlib_module(module))
+        .or_else(|| semantic::find_stdlib_interface(module))
+    {
+        if let Some(exports) = exports_from_path(module, &path) {
+            return exports;
+        }
     }
 
     let exports = match module {

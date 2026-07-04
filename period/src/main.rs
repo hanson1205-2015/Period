@@ -6,6 +6,7 @@ mod environment;
 mod interpreter;
 mod lexer;
 mod lsp;
+mod package_manager;
 mod parser;
 mod reporting;
 mod semantic;
@@ -17,34 +18,7 @@ use std::env;
 use std::fs;
 use std::io::{self, Write};
 use std::path::PathBuf;
-use std::process::{self, Command};
-
-fn install_package(name: &str) -> Result<(), String> {
-    let packages_dir = std::path::PathBuf::from("period_packages");
-    fs::create_dir_all(&packages_dir).map_err(|e| format!("cannot create period_packages: {}", e))?;
-
-    let (url, filename) = if name.starts_with("http://") || name.starts_with("https://") {
-        let filename = name.rsplit('/').next().unwrap_or(name);
-        let filename = if filename.is_empty() { "package.period" } else { filename };
-        (name.to_string(), filename.to_string())
-    } else {
-        let registry = env::var("PERIOD_REGISTRY")
-            .unwrap_or_else(|_| "https://raw.githubusercontent.com/ExploreMaths/period-packages/main".to_string());
-        let url = format!("{}/{}.period", registry.trim_end_matches('/'), name);
-        (url, format!("{}.period", name))
-    };
-
-    let out_path = packages_dir.join(&filename);
-    let status = Command::new("curl")
-        .args(["-fsSL", &url, "-o", out_path.to_str().unwrap()])
-        .status()
-        .map_err(|e| format!("failed to run curl: {}", e))?;
-    if !status.success() {
-        return Err(format!("could not download '{}'", url));
-    }
-    println!("Installed {} -> {}", name, out_path.display());
-    Ok(())
-}
+use std::process;
 
 fn main() {
     // In release builds, suppress Rust's default panic backtrace so users see our
@@ -63,7 +37,7 @@ fn main() {
     }
 
     let args: Vec<String> = env::args().collect();
-    if args.iter().any(|a| a == "--version" || a == "-v") {
+    if args.len() == 2 && (args[1] == "--version" || args[1] == "-v") {
         println!("period {}", env!("CARGO_PKG_VERSION"));
         process::exit(0);
     }
@@ -74,13 +48,127 @@ fn main() {
         }
         return;
     }
-    if args.len() >= 2 && args[1] == "install" {
-        if args.len() != 3 {
-            eprintln!("usage: period install <package-or-url>");
+    if args.len() >= 2 && args[1] == "init" {
+        let name = args.get(2).map(|s| s.as_str());
+        if let Err(e) = package_manager::init_project(name) {
+            eprintln!("init error: {}", e);
             process::exit(1);
         }
-        if let Err(e) = install_package(&args[2]) {
+        return;
+    }
+    if args.len() >= 2 && args[1] == "install" {
+        let result = if args.len() == 2 {
+            package_manager::install()
+        } else if args.len() == 3 {
+            package_manager::install_package(&args[2])
+        } else {
+            eprintln!("usage: period install [package-or-url]");
+            process::exit(1);
+        };
+        if let Err(e) = result {
             eprintln!("install error: {}", e);
+            process::exit(1);
+        }
+        return;
+    }
+    if args.len() >= 2 && args[1] == "update" {
+        if let Err(e) = package_manager::update() {
+            eprintln!("update error: {}", e);
+            process::exit(1);
+        }
+        return;
+    }
+    if args.len() >= 2 && args[1] == "publish" {
+        let mut file: Option<String> = None;
+        let mut version: Option<String> = None;
+        let mut name: Option<String> = None;
+        let mut registry: Option<String> = None;
+        let mut base_url: Option<String> = None;
+        let mut message: Option<String> = None;
+        let mut remote: Option<String> = None;
+        let mut push = false;
+        let mut i = 2;
+        while i < args.len() {
+            match args[i].as_str() {
+                "--version" => {
+                    i += 1;
+                    if i >= args.len() {
+                        eprintln!("usage: period publish <file.period> [--version <version>] [--name <name>] [--registry <dir>] [--base-url <url>] [--push] [--remote <remote>] [--message <msg>]");
+                        process::exit(1);
+                    }
+                    version = Some(args[i].clone());
+                }
+                "--name" | "-n" => {
+                    i += 1;
+                    if i >= args.len() {
+                        eprintln!("usage: period publish <file.period> [--version <version>] [--name <name>] [--registry <dir>] [--base-url <url>] [--push] [--remote <remote>] [--message <msg>]");
+                        process::exit(1);
+                    }
+                    name = Some(args[i].clone());
+                }
+                "--registry" | "-r" => {
+                    i += 1;
+                    if i >= args.len() {
+                        eprintln!("usage: period publish <file.period> [--version <version>] [--name <name>] [--registry <dir>] [--base-url <url>] [--push] [--remote <remote>] [--message <msg>]");
+                        process::exit(1);
+                    }
+                    registry = Some(args[i].clone());
+                }
+                "--base-url" | "-u" => {
+                    i += 1;
+                    if i >= args.len() {
+                        eprintln!("usage: period publish <file.period> [--version <version>] [--name <name>] [--registry <dir>] [--base-url <url>] [--push] [--remote <remote>] [--message <msg>]");
+                        process::exit(1);
+                    }
+                    base_url = Some(args[i].clone());
+                }
+                "--message" | "-m" => {
+                    i += 1;
+                    if i >= args.len() {
+                        eprintln!("usage: period publish <file.period> [--version <version>] [--name <name>] [--registry <dir>] [--base-url <url>] [--push] [--remote <remote>] [--message <msg>]");
+                        process::exit(1);
+                    }
+                    message = Some(args[i].clone());
+                }
+                "--remote" => {
+                    i += 1;
+                    if i >= args.len() {
+                        eprintln!("usage: period publish <file.period> [--version <version>] [--name <name>] [--registry <dir>] [--base-url <url>] [--push] [--remote <remote>] [--message <msg>]");
+                        process::exit(1);
+                    }
+                    remote = Some(args[i].clone());
+                }
+                "--push" | "-p" => {
+                    push = true;
+                }
+                other => {
+                    if file.is_some() {
+                        eprintln!("usage: period publish <file.period> [--version <version>] [--name <name>] [--registry <dir>] [--base-url <url>] [--push] [--remote <remote>] [--message <msg>]");
+                        process::exit(1);
+                    }
+                    file = Some(other.to_string());
+                }
+            }
+            i += 1;
+        }
+        let Some(file) = file else {
+            eprintln!("usage: period publish <file.period> [--version <version>] [--name <name>] [--registry <dir>] [--base-url <url>] [--push] [--message <msg>]");
+            process::exit(1);
+        };
+        let file_path = PathBuf::from(&file);
+        let registry_path = registry.as_deref().map(PathBuf::from);
+        let options = package_manager::PublishOptions {
+            file: &file_path,
+            name: name.as_deref(),
+            version: version.as_deref(),
+            registry_dir: registry_path.as_deref(),
+            base_url: base_url.as_deref(),
+            push,
+            remote: remote.as_deref(),
+            message: message.as_deref(),
+        };
+        if let Err(e) = package_manager::publish(options) {
+            eprintln!("publish error: {}", e);
             process::exit(1);
         }
         return;

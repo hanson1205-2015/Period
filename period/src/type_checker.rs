@@ -265,10 +265,12 @@ impl TypeChecker {
                 ("assert_raises".to_string(), Type::Function(vec![Type::Unknown], Box::new(Type::Nothing))),
             ],
             _ => {
-                // Try to load a standard-library source file or interface.
-                if let Some(file_path) = crate::semantic::find_stdlib_module(name)
-                    .or_else(|| crate::semantic::find_stdlib_interface(name))
-                {
+                // Try to load an installed package, then a standard-library source
+                // file or interface.
+                let file_path = crate::package_manager::package_path(name)
+                    .or_else(|| crate::semantic::find_stdlib_module(name))
+                    .or_else(|| crate::semantic::find_stdlib_interface(name));
+                if let Some(file_path) = file_path {
                     if let Ok(source) = std::fs::read_to_string(&file_path) {
                         if let Ok(program) = parse_module_source(&source) {
                             let mut all_exports: Vec<(String, Type)> = Vec::new();

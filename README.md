@@ -96,6 +96,60 @@ show join with ["Hello", "World"], " ".
 
 Available source modules include `list` (sum, max, min, length helpers) and `text` (join and other string utilities). Built-in native modules include `math`, `string`, `random`, and `time`.
 
+## Package Manager
+
+Period includes a small built-in package manager for sharing modules.
+
+```bash
+# Start a new project
+period init myproject
+
+# Install a package from the registry
+period install hello
+
+# Install from a URL or local file
+period install https://example.com/mypkg.period
+period install ./mypkg.period
+
+# Update all dependencies
+period update
+```
+
+The default registry is hosted on GitHub at `https://raw.githubusercontent.com/ExploreMaths/Period/main/registry`. Set the `PERIOD_REGISTRY` environment variable to use a different registry.
+
+### Publishing a package
+
+Period uses a GitHub-based static registry. All packages are stored as files in the `registry/` directory of this repository, and changes are submitted through Pull Requests.
+
+For project maintainers with write access (requires Git installed and in PATH):
+
+```bash
+period publish ./mypkg.period --name mypkg --version 1.0.0 --push
+```
+
+This generates the registry files and runs `git add`, `git commit`, and `git push` automatically.
+
+For other contributors, use the standard fork-and-pull-request workflow:
+
+1. Fork `ExploreMaths/Period` on GitHub.
+2. Clone your fork and add the registry as a git remote if needed:
+   ```bash
+   git clone https://github.com/<your-username>/Period.git
+   cd Period
+   git remote add upstream https://github.com/ExploreMaths/Period.git
+   ```
+3. Publish and push to your own fork:
+   ```bash
+   period publish ./mypkg.period --name mypkg --version 1.0.0 --push --remote origin
+   ```
+4. Open a Pull Request on GitHub to merge your changes into `ExploreMaths/Period`.
+
+Once the PR is merged, everyone can install the package with:
+
+```bash
+period install mypkg
+```
+
 ## Documentation
 
 The full documentation is included in the `docs/` folder as a self-contained static website. Open `docs/index.html` in a browser after installation.

@@ -909,8 +909,14 @@ fn module_file_candidates(module: &str, current_path: Option<&std::path::Path>) 
             candidates.push(dir.join("lib").join(module).with_extension("period"));
         }
     } else {
-        // Plain module names resolve to the standard library, built-in modules,
-        // or packages installed in the local period_packages/ directory.
+        // Plain module names resolve to installed packages, the standard library,
+        // or built-in modules. If a lockfile exists, prefer its listed packages.
+        let project_root = current_path.and_then(|p| p.parent()).map(PathBuf::from)
+            .or_else(|| env::current_dir().ok())
+            .unwrap_or_else(|| PathBuf::from("."));
+        if let Some(path) = crate::package_manager::package_path_in(module, &project_root) {
+            candidates.push(project_root.join(path));
+        }
         let file = format!("{}.period", module);
         if let Ok(cwd) = env::current_dir() {
             candidates.push(cwd.join("period_packages").join(&file));

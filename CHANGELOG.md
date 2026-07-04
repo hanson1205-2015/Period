@@ -1,5 +1,21 @@
 # Changelog
 
+## 2.0.0-beta.3 (2026-07-04)
+
+### Added
+
+- Period package manager (`period init`, `period install`, `period update`, `period publish`):
+  - `period init` creates a `period.toml` manifest in the current directory.
+  - `period install <package>` resolves the package from the registry, downloads it, and writes `period.lock`.
+  - `period install <package>@<version>` supports exact (`=1.2.3`), caret (`^1.2.3`), and wildcard (`*`) constraints.
+  - `period install <url>` and `period install <local.period>` install directly into `period_packages/` without modifying the manifest.
+  - `period update` re-resolves all dependencies and refreshes `period.lock`.
+  - Transitive dependencies are resolved and recorded in the lockfile.
+  - Installed packages are discovered by the interpreter, semantic checker, static type checker, and LSP.
+  - `period publish <file.period>` publishes a package to the GitHub-based static registry; supports `--name`, `--version`, `--registry`, `--base-url`, `--push`, `--remote`, and `--message`.
+  - Registry URL is configurable via the `PERIOD_REGISTRY` environment variable and defaults to `https://raw.githubusercontent.com/ExploreMaths/Period/main/registry`.
+  - Downloads use system root certificates via `ureq` + `rustls-native-certs`, fixing TLS errors in environments where bundled roots are insufficient.
+
 ## 2.0.0-beta.2 (2026-07-04)
 
 ### Fixed
