@@ -268,7 +268,7 @@ impl<'a> Lexer<'a> {
             }
             self.pending.pop().map(|t| Ok(Some(t.kind))).unwrap_or_else(|| self.lex_token())
         } else {
-            self.lex_token()
+            Ok(None)
         }
     }
 
@@ -474,5 +474,27 @@ mod tests {
     fn lex_error_unterminated_string() {
         let mut lexer = Lexer::new("\"hello");
         assert!(lexer.next_token().is_err());
+    }
+
+    #[test]
+    fn same_indent_lines_keep_correct_spans() {
+        fn spans(source: &str) -> Vec<Span> {
+            let mut lexer = Lexer::new(source);
+            let mut out = Vec::new();
+            loop {
+                let t = lexer.next_token().unwrap();
+                let eof = matches!(t.kind, TokenKind::Eof);
+                out.push(t.span);
+                if eof { break; }
+            }
+            out
+        }
+        let source = "show a.\nshow ab.\nshow abc.";
+        let s = spans(source);
+        // Token stream: show, a, ., Newline, show, ab, ., Newline, show, abc, ., Eof
+        // Identifiers are at indices 1, 5, 9.
+        assert_eq!(s[1], Span { line: 1, col: 6 });
+        assert_eq!(s[5], Span { line: 2, col: 6 });
+        assert_eq!(s[9], Span { line: 3, col: 6 });
     }
 }

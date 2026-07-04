@@ -262,7 +262,7 @@ fn hover(
         Some(p) => p,
         None => return Ok(None),
     };
-    let symbols = index_program_all(&program);
+    let symbols = resolve_symbols_at(&program, &name, pos);
     let builtins = all_builtins();
 
     let mut matches: Vec<&SymbolInfo> = symbols.iter().filter(|s| s.name == name).collect();
@@ -303,8 +303,8 @@ fn interpolated_ident_at(
     token: &crate::lexer::Token,
     pos: lsp_types::Position,
 ) -> Option<String> {
-    // span.col is the 1-based column after the token, matching find_token's logic.
-    let start_col = (token.span.col as u32).saturating_sub(token_len(&token.kind)).saturating_sub(1);
+    // span.col is the 1-based start column of the token, matching find_token's logic.
+    let start_col = (token.span.col as u32).saturating_sub(1);
     let offset_in_string = pos.character.saturating_sub(start_col);
     // Skip the opening quote.
     let mut current = 1u32;
@@ -642,15 +642,15 @@ fn parse_error_to_diagnostic(msg: &str) -> Diagnostic {
         (1, 1, msg.to_string())
     };
 
-    // For invalid-keyword errors, underline the whole keyword. The lexer reports
-    // the column just past the token, so the range spans col-len..col.
+    // The lexer/parser now report the 1-based start column, so the range spans
+    // col-1..col-1+len. For invalid-keyword errors, underline the whole keyword.
     let (start_char, end_char) = if let Some(kw_start) = message.find("keyword '") {
         let after = &message[kw_start + "keyword '".len()..];
         if let Some(end_quote) = after.find('\'') {
             let word = &after[..end_quote];
             let word_len = word.chars().count() as u32;
-            let end = col.saturating_sub(1);
-            let start = end.saturating_sub(word_len);
+            let start = col.saturating_sub(1);
+            let end = start + word_len;
             (start, end)
         } else {
             (col.saturating_sub(1), col)
@@ -787,9 +787,9 @@ fn find_token(tokens: &[crate::lexer::Token], pos: lsp_types::Position) -> Optio
             continue;
         }
         let len = token_len(&token.kind);
-        // span.col is the 1-based column *after* the token.
-        let end_col = (token.span.col as u32).saturating_sub(1);
-        let start_col = end_col.saturating_sub(len);
+        // span.col is the 1-based start column of the token.
+        let start_col = (token.span.col as u32).saturating_sub(1);
+        let end_col = start_col + len;
         if pos.character >= start_col && pos.character < end_col {
             return Some(token.clone());
         }
@@ -921,108 +921,6 @@ fn class_methods(stmt: &Stmt) -> &[Stmt] {
     }
 }
 
-fn index_program_all(program: &Program) -> Vec<SymbolInfo> {
-    let mut symbols = Vec::new();
-    let mut func_returns: HashMap<String, String> = HashMap::new();
-
-    // First pass: collect function return types for inference.
-    for stmt in &program.statements {
-        if let Stmt::Define { name, return_type, .. } = stmt
-            && let Some(ret) = return_type {
-                func_returns.insert(name.clone(), ret.clone());
-            }
-        for method in class_methods(stmt) {
-            if let Stmt::Define { name, return_type, .. } = method
-                && let Some(ret) = return_type {
-                    func_returns.insert(name.clone(), ret.clone());
-                }
-        }
-    }
-
-    for stmt in &program.statements {
-        collect_symbols(stmt, &func_returns, &mut symbols);
-    }
-    dedup_symbols(&mut symbols);
-    symbols
-}
-
-fn collect_symbols(stmt: &Stmt, func_returns: &HashMap<String, String>, symbols: &mut Vec<SymbolInfo>) {
-    match stmt {
-        Stmt::Let { name, value, .. } => {
-            let typ = infer_expr_with_funcs(value, func_returns);
-            symbols.push(SymbolInfo {
-                name: name.clone(),
-                detail: format!("{}: {}", name, typ),
-                docstring: None,
-                kind: CompletionItemKind::VARIABLE,
-            });
-        }
-        Stmt::Define { name, params, return_type, docstring, body, .. } => {
-            symbols.push(SymbolInfo {
-                name: name.clone(),
-                detail: function_detail(name, params, return_type),
-                docstring: docstring.clone(),
-                kind: CompletionItemKind::FUNCTION,
-            });
-            for s in body { collect_symbols(s, func_returns, symbols); }
-        }
-        Stmt::Class { name, init, methods, docstring, .. } => {
-            symbols.push(SymbolInfo {
-                name: name.clone(),
-                detail: format!("class {}", name),
-                docstring: docstring.clone(),
-                kind: CompletionItemKind::CLASS,
-            });
-            if let Some(init) = init {
-                symbols.push(SymbolInfo {
-                    name: format!("{}.__init__", name),
-                    detail: init_detail(name, &init.params),
-                    docstring: init.docstring.clone(),
-                    kind: CompletionItemKind::CONSTRUCTOR,
-                });
-                for s in &init.body { collect_symbols(s, func_returns, symbols); }
-            }
-            for m in methods { collect_symbols(m, func_returns, symbols); }
-        }
-        Stmt::Import(paths) => {
-            for (path, _) in paths {
-                if semantic::is_valid_module(path, None) {
-                    let mut exports = module_exports(path);
-                    let export_names: Vec<String> = exports.iter().map(|e| e.name.clone()).collect();
-                    symbols.push(SymbolInfo {
-                        name: path.clone(),
-                        detail: format!("module {}", path),
-                        docstring: Some(format!("Built-in module `{}`. Exports: {}.", path, export_names.join(", "))),
-                        kind: CompletionItemKind::MODULE,
-                    });
-                    symbols.append(&mut exports);
-                }
-            }
-        }
-        Stmt::If { then_branch, else_branch, .. } => {
-            for s in then_branch { collect_symbols(s, func_returns, symbols); }
-            for s in else_branch { collect_symbols(s, func_returns, symbols); }
-        }
-        Stmt::Try { body, catch_var, catch_body } => {
-            for s in body { collect_symbols(s, func_returns, symbols); }
-            symbols.push(SymbolInfo {
-                name: catch_var.clone(),
-                detail: format!("{}: string", catch_var),
-                docstring: None,
-                kind: CompletionItemKind::VARIABLE,
-            });
-            for s in catch_body { collect_symbols(s, func_returns, symbols); }
-        }
-        Stmt::While { body, .. } => {
-            for s in body { collect_symbols(s, func_returns, symbols); }
-        }
-        Stmt::For { body, .. } => {
-            for s in body { collect_symbols(s, func_returns, symbols); }
-        }
-        _ => {}
-    }
-}
-
 fn infer_expr_with_funcs(expr: &Expr, func_returns: &HashMap<String, String>) -> String {
     match expr {
         Expr::Integer(_, _) => "integer".to_string(),
@@ -1056,6 +954,371 @@ fn infer_expr_with_funcs(expr: &Expr, func_returns: &HashMap<String, String>) ->
             }
         }
         _ => "unknown".to_string(),
+    }
+}
+
+/// Resolve symbols visible at `pos` whose name matches `name`, taking lexical
+/// scope and source position into account. Top-level functions/classes/imports
+/// are treated as hoisted (visible everywhere at the top level); variables and
+/// nested definitions are only visible after their definition and within their
+/// enclosing scope.
+fn resolve_symbols_at(program: &Program, name: &str, pos: Position) -> Vec<SymbolInfo> {
+    let mut func_returns: HashMap<String, String> = HashMap::new();
+    for stmt in &program.statements {
+        if let Stmt::Define { name: n, return_type, .. } = stmt
+            && let Some(ret) = return_type {
+            func_returns.insert(n.clone(), ret.clone());
+        }
+        for method in class_methods(stmt) {
+            if let Stmt::Define { name: n, return_type, .. } = method
+                && let Some(ret) = return_type {
+                func_returns.insert(n.clone(), ret.clone());
+            }
+        }
+    }
+
+    let mut result = Vec::new();
+
+    // Top-level functions, classes and imports are hoisted (matching the
+    // semantic checker's forward-ref pass), so they are visible regardless of
+    // the cursor position within the top-level scope.
+    for stmt in &program.statements {
+        match stmt {
+            Stmt::Define { name: n, params, return_type, docstring, .. } if n == name => {
+                result.push(SymbolInfo {
+                    name: n.clone(),
+                    detail: function_detail(n, params, return_type),
+                    docstring: docstring.clone(),
+                    kind: CompletionItemKind::FUNCTION,
+                });
+            }
+            Stmt::Class { name: n, init, methods, docstring, .. } if n == name => {
+                result.push(SymbolInfo {
+                    name: n.clone(),
+                    detail: format!("class {}", n),
+                    docstring: docstring.clone(),
+                    kind: CompletionItemKind::CLASS,
+                });
+                if let Some(init) = init {
+                    let init_name = format!("{}.__init__", n);
+                    if init_name == name {
+                        result.push(SymbolInfo {
+                            name: init_name,
+                            detail: init_detail(n, &init.params),
+                            docstring: init.docstring.clone(),
+                            kind: CompletionItemKind::CONSTRUCTOR,
+                        });
+                    }
+                }
+                for m in methods {
+                    if let Stmt::Define { name: mname, params, return_type, docstring, .. } = m {
+                        if mname == name {
+                            result.push(SymbolInfo {
+                                name: mname.clone(),
+                                detail: function_detail(mname, params, return_type),
+                                docstring: docstring.clone(),
+                                kind: CompletionItemKind::METHOD,
+                            });
+                        }
+                    }
+                }
+            }
+            Stmt::Import(paths) => {
+                for (path, _) in paths {
+                    if path == name && semantic::is_valid_module(path, None) {
+                        let exports = module_exports(path);
+                        let export_names: Vec<String> = exports.iter().map(|e| e.name.clone()).collect();
+                        result.push(SymbolInfo {
+                            name: path.clone(),
+                            detail: format!("module {}", path),
+                            docstring: Some(format!("Built-in module `{}`. Exports: {}.", path, export_names.join(", "))),
+                            kind: CompletionItemKind::MODULE,
+                        });
+                    }
+                    if semantic::is_valid_module(path, None) {
+                        for export in module_exports(path) {
+                            if export.name == name {
+                                result.push(export);
+                            }
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    resolve_scope_symbols(&program.statements, name, pos, &func_returns, &mut result, true);
+    result
+}
+
+fn resolve_scope_symbols(
+    stmts: &[Stmt],
+    name: &str,
+    pos: Position,
+    func_returns: &HashMap<String, String>,
+    result: &mut Vec<SymbolInfo>,
+    is_top_level: bool,
+) {
+    for stmt in stmts {
+        let contains = stmt_contains_pos(stmt, pos);
+        let before = stmt_is_before_pos(stmt, pos);
+
+        if before {
+            add_matching_def(stmt, name, func_returns, result, is_top_level);
+        }
+
+        if contains {
+            match stmt {
+                Stmt::Define { name: _n, params, body, .. } => {
+                    for (param_name, param_type) in params {
+                        if param_name == name {
+                            result.push(SymbolInfo {
+                                name: param_name.clone(),
+                                detail: format!("{}: {}", param_name, param_type.as_deref().unwrap_or("unknown")),
+                                docstring: None,
+                                kind: CompletionItemKind::VARIABLE,
+                            });
+                        }
+                    }
+                    resolve_scope_symbols(body, name, pos, func_returns, result, false);
+                }
+                Stmt::Class { init, methods, .. } => {
+                    if let Some(init) = init {
+                        for (param_name, param_type) in &init.params {
+                            if param_name == name {
+                                result.push(SymbolInfo {
+                                    name: param_name.clone(),
+                                    detail: format!("{}: {}", param_name, param_type.as_deref().unwrap_or("unknown")),
+                                    docstring: None,
+                                    kind: CompletionItemKind::VARIABLE,
+                                });
+                            }
+                        }
+                        resolve_scope_symbols(&init.body, name, pos, func_returns, result, false);
+                    }
+                    for m in methods {
+                        if stmt_contains_pos(m, pos) {
+                            if let Stmt::Define { name: _n, params, body, .. } = m {
+                                for (param_name, param_type) in params {
+                                    if param_name == name {
+                                        result.push(SymbolInfo {
+                                            name: param_name.clone(),
+                                            detail: format!("{}: {}", param_name, param_type.as_deref().unwrap_or("unknown")),
+                                            docstring: None,
+                                            kind: CompletionItemKind::VARIABLE,
+                                        });
+                                    }
+                                }
+                                resolve_scope_symbols(body, name, pos, func_returns, result, false);
+                            }
+                        }
+                    }
+                }
+                Stmt::If { then_branch, else_branch, .. } => {
+                    if branch_contains_pos(then_branch, pos) {
+                        resolve_scope_symbols(then_branch, name, pos, func_returns, result, false);
+                    } else if branch_contains_pos(else_branch, pos) {
+                        resolve_scope_symbols(else_branch, name, pos, func_returns, result, false);
+                    }
+                }
+                Stmt::Try { body, catch_var, catch_body, .. } => {
+                    if branch_contains_pos(body, pos) {
+                        resolve_scope_symbols(body, name, pos, func_returns, result, false);
+                    } else if branch_contains_pos(catch_body, pos) {
+                        if catch_var == name {
+                            result.push(SymbolInfo {
+                                name: catch_var.clone(),
+                                detail: format!("{}: string", catch_var),
+                                docstring: None,
+                                kind: CompletionItemKind::VARIABLE,
+                            });
+                        }
+                        resolve_scope_symbols(catch_body, name, pos, func_returns, result, false);
+                    }
+                }
+                Stmt::While { body, .. } => {
+                    if branch_contains_pos(body, pos) {
+                        resolve_scope_symbols(body, name, pos, func_returns, result, false);
+                    }
+                }
+                Stmt::For { var, body, .. } => {
+                    if branch_contains_pos(body, pos) {
+                        if var == name {
+                            result.push(SymbolInfo {
+                                name: var.clone(),
+                                detail: format!("{}: list element", var),
+                                docstring: None,
+                                kind: CompletionItemKind::VARIABLE,
+                            });
+                        }
+                        resolve_scope_symbols(body, name, pos, func_returns, result, false);
+                    }
+                }
+                _ => {}
+            }
+            break;
+        }
+    }
+}
+
+fn add_matching_def(
+    stmt: &Stmt,
+    name: &str,
+    func_returns: &HashMap<String, String>,
+    result: &mut Vec<SymbolInfo>,
+    is_top_level: bool,
+) {
+    match stmt {
+        Stmt::Let { name: n, value, .. } if n == name => {
+            let typ = infer_expr_with_funcs(value, func_returns);
+            result.push(SymbolInfo {
+                name: n.clone(),
+                detail: format!("{}: {}", n, typ),
+                docstring: None,
+                kind: CompletionItemKind::VARIABLE,
+            });
+        }
+        Stmt::Read { name: n, .. } if n == name => {
+            result.push(SymbolInfo {
+                name: n.clone(),
+                detail: format!("{}: string", n),
+                docstring: None,
+                kind: CompletionItemKind::VARIABLE,
+            });
+        }
+        Stmt::Define { name: n, params, return_type, docstring, .. } if n == name && !is_top_level => {
+            result.push(SymbolInfo {
+                name: n.clone(),
+                detail: function_detail(n, params, return_type),
+                docstring: docstring.clone(),
+                kind: CompletionItemKind::FUNCTION,
+            });
+        }
+        Stmt::Class { name: n, init, methods, docstring, .. } if !is_top_level => {
+            if n == name {
+                result.push(SymbolInfo {
+                    name: n.clone(),
+                    detail: format!("class {}", n),
+                    docstring: docstring.clone(),
+                    kind: CompletionItemKind::CLASS,
+                });
+            }
+            if let Some(init) = init {
+                let init_name = format!("{}.__init__", n);
+                if init_name == name {
+                    result.push(SymbolInfo {
+                        name: init_name,
+                        detail: init_detail(n, &init.params),
+                        docstring: init.docstring.clone(),
+                        kind: CompletionItemKind::CONSTRUCTOR,
+                    });
+                }
+            }
+            for m in methods {
+                if let Stmt::Define { name: mname, params, return_type, docstring, .. } = m {
+                    if mname == name {
+                        result.push(SymbolInfo {
+                            name: mname.clone(),
+                            detail: function_detail(mname, params, return_type),
+                            docstring: docstring.clone(),
+                            kind: CompletionItemKind::METHOD,
+                        });
+                    }
+                }
+            }
+        }
+        Stmt::Import(paths) if !is_top_level => {
+            for (path, _) in paths {
+                if path == name && semantic::is_valid_module(path, None) {
+                    let exports = module_exports(path);
+                    let export_names: Vec<String> = exports.iter().map(|e| e.name.clone()).collect();
+                    result.push(SymbolInfo {
+                        name: path.clone(),
+                        detail: format!("module {}", path),
+                        docstring: Some(format!("Built-in module `{}`. Exports: {}.", path, export_names.join(", "))),
+                        kind: CompletionItemKind::MODULE,
+                    });
+                }
+                if semantic::is_valid_module(path, None) {
+                    for export in module_exports(path) {
+                        if export.name == name {
+                            result.push(export);
+                        }
+                    }
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+fn stmt_contains_pos(stmt: &Stmt, pos: Position) -> bool {
+    let start = match stmt_start_line(stmt) {
+        Some(s) => s,
+        None => return false,
+    };
+    let end = match stmt_end_line(stmt) {
+        Some(e) => e,
+        None => return false,
+    };
+    let line = pos.line as usize + 1;
+    line >= start && line <= end
+}
+
+fn stmt_is_before_pos(stmt: &Stmt, pos: Position) -> bool {
+    match stmt_start_line(stmt) {
+        Some(start) => pos.line as usize + 1 > start,
+        None => false,
+    }
+}
+
+fn branch_contains_pos(stmts: &[Stmt], pos: Position) -> bool {
+    stmts.iter().any(|s| stmt_contains_pos(s, pos))
+}
+
+fn stmt_start_line(stmt: &Stmt) -> Option<usize> {
+    match stmt {
+        Stmt::Let { span, .. }
+        | Stmt::Return { span, .. }
+        | Stmt::Define { span, .. }
+        | Stmt::Class { span, .. } => Some(span.line),
+        Stmt::If { cond, .. } => cond.span().map(|s| s.line),
+        Stmt::While { cond, .. } => cond.span().map(|s| s.line),
+        Stmt::For { iterable, .. } => iterable.span().map(|s| s.line),
+        Stmt::Try { body, .. } => body.first().and_then(stmt_start_line),
+        Stmt::Show(e) | Stmt::Expr(e) | Stmt::Set { value: e, .. } | Stmt::Write { content: e, .. } | Stmt::Read { path: e, .. } => e.span().map(|s| s.line),
+        Stmt::Import(paths) => paths.first().map(|(_, span)| span.line),
+        _ => None,
+    }
+}
+
+fn stmt_end_line(stmt: &Stmt) -> Option<usize> {
+    match stmt {
+        Stmt::Let { span, .. } | Stmt::Return { span, .. } => Some(span.line),
+        Stmt::Define { body, span, .. } => body.last().and_then(stmt_end_line).or(Some(span.line)),
+        Stmt::Class { methods, span, .. } => {
+            let last_method_end = methods.last().and_then(|m| match m {
+                Stmt::Define { body, .. } => body.last().and_then(stmt_end_line),
+                _ => None,
+            });
+            last_method_end.or(Some(span.line))
+        }
+        Stmt::If { then_branch, else_branch, .. } => {
+            let then_end = then_branch.last().and_then(stmt_end_line);
+            let else_end = else_branch.last().and_then(stmt_end_line);
+            match (then_end, else_end) {
+                (Some(t), Some(e)) => Some(t.max(e)),
+                (Some(t), None) => Some(t),
+                (None, Some(e)) => Some(e),
+                (None, None) => None,
+            }
+        }
+        Stmt::While { body, .. } | Stmt::For { body, .. } => body.last().and_then(stmt_end_line),
+        Stmt::Try { catch_body, .. } => catch_body.last().and_then(stmt_end_line),
+        Stmt::Show(e) | Stmt::Expr(e) | Stmt::Set { value: e, .. } | Stmt::Write { content: e, .. } | Stmt::Read { path: e, .. } => e.span().map(|s| s.line),
+        Stmt::Import(paths) => paths.last().map(|(_, span)| span.line),
+        _ => None,
     }
 }
 
@@ -1315,5 +1578,30 @@ mod tests {
         assert_eq!(diag.range.start.line, 0);
         assert_eq!(diag.range.start.character, 5);
         assert_eq!(diag.range.end.character, 9);
+    }
+
+    #[test]
+    fn hover_ignores_later_top_level_let() {
+        let source = "show a.\nlet a be 1.";
+        let program = try_parse(source).unwrap();
+        let symbols = resolve_symbols_at(&program, "a", Position { line: 0, character: 5 });
+        assert!(symbols.is_empty());
+    }
+
+    #[test]
+    fn hover_finds_earlier_variable_in_same_scope() {
+        let source = "let a be 1.\nshow a.";
+        let program = try_parse(source).unwrap();
+        let symbols = resolve_symbols_at(&program, "a", Position { line: 1, character: 5 });
+        assert_eq!(symbols.len(), 1);
+        assert_eq!(symbols[0].detail, "a: integer");
+    }
+
+    #[test]
+    fn hover_does_not_leak_function_local_to_outer_scope() {
+        let source = "define f with x:\n    let a be 1.\nshow a.";
+        let program = try_parse(source).unwrap();
+        let symbols = resolve_symbols_at(&program, "a", Position { line: 2, character: 5 });
+        assert!(symbols.is_empty());
     }
 }
