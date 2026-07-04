@@ -1,8 +1,9 @@
-"""Build a distribution of period.exe.
+"""Build a distribution of Period.
 
 The distribution contains:
   - period.exe        tiny fast-path wrapper (C)
-  - period-core.exe   full Rust interpreter / LSP server
+  - period-core.dll   full Rust interpreter / LSP server as an in-process DLL
+  - period-core.exe   fallback standalone core executable
   - stdlib/           Period standard library stubs
   - period.ico        Windows icon
 
@@ -44,7 +45,9 @@ def main() -> None:
         shutil.rmtree(DIST)
     DIST.mkdir(parents=True)
 
-    shutil.copy(PERIOD_DIR / "target" / "release" / "period.exe", DIST / "period-core.exe")
+    release = PERIOD_DIR / "target" / "release"
+    shutil.copy(release / "period_core.dll", DIST / "period-core.dll")
+    shutil.copy(release / "period.exe", DIST / "period-core.exe")
     shutil.copytree(ROOT / "period" / "stdlib", DIST / "stdlib")
     shutil.copy(ROOT / "assets" / "period.ico", DIST / "period.ico")
 

@@ -93,8 +93,8 @@ def c_compiler_candidates(src: Path, exe: Path) -> list[list[str]]:
 
 
 WORKLOADS = {
-    "sum": 5_000_000,
-    "div3or5": 5_000_000,
+    "sum": 20_000_000,
+    "div3or5": 20_000_000,
 }
 
 

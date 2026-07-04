@@ -28,6 +28,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
 Source: "..\dist\period.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\dist\period-core.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\dist\period-core.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\dist\stdlib\*"; DestDir: "{app}\stdlib"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\assets\period.ico"; DestDir: "{app}"; Flags: ignoreversion

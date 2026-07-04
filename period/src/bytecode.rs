@@ -3,7 +3,7 @@ use std::rc::Rc;
 use crate::ast::{BinOp, Span, UnaryOp};
 use crate::value::Value;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Op {
     Constant(usize),
     Nothing,

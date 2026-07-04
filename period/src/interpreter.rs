@@ -60,12 +60,17 @@ impl Interpreter {
     }
 
     pub fn interpret(&mut self, program: &Program) -> Result<(), Control> {
-        // Attempt to compile the program to bytecode and run it on the VM.  If the
-        // compiler cannot handle the program (e.g. it uses classes, imports, or
-        // try/catch), fall back to the original tree-walking interpreter so that
-        // all existing semantics are preserved.
+        // Try the bytecode compiler first.  If it succeeds, attempt to JIT the
+        // top-level function to native code; otherwise fall back to the VM, and
+        // if compilation itself fails fall back to the tree-walking interpreter.
         if let Ok(main) = compiler::Compiler::compile_program(&program.statements) {
             let main = std::rc::Rc::new(main);
+            if !self.silent && !self.loading_module {
+                if let Some(code) = crate::jit::JitCompiler::new().compile(&main) {
+                    unsafe { code(); }
+                    return Ok(());
+                }
+            }
             return vm::Vm::new(self, main).run();
         }
         self.interpret_tree_walk(program)
