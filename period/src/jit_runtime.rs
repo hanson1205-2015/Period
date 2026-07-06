@@ -794,48 +794,70 @@ pub extern "C" fn period_call(interp: *mut Interpreter, callee: *mut Value, argc
         let (line, col) = current_span();
         let span = crate::ast::Span { line: line as usize, col: col as usize };
         let callee = take_value(callee);
-        let args = argv_to_vec(argc, argv);
-        for p in std::slice::from_raw_parts(argv, argc) {
-            if !p.is_null() {
-                drop(Box::from_raw(*p));
-            }
-        }
         match &callee {
-            Value::VMClass(_) => result_to_ptr(new_instance(interp, callee, args, &span)),
+            Value::VMClass(_) => {
+                let args = argv_to_vec(argc, argv);
+                for p in std::slice::from_raw_parts(argv, argc) {
+                    if !p.is_null() {
+                        drop(Box::from_raw(*p));
+                    }
+                }
+                result_to_ptr(new_instance(interp, callee, args, &span))
+            }
             Value::VMFunction(fv) => {
-                if fv.func.params.len() != args.len() {
+                if fv.func.params.len() != argc {
+                    for p in std::slice::from_raw_parts(argv, argc) {
+                        if !p.is_null() {
+                            drop(Box::from_raw(*p));
+                        }
+                    }
                     return error_value(format!(
                         "Function {} expects {} args, got {}",
                         fv.func.name,
                         fv.func.params.len(),
-                        args.len()
+                        argc
                     ));
                 }
                 if let Some(code) = crate::jit_generic::get_jit_code(&fv.func) {
-                    let upvalues: Vec<*const std::ffi::c_void> = fv
-                        .upvalues
-                        .iter()
-                        .map(|rc| Rc::as_ptr(rc) as *const std::ffi::c_void)
-                        .collect();
-                    let arg_ptrs: Vec<*mut Value> = args
-                        .iter()
-                        .map(|v| Box::into_raw(Box::new(v.clone())))
-                        .collect();
+                    let upvalues_ptr = if fv.upvalues.is_empty() {
+                        std::ptr::null_mut()
+                    } else {
+                        let upvalues: Vec<*const std::ffi::c_void> = fv
+                            .upvalues
+                            .iter()
+                            .map(|rc| Rc::as_ptr(rc) as *const std::ffi::c_void)
+                            .collect();
+                        upvalues.as_ptr() as *mut _
+                    };
                     let ctx = crate::jit_generic::JitContext {
                         interp,
                         function: &*fv.func as *const CompiledFunction,
                     };
                     let result = code(
                         &ctx as *const _ as *mut std::ffi::c_void,
-                        upvalues.as_ptr() as *mut _,
-                        arg_ptrs.len(),
-                        arg_ptrs.as_ptr(),
+                        upvalues_ptr,
+                        argc,
+                        argv,
                     );
                     return result;
                 }
+                let args = argv_to_vec(argc, argv);
+                for p in std::slice::from_raw_parts(argv, argc) {
+                    if !p.is_null() {
+                        drop(Box::from_raw(*p));
+                    }
+                }
                 result_to_ptr(interp.call_value(&callee, args, &span))
             }
-            _ => result_to_ptr(interp.call_value(&callee, args, &span)),
+            _ => {
+                let args = argv_to_vec(argc, argv);
+                for p in std::slice::from_raw_parts(argv, argc) {
+                    if !p.is_null() {
+                        drop(Box::from_raw(*p));
+                    }
+                }
+                result_to_ptr(interp.call_value(&callee, args, &span))
+            }
         }
     }
 }
