@@ -75,6 +75,17 @@ fn error_value(message: impl Into<String>) -> *mut Value {
     Box::into_raw(Box::new(make_error(message)))
 }
 
+/// Create an error value from a message value.  Takes ownership of `msg`.
+#[unsafe(no_mangle)]
+pub extern "C" fn period_raise(msg: *mut Value) -> *mut Value {
+    let msg = take_value(msg);
+    let message = match msg {
+        Value::String(s) => s,
+        v => v.to_string(),
+    };
+    error_value(message)
+}
+
 fn result_to_ptr(result: Result<Value, Control>) -> *mut Value {
     match result {
         Ok(v) => Box::into_raw(Box::new(v)),
@@ -243,30 +254,38 @@ fn add_values(left: &Value, right: &Value) -> Value {
 
 /// Append a literal string to a local in place when it already holds a string.
 /// Otherwise fall back to normal string concatenation and assign the result.
+/// Returns null on success so the caller does not need to drop a boxed Nothing.
 #[unsafe(no_mangle)]
 pub extern "C" fn period_append_local_string(local: *mut Value, ptr: *const u8, len: usize) -> *mut Value {
     unsafe {
         if local.is_null() {
             return error_value("invalid local");
         }
+        if ptr.is_null() || len == 0 {
+            return std::ptr::null_mut();
+        }
         let local_ref = &mut *local;
+        let bytes = std::slice::from_raw_parts(ptr, len);
+        // Period source strings are valid UTF-8, so we can append the bytes
+        // directly without the allocation/copy performed by `cstr`.
+        let chunk = std::str::from_utf8_unchecked(bytes);
         match local_ref {
             Value::String(s) => {
-                s.push_str(&cstr(ptr, len));
-                period_value_nothing()
+                s.push_str(chunk);
             }
             _ => {
-                let right = Value::String(cstr(ptr, len));
+                let right = Value::String(chunk.to_string());
                 let result = add_values(local_ref, &right);
                 *local_ref = result;
-                period_value_nothing()
             }
         }
+        std::ptr::null_mut()
     }
 }
 
 /// Append a value to a local list in place when it already holds a list.
 /// Otherwise fall back to list concatenation and assign the result.
+/// Returns null on success so the caller does not need to drop a boxed Nothing.
 #[unsafe(no_mangle)]
 pub extern "C" fn period_append_local_list(local: *mut Value, item: *mut Value) -> *mut Value {
     unsafe {
@@ -287,15 +306,14 @@ pub extern "C" fn period_append_local_list(local: *mut Value, item: *mut Value) 
                 } else {
                     list.borrow_mut().push(*item_val);
                 }
-                period_value_nothing()
             }
             _ => {
                 let right = Value::List(std::rc::Rc::new(std::cell::RefCell::new(vec![*item_val])));
                 let result = add_values(local_ref, &right);
                 *local_ref = result;
-                period_value_nothing()
             }
         }
+        std::ptr::null_mut()
     }
 }
 

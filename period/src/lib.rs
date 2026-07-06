@@ -337,11 +337,23 @@ fn run_server() -> i32 {
             return 1;
         }
     };
-    // Handle requests on a single thread so that the generic JIT code cache
-    // (kept in thread-local storage) is reused across invocations.
+    // Accept connections on the main thread and hand them off to a single
+    // dedicated worker thread.  This keeps `accept()` responsive even when a
+    // request takes a while, while still letting us reuse the generic JIT code
+    // cache stored in thread-local storage.
+    let (tx, rx) = std::sync::mpsc::channel::<TcpStream>();
+    thread::spawn(move || {
+        for stream in rx {
+            handle_worker_request(stream);
+        }
+    });
     for stream in listener.incoming() {
         match stream {
-            Ok(stream) => handle_worker_request(stream),
+            Ok(stream) => {
+                if tx.send(stream).is_err() {
+                    break;
+                }
+            }
             Err(e) => {
                 eprintln!("period: worker accept error: {}", e);
             }
@@ -351,6 +363,11 @@ fn run_server() -> i32 {
 }
 
 fn handle_worker_request(mut stream: TcpStream) {
+    // Defensive timeout: a stalled or half-open client must not block the
+    // single-threaded worker from accepting further connections.
+    let _ = stream.set_read_timeout(Some(std::time::Duration::from_secs(5)));
+    let _ = stream.set_write_timeout(Some(std::time::Duration::from_secs(5)));
+
     // Request: 8-byte little-endian path length followed by UTF-8 path.
     let mut len_buf = [0u8; 8];
     if stream.read_exact(&mut len_buf).is_err() {

@@ -499,34 +499,57 @@ fn try_modular_count_opt(
         return None;
     }
 
-    // Find the induction-variable increment and a single counter increment.
+    // Find the induction-variable increment and a single accumulator update.
+    // The accumulator may either be incremented by one (`count` pattern) or
+    // have the loop variable added to it (`sum` pattern).
     let mut inc_i_idx = None;
-    let mut inc_acc: Option<(usize, usize)> = None;
+    let mut inc_acc: Option<(usize, usize)> = None; // (ip, slot)
+    let mut add_acc: Option<(usize, usize)> = None; // (ip, source_slot)
     for ip in body_start..body_end {
         match &ops[ip] {
             Op::IncrementLocal(slot) => {
                 if *slot == i_slot {
                     inc_i_idx = Some(ip);
-                } else if inc_acc.is_none() {
+                } else if inc_acc.is_none() && add_acc.is_none() {
                     inc_acc = Some((ip, *slot));
                 } else {
                     return None;
                 }
             }
-            Op::StoreLocal(_) | Op::AddLocals(_, _) => return None,
+            Op::AddLocals(target, source) => {
+                if *target == i_slot {
+                    return None;
+                }
+                if add_acc.is_none() && inc_acc.is_none() {
+                    add_acc = Some((*target, *source));
+                } else {
+                    return None;
+                }
+            }
             Op::Show | Op::Return => return None,
+            // StoreLocal is allowed for temporary predicate slots; we verify below
+            // that it does not overwrite the induction or accumulator variables.
             _ => {}
         }
     }
     let _inc_i_idx = inc_i_idx?;
-    let (_, acc_slot) = inc_acc?;
+    let acc_slot = if let Some((_, slot)) = inc_acc {
+        slot
+    } else if let Some((slot, source)) = add_acc {
+        if source != i_slot {
+            return None;
+        }
+        slot
+    } else {
+        return None;
+    };
 
     // The predicate may only inspect `i` through modulo operations.
     let mut moduli: Vec<usize> = Vec::new();
     for ip in body_start..body_end {
         if let Op::LoadLocal(slot) = &ops[ip] {
             if *slot != i_slot {
-                return None;
+                continue;
             }
             // Expect `LoadLocal(i), Constant(d), Binary(Mod)`.
             let d = match ops.get(ip + 1).and_then(|op| match op {
@@ -540,6 +563,10 @@ fn try_modular_count_opt(
                 return None;
             }
             moduli.push(d);
+        } else if let Op::StoreLocal(slot) = &ops[ip] {
+            if *slot == i_slot || *slot == acc_slot {
+                return None;
+            }
         }
     }
     if moduli.is_empty() {
@@ -722,6 +749,8 @@ fn evaluate_loop(
                         BinOp::Ge => left.zip(right).map(|(a, b)| if a >= b { 1 } else { 0 }),
                         BinOp::Eq => left.zip(right).map(|(a, b)| if a == b { 1 } else { 0 }),
                         BinOp::Ne => left.zip(right).map(|(a, b)| if a != b { 1 } else { 0 }),
+                        BinOp::And => left.zip(right).map(|(a, b)| if a != 0 && b != 0 { 1 } else { 0 }),
+                        BinOp::Or => left.zip(right).map(|(a, b)| if a != 0 || b != 0 { 1 } else { 0 }),
                         _ => return None,
                     };
                     stack.push(res);
@@ -818,6 +847,10 @@ fn translate_binary(
         BinOp::Ge => builder.ins().icmp(IntCC::SignedGreaterThanOrEqual, left, right),
         BinOp::Eq => builder.ins().icmp(IntCC::Equal, left, right),
         BinOp::Ne => builder.ins().icmp(IntCC::NotEqual, left, right),
+        // Logical and/or are represented as 0/1 booleans; bitwise ops give the
+        // same result for pure operands and let the integer JIT fold loops.
+        BinOp::And => builder.ins().band(left, right),
+        BinOp::Or => builder.ins().bor(left, right),
         _ => return None,
     };
 
