@@ -1,4 +1,6 @@
+use std::fmt::Write;
 use std::mem;
+use std::sync::Mutex;
 
 use cranelift::prelude::*;
 use cranelift_module::{Linkage, Module};
@@ -10,8 +12,17 @@ use crate::value::Value;
 /// A JIT-compiled Period function that takes no arguments and returns an `i64`.
 pub type JitFn = unsafe extern "C" fn() -> i64;
 
+/// Captured output from the integer-only JIT. The JIT emits calls to
+/// `jit_show_i64`, which append here instead of printing directly so that a
+/// persistent worker process can return the output to its client.
+pub static JIT_OUTPUT: Mutex<String> = Mutex::new(String::new());
+
 extern "C" fn jit_show_i64(value: i64) {
-    println!("{}", value);
+    let mut out = JIT_OUTPUT.lock().unwrap();
+    if !out.is_empty() {
+        out.push('\n');
+    }
+    let _ = write!(out, "{}", value);
 }
 
 pub struct JitCompiler {
