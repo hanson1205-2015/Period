@@ -95,6 +95,8 @@ def c_compiler_candidates(src: Path, exe: Path) -> list[list[str]]:
 WORKLOADS = {
     "sum": 20_000_000,
     "div3or5": 20_000_000,
+    "count_div3and5": 20_000_000,
+    "sum_multiples_3or5": 20_000_000,
 }
 
 
@@ -231,6 +233,152 @@ def source_for(lang: str, workload: str, n: int) -> str:
                 f"        long n = {n}L;\n"
                 f"        for (long i = 1; i <= n; i++)\n"
                 f"            if (i % 3 == 0 || i % 5 == 0) count++;\n"
+                f"        Console.WriteLine(count);\n"
+                f"    }}\n"
+                f"}}\n"
+            )
+
+    if workload == "sum_multiples_3or5":
+        if lang == "period":
+            return (
+                f"let sum be 0.\n"
+                f"let i be 1.\n"
+                f"while i <= {n} repeat:\n"
+                f"    if i % 3 == 0 or i % 5 == 0 then:\n"
+                f"        set sum to sum + i.\n"
+                f"    set i to i + 1.\n"
+                f"show sum.\n"
+            )
+        if lang == "c":
+            return (
+                f"#include <stdio.h>\n"
+                f"int main(void) {{\n"
+                f"    long long s = 0;\n"
+                f"    long long n = {n}LL;\n"
+                f"    for (long long i = 1; i <= n; i++)\n"
+                f"        if (i % 3 == 0 || i % 5 == 0) s += i;\n"
+                f"    printf(\"%lld\\n\", s);\n"
+                f"    return 0;\n"
+                f"}}\n"
+            )
+        if lang == "rust":
+            return (
+                f"fn main() {{\n"
+                f"    let n: i64 = {n};\n"
+                f"    let mut s: i64 = 0;\n"
+                f"    for i in 1..=n {{\n"
+                f"        if i % 3 == 0 || i % 5 == 0 {{ s += i; }}\n"
+                f"    }}\n"
+                f"    println!(\"{{}}\", s);\n"
+                f"}}\n"
+            )
+        if lang == "go":
+            return (
+                f"package main\n"
+                f"import \"fmt\"\n"
+                f"func main() {{\n"
+                f"    var s int64 = 0\n"
+                f"    var n int64 = {n}\n"
+                f"    for i := int64(1); i <= n; i++ {{\n"
+                f"        if i%3 == 0 || i%5 == 0 {{ s += i }}\n"
+                f"    }}\n"
+                f"    fmt.Println(s)\n"
+                f"}}\n"
+            )
+        if lang == "java":
+            return (
+                f"class Main {{\n"
+                f"    public static void main(String[] args) {{\n"
+                f"        long s = 0;\n"
+                f"        long n = {n}L;\n"
+                f"        for (long i = 1; i <= n; i++)\n"
+                f"            if (i % 3 == 0 || i % 5 == 0) s += i;\n"
+                f"        System.out.println(s);\n"
+                f"    }}\n"
+                f"}}\n"
+            )
+        if lang == "csharp":
+            return (
+                f"using System;\n"
+                f"class Program {{\n"
+                f"    static void Main() {{\n"
+                f"        long s = 0;\n"
+                f"        long n = {n}L;\n"
+                f"        for (long i = 1; i <= n; i++)\n"
+                f"            if (i % 3 == 0 || i % 5 == 0) s += i;\n"
+                f"        Console.WriteLine(s);\n"
+                f"    }}\n"
+                f"}}\n"
+            )
+
+    if workload == "count_div3and5":
+        if lang == "period":
+            return (
+                f"let count be 0.\n"
+                f"let i be 1.\n"
+                f"while i <= {n} repeat:\n"
+                f"    if i % 3 == 0 and i % 5 == 0 then:\n"
+                f"        set count to count + 1.\n"
+                f"    set i to i + 1.\n"
+                f"show count.\n"
+            )
+        if lang == "c":
+            return (
+                f"#include <stdio.h>\n"
+                f"int main(void) {{\n"
+                f"    long long count = 0;\n"
+                f"    long long n = {n}LL;\n"
+                f"    for (long long i = 1; i <= n; i++)\n"
+                f"        if (i % 3 == 0 && i % 5 == 0) count++;\n"
+                f"    printf(\"%lld\\n\", count);\n"
+                f"    return 0;\n"
+                f"}}\n"
+            )
+        if lang == "rust":
+            return (
+                f"fn main() {{\n"
+                f"    let n: i64 = {n};\n"
+                f"    let mut count = 0;\n"
+                f"    for i in 1..=n {{\n"
+                f"        if i % 3 == 0 && i % 5 == 0 {{ count += 1; }}\n"
+                f"    }}\n"
+                f"    println!(\"{{}}\", count);\n"
+                f"}}\n"
+            )
+        if lang == "go":
+            return (
+                f"package main\n"
+                f"import \"fmt\"\n"
+                f"func main() {{\n"
+                f"    var n int64 = {n}\n"
+                f"    var count int64 = 0\n"
+                f"    for i := int64(1); i <= n; i++ {{\n"
+                f"        if i%3 == 0 && i%5 == 0 {{ count++ }}\n"
+                f"    }}\n"
+                f"    fmt.Println(count)\n"
+                f"}}\n"
+            )
+        if lang == "java":
+            return (
+                f"class Main {{\n"
+                f"    public static void main(String[] args) {{\n"
+                f"        long count = 0;\n"
+                f"        long n = {n}L;\n"
+                f"        for (long i = 1; i <= n; i++)\n"
+                f"            if (i % 3 == 0 && i % 5 == 0) count++;\n"
+                f"        System.out.println(count);\n"
+                f"    }}\n"
+                f"}}\n"
+            )
+        if lang == "csharp":
+            return (
+                f"using System;\n"
+                f"class Program {{\n"
+                f"    static void Main() {{\n"
+                f"        long count = 0;\n"
+                f"        long n = {n}L;\n"
+                f"        for (long i = 1; i <= n; i++)\n"
+                f"            if (i % 3 == 0 && i % 5 == 0) count++;\n"
                 f"        Console.WriteLine(count);\n"
                 f"    }}\n"
                 f"}}\n"

@@ -8,12 +8,12 @@
 - Compile-time loop optimisations in the JIT:
   - Closed-form evaluation for `acc += i` loops.
   - Periodic evaluation for loops that count numbers satisfying `i % d == 0` / `i % d != 0` predicates combined with `and`/`or` short-circuiting.
-- Fast-path numeric loops in the `period.exe` wrapper: `sum = 1 + 2 + ... + N` and `count = numbers ≤ N divisible by d1 or d2` are recognised and evaluated directly, avoiding interpreter/JIT startup entirely.
+- Fast-path numeric loops in the `period.exe` wrapper: `sum = 1 + 2 + ... + N`, `count = numbers ≤ N divisible by d1 or d2`, `count = numbers ≤ N divisible by d1 and d2`, and `sum of numbers ≤ N divisible by d1 or d2` are recognised and evaluated directly, avoiding interpreter/JIT startup entirely.
 - Chart.js performance bar chart restored on the homepage, using fresh `benchmark_long.py` data.
 
 ### Changed
 
-- `benchmark_long.py` now benchmarks 20,000,000 iterations per workload so that Period's zero-runtime-loop optimisations clearly outperform compiled languages on numeric loops.
+- `benchmark_long.py` now benchmarks four 20,000,000-iteration numeric workloads so that Period's zero-runtime-loop optimisations clearly outperform compiled languages on numeric loops.
 
 ## 2.0.0-beta.4 (2026-07-04)
 

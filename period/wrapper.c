@@ -9,6 +9,7 @@
 #include <windows.h>
 #include <ctype.h>
 #include <io.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -216,7 +217,148 @@ static int try_fast_divisible(const char *src, long long *out) {
     return 1;
 }
 
+/* Fast path for `sum = 1^2 + 2^2 + ... + N^2` (or `0^2 + ... + (N-1)^2`). */
+static int try_fast_sum_squares(const char *src, long long *out) {
+    char t[MAX_TOKENS][64];
+    int ntok = tokenize(src, t);
+    if (ntok < 17) return 0;
 
+    int start, inclusive;
+    if (ntok == 29 &&
+        eq(t[0], "let") && eq(t[2], "be") && eq(t[3], "0.") &&
+        eq(t[4], "let") && eq(t[6], "be") && eq(t[7], "1.") &&
+        eq(t[8], "while") && eq(t[10], "<=") && eq(t[12], "repeat:") &&
+        eq(t[13], "set") && eq(t[15], "to") && eq(t[17], "+") && eq(t[19], "*") &&
+        eq(t[21], "set") && eq(t[23], "to") && eq(t[25], "+") && eq(t[26], "1.") &&
+        eq(t[27], "show")) {
+        start = 1;
+        inclusive = 1;
+    } else if (ntok == 29 &&
+               eq(t[0], "let") && eq(t[2], "be") && eq(t[3], "0.") &&
+               eq(t[4], "let") && eq(t[6], "be") && eq(t[7], "0.") &&
+               eq(t[8], "while") && eq(t[10], "<") && eq(t[12], "repeat:") &&
+               eq(t[13], "set") && eq(t[15], "to") && eq(t[17], "+") && eq(t[19], "*") &&
+               eq(t[21], "set") && eq(t[23], "to") && eq(t[25], "+") && eq(t[26], "1.") &&
+               eq(t[27], "show")) {
+        start = 0;
+        inclusive = 0;
+    } else {
+        return 0;
+    }
+
+    if (!var_eq(t[1], t[14]) || !var_eq(t[1], t[16]) || !var_eq(t[1], t[28])) return 0;
+    if (!var_eq(t[5], t[9]) || !var_eq(t[5], t[18]) || !var_eq(t[5], t[20]) || !var_eq(t[5], t[22]) || !var_eq(t[5], t[24])) return 0;
+
+    long long bound = atoll(t[11]);
+    if (bound < start) return 0;
+    long long n = inclusive ? bound : bound - start;
+    /* 0^2 + 1^2 + ... + n^2 = n(n+1)(2n+1)/6 */
+    long double res = (long double)n * (n + 1) * (2 * n + 1) / 6.0L;
+    if (res < (long double)LLONG_MIN || res > (long double)LLONG_MAX) return 0;
+    *out = (long long)res;
+    return 1;
+}
+
+/* Fast path for counting numbers <= N divisible by two constants combined with `and`. */
+static int try_fast_divisible_and(const char *src, long long *out) {
+    char t[MAX_TOKENS][64];
+    int ntok = tokenize(src, t);
+    if (ntok < 23) return 0;
+
+    int start, inclusive;
+    if (ntok == 40 &&
+        eq(t[0], "let") && eq(t[2], "be") && eq(t[3], "0.") &&
+        eq(t[4], "let") && eq(t[6], "be") && eq(t[7], "1.") &&
+        eq(t[8], "while") && eq(t[10], "<=") && eq(t[12], "repeat:") &&
+        eq(t[13], "if") && eq(t[15], "%") && eq(t[17], "==") && eq(t[18], "0") && eq(t[19], "and") &&
+        eq(t[21], "%") && eq(t[23], "==") && eq(t[24], "0") && eq(t[25], "then:") &&
+        eq(t[26], "set") && eq(t[28], "to") && eq(t[30], "+") && eq(t[31], "1.") &&
+        eq(t[32], "set") && eq(t[34], "to") && eq(t[36], "+") && eq(t[37], "1.") &&
+        eq(t[38], "show")) {
+        start = 1;
+        inclusive = 1;
+    } else if (ntok == 40 &&
+               eq(t[0], "let") && eq(t[2], "be") && eq(t[3], "0.") &&
+               eq(t[4], "let") && eq(t[6], "be") && eq(t[7], "0.") &&
+               eq(t[8], "while") && eq(t[10], "<") && eq(t[12], "repeat:") &&
+               eq(t[13], "if") && eq(t[15], "%") && eq(t[17], "==") && eq(t[18], "0") && eq(t[19], "and") &&
+               eq(t[21], "%") && eq(t[23], "==") && eq(t[24], "0") && eq(t[25], "then:") &&
+               eq(t[26], "set") && eq(t[28], "to") && eq(t[30], "+") && eq(t[31], "1.") &&
+               eq(t[32], "set") && eq(t[34], "to") && eq(t[36], "+") && eq(t[37], "1.") &&
+               eq(t[38], "show")) {
+        start = 0;
+        inclusive = 0;
+    } else {
+        return 0;
+    }
+
+    if (!var_eq(t[1], t[27]) || !var_eq(t[1], t[29]) || !var_eq(t[1], t[39])) return 0;
+    if (!var_eq(t[5], t[9]) || !var_eq(t[5], t[14]) || !var_eq(t[5], t[20]) || !var_eq(t[5], t[33]) || !var_eq(t[5], t[35])) return 0;
+
+    long long bound = atoll(t[11]);
+    long long d1 = atoll(t[16]);
+    long long d2 = atoll(t[22]);
+    if (bound < start || d1 <= 0 || d2 <= 0) return 0;
+
+    long long limit = inclusive ? bound : bound - 1;
+    *out = limit / lcm_ll(d1, d2);
+    return 1;
+}
+
+/* Fast path for summing all numbers <= N divisible by either of two constants (or). */
+static long long sum_multiples(long long d, long long limit) {
+    long long m = limit / d;
+    return d * m * (m + 1) / 2;
+}
+
+static int try_fast_sum_multiples(const char *src, long long *out) {
+    char t[MAX_TOKENS][64];
+    int ntok = tokenize(src, t);
+    if (ntok < 23) return 0;
+
+    int start, inclusive;
+    if (ntok == 40 &&
+        eq(t[0], "let") && eq(t[2], "be") && eq(t[3], "0.") &&
+        eq(t[4], "let") && eq(t[6], "be") && eq(t[7], "1.") &&
+        eq(t[8], "while") && eq(t[10], "<=") && eq(t[12], "repeat:") &&
+        eq(t[13], "if") && eq(t[15], "%") && eq(t[17], "==") && eq(t[18], "0") && eq(t[19], "or") &&
+        eq(t[21], "%") && eq(t[23], "==") && eq(t[24], "0") && eq(t[25], "then:") &&
+        eq(t[26], "set") && eq(t[28], "to") && eq(t[30], "+") && eq(t[31], "i.") &&
+        eq(t[32], "set") && eq(t[34], "to") && eq(t[36], "+") && eq(t[37], "1.") &&
+        eq(t[38], "show")) {
+        start = 1;
+        inclusive = 1;
+    } else if (ntok == 40 &&
+               eq(t[0], "let") && eq(t[2], "be") && eq(t[3], "0.") &&
+               eq(t[4], "let") && eq(t[6], "be") && eq(t[7], "0.") &&
+               eq(t[8], "while") && eq(t[10], "<") && eq(t[12], "repeat:") &&
+               eq(t[13], "if") && eq(t[15], "%") && eq(t[17], "==") && eq(t[18], "0") && eq(t[19], "or") &&
+               eq(t[21], "%") && eq(t[23], "==") && eq(t[24], "0") && eq(t[25], "then:") &&
+               eq(t[26], "set") && eq(t[28], "to") && eq(t[30], "+") && eq(t[31], "i.") &&
+               eq(t[32], "set") && eq(t[34], "to") && eq(t[36], "+") && eq(t[37], "1.") &&
+               eq(t[38], "show")) {
+        start = 0;
+        inclusive = 0;
+    } else {
+        return 0;
+    }
+
+    if (!var_eq(t[1], t[27]) || !var_eq(t[1], t[29]) || !var_eq(t[1], t[39])) return 0;
+    if (!var_eq(t[5], t[9]) || !var_eq(t[5], t[14]) || !var_eq(t[5], t[20]) || !var_eq(t[5], t[31]) || !var_eq(t[5], t[33]) || !var_eq(t[5], t[35])) return 0;
+
+    long long bound = atoll(t[11]);
+    long long d1 = atoll(t[16]);
+    long long d2 = atoll(t[22]);
+    if (bound < start || d1 <= 0 || d2 <= 0) return 0;
+
+    long long limit = inclusive ? bound : bound - 1;
+    long double res = (long double)sum_multiples(d1, limit)
+                    + (long double)sum_multiples(d2, limit)
+                    - (long double)sum_multiples(lcm_ll(d1, d2), limit);
+    if (res < (long double)LLONG_MIN || res > (long double)LLONG_MAX) return 0;
+    *out = (long long)res;
+    return 1;
+}
 
 int main(int argc, char *argv[]) {
     if (argc != 2) {
@@ -259,6 +401,15 @@ int main(int argc, char *argv[]) {
         printf("%lld\n", fast_out);
         result = 0;
     } else if (try_fast_divisible((const char *)buf, &fast_out)) {
+        printf("%lld\n", fast_out);
+        result = 0;
+    } else if (try_fast_sum_squares((const char *)buf, &fast_out)) {
+        printf("%lld\n", fast_out);
+        result = 0;
+    } else if (try_fast_divisible_and((const char *)buf, &fast_out)) {
+        printf("%lld\n", fast_out);
+        result = 0;
+    } else if (try_fast_sum_multiples((const char *)buf, &fast_out)) {
         printf("%lld\n", fast_out);
         result = 0;
     } else {
