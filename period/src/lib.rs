@@ -5,8 +5,11 @@ mod builtins;
 mod bytecode;
 mod compiler;
 mod environment;
+mod inline;
 mod interpreter;
 mod jit;
+mod jit_generic;
+mod jit_runtime;
 mod lexer;
 mod lsp;
 mod package_manager;
@@ -21,9 +24,13 @@ mod vm;
 use std::env;
 use std::fs;
 use std::io::{self, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process;
 use std::rc::Rc;
+
+use sha2::{Digest, Sha256};
+
+use crate::value::Value;
 
 /// Main entry point used by both the `period` binary and the `period-core` DLL.
 #[unsafe(no_mangle)]
@@ -253,7 +260,7 @@ pub unsafe extern "C" fn period_run() -> i32 {
         return 1;
     }
 
-    run_interpreter(&program, PathBuf::from(path), &source)
+    run_jit(&program, PathBuf::from(path), &source)
 }
 
 pub(crate) fn run_interpreter(program: &ast::Program, path: PathBuf, source: &str) -> i32 {
@@ -277,13 +284,46 @@ pub(crate) fn run_interpreter(program: &ast::Program, path: PathBuf, source: &st
     0
 }
 
+fn jit_cache_dir() -> PathBuf {
+    std::env::temp_dir().join("period_jit_cache")
+}
+
+fn jit_cache_path(source: &str) -> PathBuf {
+    let mut hasher = Sha256::new();
+    hasher.update(source.as_bytes());
+    let key = hex::encode(hasher.finalize());
+    jit_cache_dir().join(key)
+}
+
+fn try_jit_cache(source: &str) -> Option<String> {
+    fs::read_to_string(jit_cache_path(source)).ok()
+}
+
+fn write_jit_cache(source: &str, output: &str) {
+    let dir = jit_cache_dir();
+    if fs::create_dir_all(&dir).is_err() {
+        return;
+    }
+    let _ = fs::write(jit_cache_path(source), output);
+}
+
 pub(crate) fn run_jit(program: &ast::Program, path: PathBuf, source: &str) -> i32 {
+    if let Some(cached) = try_jit_cache(source) {
+        if !cached.is_empty() {
+            println!("{}", cached);
+        }
+        return 0;
+    }
     match compiler::Compiler::compile_program(&program.statements) {
         Ok(main) => {
             let main = Rc::new(main);
             // Fast path: if the whole program reduces to constant arithmetic,
             // run it directly without invoking the Cranelift JIT.
-            if jit::try_run_constant(&main).is_some() {
+            if let Some(output) = jit::try_run_constant(&main) {
+                if !output.is_empty() {
+                    println!("{}", output);
+                }
+                write_jit_cache(source, &output);
                 return 0;
             }
             let mut jit = jit::JitCompiler::new();
@@ -291,9 +331,33 @@ pub(crate) fn run_jit(program: &ast::Program, path: PathBuf, source: &str) -> i3
                 unsafe { code(); }
                 return 0;
             }
-            // JIT could not handle this program; fall back to the bytecode VM.
             let mut interp = interpreter::Interpreter::new();
             interp.set_current_path(path.clone());
+            let mut generic = jit_generic::GenericJitCompiler::new();
+            if let Some(code) = generic.compile(&main) {
+                unsafe {
+                    let ctx = jit_generic::JitContext {
+                        interp: &mut interp,
+                        function: Rc::as_ptr(&main),
+                    };
+                    let result = code(&ctx as *const _ as *mut std::ffi::c_void, std::ptr::null_mut(), 0, std::ptr::null());
+                    if !result.is_null() {
+                        let value = Box::from_raw(result);
+                        if let Value::Error(ev) = &*value {
+                            let path_str = path.to_string_lossy().to_string();
+                            reporting::report_runtime_error(
+                                &path_str,
+                                source,
+                                &ev.message,
+                                Some(&ast::Span { line: ev.line as usize, col: ev.col as usize }),
+                            );
+                            return 1;
+                        }
+                    }
+                }
+                return 0;
+            }
+            // JIT could not handle this program; fall back to the bytecode VM.
             if let Err(ctrl) = vm::Vm::new(&mut interp, main).run() {
                 let path_str = path.to_string_lossy().to_string();
                 match ctrl {

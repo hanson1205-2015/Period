@@ -242,6 +242,8 @@ pub struct VMClassValue {
     pub name: String,
     pub init: Option<Box<Value>>,
     pub methods: HashMap<String, Value>,
+    pub field_names: Vec<String>,
+    pub field_init: Vec<Option<usize>>,
     pub from_module: bool,
 }
 
@@ -293,7 +295,8 @@ pub enum Value {
     VMClass(Box<VMClassValue>),
     Instance {
         class: Box<Value>,
-        fields: Rc<RefCell<HashMap<String, Value>>>,
+        fields: Option<Rc<RefCell<HashMap<String, Value>>>>,
+        slots: Option<Rc<RefCell<Vec<Value>>>>,
     },
     BuiltIn(Box<BuiltInValue>),
     VMFunction(Box<VMFunctionValue>),

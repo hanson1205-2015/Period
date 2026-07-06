@@ -12,6 +12,7 @@ use crate::ast::*;
 use crate::builtins::{install_builtins, make_math_module, make_random_module, make_string_module, make_time_module};
 use crate::compiler;
 use crate::environment::Environment;
+use crate::jit_generic;
 use crate::lexer::{Lexer, TokenKind};
 use crate::parser::Parser;
 use crate::value::{range_len, ClassValue, ErrorValue, FunctionValue, ModuleValue, Value};
@@ -328,8 +329,12 @@ impl Interpreter {
             }
             AssignTarget::Property { object, name, span } => {
                 let obj = self.evaluate(object)?;
-                if let Value::Instance { fields, .. } = obj {
-                    fields.borrow_mut().insert(name.clone(), value);
+                if let Value::Instance { ref fields, .. } = obj {
+                    if let Some(fields) = fields {
+                        fields.borrow_mut().insert(name.clone(), value);
+                    } else {
+                        return Err(Control::RuntimeError(format!("Cannot set property on {}", obj.type_name()), span.clone()));
+                    }
                 } else {
                     return Err(Control::RuntimeError(format!("Cannot set property on {}", obj.type_name()), span.clone()));
                 }
@@ -440,9 +445,11 @@ impl Interpreter {
             Expr::Property { object, name, span } => {
                 let obj = self.evaluate(object)?;
                 match &obj {
-                    Value::Instance { class, fields } => {
-                        if let Some(v) = fields.borrow().get(name).cloned() {
-                            return Ok(v);
+                    Value::Instance { class, fields, .. } => {
+                        if let Some(fields) = fields {
+                            if let Some(v) = fields.borrow().get(name).cloned() {
+                                return Ok(v);
+                            }
                         }
                         if let Value::Class(cv) = class.as_ref()
                             && cv.methods.contains_key(name) {
@@ -702,7 +709,41 @@ impl Interpreter {
                 Ok(result)
             }
             Value::Class(_) => self.new_instance(callee, args, span),
-            Value::VMFunction(_fv) => {
+            Value::VMFunction(fv) => {
+                if fv.func.params.len() != args.len() {
+                    return Err(Control::RuntimeError(
+                        format!("Function {} expects {} args, got {}", fv.func.name, fv.func.params.len(), args.len()),
+                        fv.func.span.clone(),
+                    ));
+                }
+                if let Some(code) = crate::jit_generic::get_jit_code(&fv.func) {
+                    let upvalues: Vec<*const std::ffi::c_void> = fv
+                        .upvalues
+                        .iter()
+                        .map(|rc| std::rc::Rc::as_ptr(rc) as *const std::ffi::c_void)
+                        .collect();
+                    let arg_ptrs: Vec<*mut Value> = args
+                        .iter()
+                        .map(|v| Box::into_raw(Box::new(v.clone())))
+                        .collect();
+                    let ctx = crate::jit_generic::JitContext {
+                        interp: self,
+                        function: &*fv.func as *const crate::bytecode::CompiledFunction,
+                    };
+                    let result = unsafe {
+                        code(
+                            &ctx as *const _ as *mut std::ffi::c_void,
+                            upvalues.as_ptr() as *mut _,
+                            arg_ptrs.len(),
+                            arg_ptrs.as_ptr(),
+                        )
+                    };
+                    if result.is_null() {
+                        return Ok(Value::Nothing);
+                    }
+                    let value = unsafe { *Box::from_raw(result) };
+                    return Ok(value);
+                }
                 let dummy = crate::bytecode::CompiledFunction::new("<call>", Vec::new(), None, span.clone());
                 let mut vm = crate::vm::Vm::new(self, std::rc::Rc::new(dummy));
                 vm.call_value(callee.clone(), args, span)?;
@@ -717,7 +758,8 @@ impl Interpreter {
         if let Value::Class(cv) = cls {
             let instance = Value::Instance {
                 class: Box::new(cls.clone()),
-                fields: Rc::new(RefCell::new(HashMap::new())),
+                fields: Some(Rc::new(RefCell::new(HashMap::new()))),
+                slots: None,
             };
             if let Some(init_stmt) = &cv.init {
                 let env = Environment::with_parent(self.env.clone());
@@ -868,6 +910,31 @@ impl Interpreter {
         Ok(())
     }
 
+    fn run_compiled_module_main(&mut self, main: Rc<crate::bytecode::CompiledFunction>) -> Result<(), Control> {
+        if crate::jit::try_run_constant(&main).is_some() {
+            return Ok(());
+        }
+        let mut jit = crate::jit::JitCompiler::new();
+        if let Some(code) = jit.compile(&main) {
+            unsafe { code(); }
+            return Ok(());
+        }
+        let mut generic = jit_generic::GenericJitCompiler::new();
+        if let Some(code) = generic.compile(&main) {
+            let ctx = jit_generic::JitContext { interp: self, function: Rc::as_ptr(&main) };
+            let result = unsafe { code(&ctx as *const _ as *mut std::ffi::c_void, std::ptr::null_mut(), 0, std::ptr::null()) };
+            if !result.is_null() {
+                let value = unsafe { Box::from_raw(result) };
+                if let Value::Error(ev) = &*value {
+                    return Err(Control::RuntimeError(ev.message.clone(), Span { line: ev.line as usize, col: ev.col as usize }));
+                }
+            }
+            return Ok(());
+        }
+        crate::vm::Vm::new(self, main).run()?;
+        Ok(())
+    }
+
     fn load_period_module(&mut self, name: &str, path: &std::path::Path) -> Result<Rc<RefCell<Environment>>, Control> {
         let source = fs::read_to_string(path)
             .map_err(|e| Control::Error(format!("Cannot read module '{}': {}", name, e)))?;
@@ -884,7 +951,9 @@ impl Interpreter {
         self.env = module_env.clone();
         self.silent = true;
         self.loading_module = true;
-        let result = self.interpret_tree_walk(&program);
+        let main = Rc::new(compiler::Compiler::compile_program(&program.statements)
+            .map_err(|e| Control::Error(format!("Module '{}': {}", name, e.0)))?);
+        let result = self.run_compiled_module_main(main);
         self.env = old_env;
         self.silent = old_silent;
         self.loading_module = old_loading;

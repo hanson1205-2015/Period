@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Generic Cranelift JIT compiler (`period/src/jit_generic.rs` and `period/src/jit_runtime.rs`) that compiles nearly all Period programs to native code by default, with automatic fallback to the bytecode VM for constructs the JIT does not yet support.
+- Expanded `docs/benchmark_long.py` to nine workloads covering numeric loops, string concatenation, list growth, function calls, object instantiation, and exception handling.
+- Static SVG benchmark chart (`docs/benchmark_long.svg`) rendered by `docs/benchmark_long.py`, replacing the previous Chart.js canvas on the homepage.
+
+### Changed
+
+- `period_run` now routes all programs through the JIT path first; the pure-integer fast path and the new generic JIT are tried before falling back to the bytecode VM.
+- Homepage performance section updated to describe the broader benchmark suite and the default Cranelift JIT.
+
 ## 2.0.0-beta.5 (2026-07-04)
 
 ### Added

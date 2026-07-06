@@ -1,0 +1,143 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700">
+<style>
+  text { font-family: sans-serif; font-size: 12px; fill: #333; }
+  .title { font-size: 18px; font-weight: bold; }
+  .axis { font-size: 12px; }
+  .label { font-size: 11px; }
+  .grid { stroke: #e0e0e0; stroke-width: 1; }
+</style>
+<rect width="1200" height="700" fill="#ffffff"/>
+<text x="600" y="35" text-anchor="middle" class="title">Period Benchmark Results (log scale)</text>
+<line x1="90" y1="560.0" x2="980" y2="560.0" class="grid"/>
+<text x="82" y="564.0" text-anchor="end" class="axis">1 ms</text>
+<line x1="90" y1="524.4538813807578" x2="980" y2="524.4538813807578" class="grid"/>
+<text x="82" y="528.4538813807578" text-anchor="end" class="axis">10 ms</text>
+<line x1="90" y1="260.78608706927093" x2="980" y2="260.78608706927093" class="grid"/>
+<text x="82" y="264.78608706927093" text-anchor="end" class="axis">100 ms</text>
+<line x1="90" y1="60" x2="90" y2="560" stroke="#333" stroke-width="2"/>
+<line x1="90" y1="560" x2="980" y2="560" stroke="#333" stroke-width="2"/>
+<rect x="97.06349206349206" y="527.551900703021" width="12.007936507936508" height="32.44809929697897" fill="#4caf50" rx="2"/>
+<text x="103.06746031746032" y="522.551900703021" text-anchor="middle" class="label">9.7</text>
+<rect x="111.19047619047619" y="507.6937665490638" width="12.007936507936508" height="52.30623345093619" fill="#ff9800" rx="2"/>
+<text x="117.19444444444444" y="502.6937665490638" text-anchor="middle" class="label">11.6</text>
+<rect x="125.31746031746032" y="453.97346828749187" width="12.007936507936508" height="106.02653171250813" fill="#2196f3" rx="2"/>
+<text x="131.32142857142858" y="448.97346828749187" text-anchor="middle" class="label">18.5</text>
+<rect x="139.44444444444446" y="436.8679066237065" width="12.007936507936508" height="123.13209337629348" fill="#00bcd4" rx="2"/>
+<text x="145.4484126984127" y="431.8679066237065" text-anchor="middle" class="label">21.5</text>
+<rect x="153.57142857142856" y="335.30136500143124" width="12.007936507936508" height="224.69863499856876" fill="#f44336" rx="2"/>
+<text x="159.5753968253968" y="330.30136500143124" text-anchor="middle" class="label">52.2</text>
+<rect x="167.6984126984127" y="363.69145491704546" width="12.007936507936508" height="196.30854508295454" fill="#9c27b0" rx="2"/>
+<text x="173.70238095238096" y="358.69145491704546" text-anchor="middle" class="label">40.7</text>
+<rect x="195.95238095238096" y="496.5842296875782" width="12.007936507936508" height="63.415770312421785" fill="#4caf50" rx="2"/>
+<text x="201.95634920634922" y="491.5842296875782" text-anchor="middle" class="label">12.8</text>
+<rect x="210.07936507936506" y="389.38825362152056" width="12.007936507936508" height="170.61174637847944" fill="#ff9800" rx="2"/>
+<text x="216.08333333333331" y="384.38825362152056" text-anchor="middle" class="label">32.5</text>
+<rect x="224.20634920634922" y="398.53319204655224" width="12.007936507936508" height="161.46680795344776" fill="#2196f3" rx="2"/>
+<text x="230.21031746031747" y="393.53319204655224" text-anchor="middle" class="label">30.0</text>
+<rect x="238.33333333333331" y="393.74238533222274" width="12.007936507936508" height="166.25761466777726" fill="#00bcd4" rx="2"/>
+<text x="244.33730158730157" y="388.74238533222274" text-anchor="middle" class="label">31.3</text>
+<rect x="252.46031746031747" y="309.80945925669266" width="12.007936507936508" height="250.19054074330734" fill="#f44336" rx="2"/>
+<text x="258.4642857142857" y="304.80945925669266" text-anchor="middle" class="label">65.2</text>
+<rect x="266.58730158730157" y="340.56052240718213" width="12.007936507936508" height="219.43947759281787" fill="#9c27b0" rx="2"/>
+<text x="272.5912698412698" y="335.56052240718213" text-anchor="middle" class="label">49.8</text>
+<rect x="294.8412698412698" y="467.83063910397715" width="12.007936507936508" height="92.16936089602285" fill="#4caf50" rx="2"/>
+<text x="300.8452380952381" y="462.83063910397715" text-anchor="middle" class="label">16.4</text>
+<rect x="308.968253968254" y="392.39394837422105" width="12.007936507936508" height="167.60605162577895" fill="#ff9800" rx="2"/>
+<text x="314.97222222222223" y="387.39394837422105" text-anchor="middle" class="label">31.7</text>
+<rect x="323.0952380952381" y="370.80992502432343" width="12.007936507936508" height="189.19007497567657" fill="#2196f3" rx="2"/>
+<text x="329.0992063492063" y="365.80992502432343" text-anchor="middle" class="label">38.3</text>
+<rect x="337.22222222222223" y="411.71577241547095" width="12.007936507936508" height="148.28422758452905" fill="#00bcd4" rx="2"/>
+<text x="343.2261904761905" y="406.71577241547095" text-anchor="middle" class="label">26.8</text>
+<rect x="351.3492063492063" y="313.9427509544247" width="12.007936507936508" height="246.0572490455753" fill="#f44336" rx="2"/>
+<text x="357.3531746031746" y="308.9427509544247" text-anchor="middle" class="label">62.9</text>
+<rect x="365.4761904761905" y="346.6029852232198" width="12.007936507936508" height="213.39701477678022" fill="#9c27b0" rx="2"/>
+<text x="371.48015873015873" y="341.6029852232198" text-anchor="middle" class="label">47.3</text>
+<rect x="393.7301587301587" y="488.5727787826042" width="12.007936507936508" height="71.42722121739581" fill="#4caf50" rx="2"/>
+<text x="399.73412698412693" y="483.5727787826042" text-anchor="middle" class="label">13.7</text>
+<rect x="407.85714285714283" y="383.7127669612931" width="12.007936507936508" height="176.28723303870692" fill="#ff9800" rx="2"/>
+<text x="413.8611111111111" y="378.7127669612931" text-anchor="middle" class="label">34.2</text>
+<rect x="421.98412698412693" y="413.9813320098869" width="12.007936507936508" height="146.0186679901131" fill="#2196f3" rx="2"/>
+<text x="427.9880952380952" y="408.9813320098869" text-anchor="middle" class="label">26.2</text>
+<rect x="436.1111111111111" y="377.4042268677931" width="12.007936507936508" height="182.5957731322069" fill="#00bcd4" rx="2"/>
+<text x="442.11507936507934" y="372.4042268677931" text-anchor="middle" class="label">36.1</text>
+<rect x="450.2380952380952" y="309.99356430922643" width="12.007936507936508" height="250.00643569077357" fill="#f44336" rx="2"/>
+<text x="456.24206349206344" y="304.99356430922643" text-anchor="middle" class="label">65.1</text>
+<rect x="464.36507936507934" y="345.91680457347627" width="12.007936507936508" height="214.08319542652373" fill="#9c27b0" rx="2"/>
+<text x="470.3690476190476" y="340.91680457347627" text-anchor="middle" class="label">47.5</text>
+<rect x="492.6190476190476" y="530.7319594195393" width="12.007936507936508" height="29.268040580460706" fill="#4caf50" rx="2"/>
+<text x="498.62301587301585" y="525.7319594195393" text-anchor="middle" class="label">9.5</text>
+<rect x="506.74603174603175" y="405.832140442811" width="12.007936507936508" height="154.167859557189" fill="#ff9800" rx="2"/>
+<text x="512.75" y="400.832140442811" text-anchor="middle" class="label">28.2</text>
+<rect x="520.8730158730159" y="534.4479506234683" width="12.007936507936508" height="25.552049376531727" fill="#2196f3" rx="2"/>
+<text x="526.8769841269842" y="529.4479506234683" text-anchor="middle" class="label">9.2</text>
+<rect x="535.0" y="80.8775444962123" width="12.007936507936508" height="479.1224555037877" fill="#00bcd4" rx="2"/>
+<text x="541.0039682539683" y="75.8775444962123" text-anchor="middle" class="label">481.2</text>
+<rect x="549.1269841269841" y="314.05641873053554" width="12.007936507936508" height="245.94358126946446" fill="#f44336" rx="2"/>
+<text x="555.1309523809524" y="309.05641873053554" text-anchor="middle" class="label">62.8</text>
+<rect x="563.2539682539682" y="372.51164185821006" width="12.007936507936508" height="187.48835814178994" fill="#9c27b0" rx="2"/>
+<text x="569.2579365079365" y="367.51164185821006" text-anchor="middle" class="label">37.7</text>
+<rect x="591.5079365079365" y="487.1549898888451" width="12.007936507936508" height="72.84501011115492" fill="#4caf50" rx="2"/>
+<text x="597.5119047619048" y="482.1549898888451" text-anchor="middle" class="label">13.9</text>
+<rect x="605.6349206349206" y="448.0739735366144" width="12.007936507936508" height="111.9260264633856" fill="#ff9800" rx="2"/>
+<text x="611.6388888888889" y="443.0739735366144" text-anchor="middle" class="label">19.5</text>
+<rect x="619.7619047619048" y="482.66508067213584" width="12.007936507936508" height="77.33491932786416" fill="#2196f3" rx="2"/>
+<text x="625.7658730158731" y="477.66508067213584" text-anchor="middle" class="label">14.4</text>
+<rect x="633.8888888888889" y="412.4242971826027" width="12.007936507936508" height="147.5757028173973" fill="#00bcd4" rx="2"/>
+<text x="639.8928571428572" y="407.4242971826027" text-anchor="middle" class="label">26.6</text>
+<rect x="648.015873015873" y="291.37783431034694" width="12.007936507936508" height="268.62216568965306" fill="#f44336" rx="2"/>
+<text x="654.0198412698413" y="286.37783431034694" text-anchor="middle" class="label">76.6</text>
+<rect x="662.1428571428571" y="343.67831470770466" width="12.007936507936508" height="216.32168529229534" fill="#9c27b0" rx="2"/>
+<text x="668.1468253968254" y="338.67831470770466" text-anchor="middle" class="label">48.5</text>
+<rect x="690.3968253968253" y="477.8057830263684" width="12.007936507936508" height="82.19421697363163" fill="#4caf50" rx="2"/>
+<text x="696.4007936507936" y="472.8057830263684" text-anchor="middle" class="label">15.0</text>
+<rect x="704.5238095238094" y="472.30546920363395" width="12.007936507936508" height="87.69453079636605" fill="#ff9800" rx="2"/>
+<text x="710.5277777777777" y="467.30546920363395" text-anchor="middle" class="label">15.8</text>
+<rect x="718.6507936507936" y="500.2895420363359" width="12.007936507936508" height="59.71045796366411" fill="#2196f3" rx="2"/>
+<text x="724.6547619047619" y="495.2895420363359" text-anchor="middle" class="label">12.3</text>
+<rect x="732.7777777777777" y="422.14714773965744" width="12.007936507936508" height="137.85285226034256" fill="#00bcd4" rx="2"/>
+<text x="738.781746031746" y="417.14714773965744" text-anchor="middle" class="label">24.4</text>
+<rect x="746.9047619047618" y="319.77065154897934" width="12.007936507936508" height="240.22934845102066" fill="#f44336" rx="2"/>
+<text x="752.9087301587301" y="314.77065154897934" text-anchor="middle" class="label">59.7</text>
+<rect x="761.0317460317459" y="356.93670596779907" width="12.007936507936508" height="203.06329403220093" fill="#9c27b0" rx="2"/>
+<text x="767.0357142857142" y="351.93670596779907" text-anchor="middle" class="label">43.2</text>
+<rect x="789.2857142857142" y="494.2822462020288" width="12.007936507936508" height="65.71775379797123" fill="#4caf50" rx="2"/>
+<text x="795.2896825396825" y="489.2822462020288" text-anchor="middle" class="label">13.0</text>
+<rect x="803.4126984126983" y="225.3720276913147" width="12.007936507936508" height="334.6279723086853" fill="#ff9800" rx="2"/>
+<text x="809.4166666666666" y="220.3720276913147" text-anchor="middle" class="label">136.2</text>
+<rect x="817.5396825396825" y="488.75322372254" width="12.007936507936508" height="71.24677627746001" fill="#2196f3" rx="2"/>
+<text x="823.5436507936508" y="483.75322372254" text-anchor="middle" class="label">13.7</text>
+<rect x="831.6666666666666" y="434.672897222785" width="12.007936507936508" height="125.32710277721498" fill="#00bcd4" rx="2"/>
+<text x="837.6706349206349" y="429.672897222785" text-anchor="middle" class="label">21.9</text>
+<rect x="845.7936507936507" y="316.2385315524374" width="12.007936507936508" height="243.7614684475626" fill="#f44336" rx="2"/>
+<text x="851.797619047619" y="311.2385315524374" text-anchor="middle" class="label">61.6</text>
+<rect x="859.9206349206348" y="351.07027112144414" width="12.007936507936508" height="208.92972887855586" fill="#9c27b0" rx="2"/>
+<text x="865.9246031746031" y="346.07027112144414" text-anchor="middle" class="label">45.5</text>
+<rect x="888.1746031746031" y="271.5964380235498" width="12.007936507936508" height="288.4035619764502" fill="#ff9800" rx="2"/>
+<text x="894.1785714285714" y="266.5964380235498" text-anchor="middle" class="label">91.0</text>
+<rect x="902.3015873015872" y="278.91802904643623" width="12.007936507936508" height="281.08197095356377" fill="#f44336" rx="2"/>
+<text x="908.3055555555555" y="273.91802904643623" text-anchor="middle" class="label">85.4</text>
+<rect x="916.4285714285714" y="244.2062837139099" width="12.007936507936508" height="315.7937162860901" fill="#9c27b0" rx="2"/>
+<text x="922.4325396825398" y="239.2062837139099" text-anchor="middle" class="label">115.6</text>
+<text x="139.44444444444446" y="580" text-anchor="middle" transform="rotate(-30 139.44444444444446 580)" class="axis">sum</text>
+<text x="238.33333333333331" y="580" text-anchor="middle" transform="rotate(-30 238.33333333333331 580)" class="axis">div3or5</text>
+<text x="337.22222222222223" y="580" text-anchor="middle" transform="rotate(-30 337.22222222222223 580)" class="axis">count_div3and5</text>
+<text x="436.1111111111111" y="580" text-anchor="middle" transform="rotate(-30 436.1111111111111 580)" class="axis">sum_multiples_3or5</text>
+<text x="535.0" y="580" text-anchor="middle" transform="rotate(-30 535.0 580)" class="axis">string_concat</text>
+<text x="633.8888888888889" y="580" text-anchor="middle" transform="rotate(-30 633.8888888888889 580)" class="axis">list_grow</text>
+<text x="732.7777777777777" y="580" text-anchor="middle" transform="rotate(-30 732.7777777777777 580)" class="axis">count_calls</text>
+<text x="831.6666666666666" y="580" text-anchor="middle" transform="rotate(-30 831.6666666666666 580)" class="axis">class_new</text>
+<text x="930.5555555555555" y="580" text-anchor="middle" transform="rotate(-30 930.5555555555555 580)" class="axis">try_catch</text>
+<text x="1010" y="70" class="axis" font-weight="bold">Language</text>
+<rect x="1010" y="70" width="14" height="14" fill="#4caf50" rx="2"/>
+<text x="1032" y="82" class="axis">C (Release)</text>
+<rect x="1010" y="92" width="14" height="14" fill="#ff9800" rx="2"/>
+<text x="1032" y="104" class="axis">Period</text>
+<rect x="1010" y="114" width="14" height="14" fill="#2196f3" rx="2"/>
+<text x="1032" y="126" class="axis">Rust</text>
+<rect x="1010" y="136" width="14" height="14" fill="#00bcd4" rx="2"/>
+<text x="1032" y="148" class="axis">Go</text>
+<rect x="1010" y="158" width="14" height="14" fill="#f44336" rx="2"/>
+<text x="1032" y="170" class="axis">Java</text>
+<rect x="1010" y="180" width="14" height="14" fill="#9c27b0" rx="2"/>
+<text x="1032" y="192" class="axis">C#</text>
+</svg>

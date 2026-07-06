@@ -822,7 +822,8 @@ fn translate_binary(
 /// Try to execute a program entirely at compile time.  This is used as a fast
 /// path for simple numeric programs whose loops can be replaced by closed-form
 /// or periodic optimisations, avoiding the overhead of Cranelift codegen.
-pub fn try_run_constant(func: &CompiledFunction) -> Option<()> {
+pub fn try_run_constant(func: &CompiledFunction) -> Option<String> {
+    use std::fmt::Write;
     // All operations must be supported by our i64 interpreter.
     for op in &func.chunk.ops {
         match op {
@@ -867,6 +868,7 @@ pub fn try_run_constant(func: &CompiledFunction) -> Option<()> {
 
     let mut locals: Vec<Option<i64>> = vec![Some(0); func.local_count];
     let mut stack: Vec<Option<i64>> = Vec::new();
+    let mut output = String::new();
     let mut ip: usize = 0;
 
     while ip < func.chunk.ops.len() {
@@ -969,15 +971,18 @@ pub fn try_run_constant(func: &CompiledFunction) -> Option<()> {
             }
             Op::Show => {
                 let v = stack.pop().flatten()?;
-                println!("{}", v);
+                if !output.is_empty() {
+                    output.push('\n');
+                }
+                let _ = write!(output, "{}", v);
             }
             Op::Return => {
-                return Some(());
+                return Some(output);
             }
             _ => return None,
         }
         ip = next_ip;
     }
 
-    Some(())
+    Some(output)
 }

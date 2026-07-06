@@ -54,6 +54,7 @@ impl Expr {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
 pub enum BinOp {
     Add, Sub, Mul, Div, Mod, Pow,
     Eq, Ne, Lt, Gt, Le, Ge,
@@ -74,6 +75,7 @@ impl fmt::Display for BinOp {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
 pub enum UnaryOp {
     Neg, Not,
 }

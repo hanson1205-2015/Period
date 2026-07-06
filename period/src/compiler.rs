@@ -25,6 +25,7 @@ struct CompilerState {
     upvalues: Vec<Upvalue>,
     captured_globals: HashSet<String>,
     parent: Option<Rc<RefCell<CompilerState>>>,
+    temp_counter: usize,
 }
 
 impl CompilerState {
@@ -43,6 +44,7 @@ impl CompilerState {
             upvalues: Vec::new(),
             captured_globals,
             parent,
+            temp_counter: 0,
         };
         for (name, type_ann) in params {
             state.declare_local(&name, type_ann.clone());
@@ -81,6 +83,12 @@ impl CompilerState {
         slot
     }
 
+    fn declare_temp_local(&mut self) -> usize {
+        let name = format!("__logic_tmp_{}", self.temp_counter);
+        self.temp_counter += 1;
+        self.declare_local_at_depth(&name, None, self.scope_depth)
+    }
+
     fn resolve_local(&self, name: &str) -> Option<usize> {
         for local in self.locals.iter().rev() {
             if local.name == name {
@@ -110,6 +118,133 @@ enum VariableRef {
     Local(usize),
     Upvalue(usize),
     Global,
+}
+
+fn collect_class_fields(init: &Option<Init>) -> Vec<String> {
+    let mut fields = Vec::new();
+    if let Some(init) = init {
+        collect_this_fields_in_stmts(&init.body, &mut fields);
+    }
+    fields
+}
+
+fn collect_this_fields_in_stmts(stmts: &[Stmt], fields: &mut Vec<String>) {
+    for stmt in stmts {
+        collect_this_fields_in_stmt(stmt, fields);
+    }
+}
+
+fn collect_this_fields_in_stmt(stmt: &Stmt, fields: &mut Vec<String>) {
+    match stmt {
+        Stmt::Set { target, value, .. } => {
+            if let AssignTarget::Property { object, name, .. } = target {
+                if is_this_var(object) && !fields.contains(name) {
+                    fields.push(name.clone());
+                }
+            }
+            collect_this_fields_in_expr(value, fields);
+        }
+        Stmt::Let { value, .. }
+        | Stmt::Show(value)
+        | Stmt::Return { value: Some(value), .. }
+        | Stmt::Expr(value) => collect_this_fields_in_expr(value, fields),
+        Stmt::If { cond, then_branch, else_branch } => {
+            collect_this_fields_in_expr(cond, fields);
+            collect_this_fields_in_stmts(then_branch, fields);
+            collect_this_fields_in_stmts(else_branch, fields);
+        }
+        Stmt::While { cond, body } => {
+            collect_this_fields_in_expr(cond, fields);
+            collect_this_fields_in_stmts(body, fields);
+        }
+        Stmt::For { iterable, body, .. } => {
+            collect_this_fields_in_expr(iterable, fields);
+            collect_this_fields_in_stmts(body, fields);
+        }
+        Stmt::Try { body, catch_body, .. } => {
+            collect_this_fields_in_stmts(body, fields);
+            collect_this_fields_in_stmts(catch_body, fields);
+        }
+        Stmt::Define { body, .. } => collect_this_fields_in_stmts(body, fields),
+        Stmt::Class { init, methods, .. } => {
+            if let Some(init) = init {
+                collect_this_fields_in_stmts(&init.body, fields);
+            }
+            for m in methods { collect_this_fields_in_stmt(m, fields); }
+        }
+        Stmt::Read { path, .. }
+        | Stmt::Write { path, .. } => collect_this_fields_in_expr(path, fields),
+        Stmt::Init(init) => collect_this_fields_in_stmts(&init.body, fields),
+        _ => {}
+    }
+}
+
+fn collect_this_fields_in_expr(expr: &Expr, fields: &mut Vec<String>) {
+    match expr {
+        Expr::Property { object, name, .. } => {
+            collect_this_fields_in_expr(object, fields);
+            if is_this_var(object) && !fields.contains(name) {
+                fields.push(name.clone());
+            }
+        }
+        Expr::Binary { left, right, .. } => {
+            collect_this_fields_in_expr(left, fields);
+            collect_this_fields_in_expr(right, fields);
+        }
+        Expr::Unary { operand, .. } => collect_this_fields_in_expr(operand, fields),
+        Expr::Call { callee, args, .. } => {
+            collect_this_fields_in_expr(callee, fields);
+            for a in args { collect_this_fields_in_expr(a, fields); }
+        }
+        Expr::Index { object, index, .. } => {
+            collect_this_fields_in_expr(object, fields);
+            collect_this_fields_in_expr(index, fields);
+        }
+        Expr::New { class, args, .. } => {
+            collect_this_fields_in_expr(class, fields);
+            for a in args { collect_this_fields_in_expr(a, fields); }
+        }
+        Expr::Tell { object, args, .. } => {
+            collect_this_fields_in_expr(object, fields);
+            for a in args { collect_this_fields_in_expr(a, fields); }
+        }
+        Expr::List(items, _) => {
+            for item in items { collect_this_fields_in_expr(item, fields); }
+        }
+        Expr::Dict(entries, _) => {
+            for (k, v) in entries {
+                collect_this_fields_in_expr(k, fields);
+                collect_this_fields_in_expr(v, fields);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn is_this_var(expr: &Expr) -> bool {
+    matches!(expr, Expr::Variable { name, .. } if name == "this")
+}
+
+fn analyze_class_init(init: &Option<Init>, field_names: &[String]) -> Option<Vec<Option<usize>>> {
+    let init = init.as_ref()?;
+    let mut mapping = vec![None; field_names.len()];
+    for stmt in &init.body {
+        if let Stmt::Set { target, value, .. } = stmt {
+            if let AssignTarget::Property { object, name, .. } = target {
+                if is_this_var(object) {
+                    if let Expr::Variable { name: param_name, .. } = value {
+                        let field_idx = field_names.iter().position(|n| n == name)?;
+                        let param_idx = init.params.iter().position(|(p, _)| p == param_name)?;
+                        mapping[field_idx] = Some(param_idx);
+                        continue;
+                    }
+                }
+            }
+        }
+        // Any other statement makes the init too complex for direct field copying.
+        return None;
+    }
+    Some(mapping)
 }
 
 impl Compiler {
@@ -144,9 +279,11 @@ impl Compiler {
     }
 
     pub fn compile_program(stmts: &[Stmt]) -> Result<CompiledFunction, CompileError> {
-        let captured_globals = collect_captured_globals(stmts);
+        let mut stmts: Vec<Stmt> = stmts.to_vec();
+        crate::inline::inline_small_functions(&mut stmts);
+        let captured_globals = collect_captured_globals(&stmts);
         let compiler = Compiler::new("<main>", Vec::new(), None, Span { line: 1, col: 1 }, captured_globals);
-        for stmt in stmts {
+        for stmt in &stmts {
             compiler.compile_stmt(stmt)?;
         }
         compiler.emit(Op::Nothing, Span { line: 1, col: 1 });
@@ -166,6 +303,10 @@ impl Compiler {
 
     fn state_mut(&self) -> std::cell::RefMut<'_, CompilerState> {
         self.state.borrow_mut()
+    }
+
+    fn temp_local(&self) -> usize {
+        self.state.borrow_mut().declare_temp_local()
     }
 
     fn emit(&self, op: Op, span: Span) -> usize {
@@ -245,7 +386,26 @@ impl Compiler {
                         match self.resolve_variable(name) {
                             VariableRef::Local(slot) => {
                                 let type_ann = self.state().locals[slot].type_ann.clone();
-                                if let Some(op) = self.try_peephole_set(slot, value) {
+                                let local_name = self.state().locals[slot].name.clone();
+                                let mut append_op: Option<Op> = None;
+                                if let Expr::Binary { op: BinOp::Add, left, right, .. } = value {
+                                    if Self::is_var_named(left, &local_name) {
+                                        match right.as_ref() {
+                                            Expr::String(s, _) if type_ann.as_deref().map_or(true, |a| a == "string") => {
+                                                let string_idx = self.add_string(s);
+                                                append_op = Some(Op::AppendLocalString { slot, string_idx });
+                                            }
+                                            Expr::List(items, _) if items.len() == 1 && type_ann.as_deref().map_or(true, |a| a == "list") => {
+                                                self.compile_expr(&items[0])?;
+                                                append_op = Some(Op::AppendLocalList { slot });
+                                            }
+                                            _ => {}
+                                        }
+                                    }
+                                }
+                                if let Some(op) = append_op {
+                                    self.emit(op, span.clone());
+                                } else if let Some(op) = self.try_peephole_set(slot, value) {
                                     self.emit(op, span.clone());
                                 } else {
                                     self.compile_expr(value)?;
@@ -435,8 +595,13 @@ impl Compiler {
                     }
                 }
 
+                let field_names = collect_class_fields(init);
+                let field_indices: Vec<usize> = field_names.iter().map(|n| self.add_string(n)).collect();
+                let field_init = analyze_class_init(init, &field_names)
+                    .map(|m| m.into_iter().map(|o| o.unwrap_or(usize::MAX)).collect())
+                    .unwrap_or_default();
                 let name_idx = self.add_string(name);
-                self.emit(Op::BuildClass { name: name_idx, init: init_idx, methods: method_name_indices }, span.clone());
+                self.emit(Op::BuildClass { name: name_idx, init: init_idx, methods: method_name_indices, fields: field_indices, field_init }, span.clone());
                 if self.state().scope_depth == 0 {
                     self.emit(Op::DefineGlobal { name: name_idx, type_ann: None }, span.clone());
                 } else {
@@ -658,20 +823,22 @@ impl Compiler {
                 }
             }
             Expr::Binary { op, left, right, span } => {
-                if *op == BinOp::And {
+                if *op == BinOp::And || *op == BinOp::Or {
+                    // Use a temporary local so control-flow joins do not need to
+                    // pass a value on the evaluation stack across basic blocks.
+                    let tmp = self.temp_local();
                     self.compile_expr(left)?;
-                    self.emit(Op::Dup, span.clone());
-                    let false_jump = self.emit(Op::JumpIfFalse(0), span.clone());
-                    self.emit(Op::Pop, span.clone());
+                    self.emit(Op::StoreLocal(tmp), span.clone());
+                    self.emit(Op::LoadLocal(tmp), span.clone());
+                    let short_jump = if *op == BinOp::And {
+                        self.emit(Op::JumpIfFalse(0), span.clone())
+                    } else {
+                        self.emit(Op::JumpIfTrue(0), span.clone())
+                    };
                     self.compile_expr(right)?;
-                    self.patch_jump(false_jump);
-                } else if *op == BinOp::Or {
-                    self.compile_expr(left)?;
-                    self.emit(Op::Dup, span.clone());
-                    let true_jump = self.emit(Op::JumpIfTrue(0), span.clone());
-                    self.emit(Op::Pop, span.clone());
-                    self.compile_expr(right)?;
-                    self.patch_jump(true_jump);
+                    self.emit(Op::StoreLocal(tmp), span.clone());
+                    self.patch_jump(short_jump);
+                    self.emit(Op::LoadLocal(tmp), span.clone());
                 } else {
                     self.compile_expr(left)?;
                     self.compile_expr(right)?;

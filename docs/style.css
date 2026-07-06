@@ -882,13 +882,19 @@ pre code {
 
 #performance .chart-wrapper {
   position: relative;
-  max-width: 640px;
-  height: 340px;
+  max-width: 900px;
+  height: 520px;
   margin: 2rem auto 1rem;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 0.75rem;
   padding: 1rem;
+}
+
+#performance .chart-wrapper img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 #performance .chart-note {

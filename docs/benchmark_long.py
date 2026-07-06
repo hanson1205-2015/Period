@@ -1,15 +1,17 @@
 """Longer-running execution-speed benchmark for Period.
 
-Period is a single tree-walking interpreter, so it is not intended to compete
-with compiled languages on numeric loops. This script tracks Period's own
-performance over time and shows where it stands relative to common compiled
-and JIT implementations for reference only.
+Period now compiles and runs programs through its own Cranelift-based JIT by
+default. This benchmark tracks Period's own performance over time and shows
+where it stands relative to common compiled and JIT implementations for
+reference only.  It covers numeric loops as well as strings, lists, function
+calls, object instantiation, and exception handling.
 
 Run with:
     python docs/benchmark_long.py
 """
 from __future__ import annotations
 
+import math
 import os
 import shutil
 import subprocess
@@ -46,7 +48,7 @@ def has_dotnet_sdk() -> bool:
             ["dotnet", "--list-sdks"],
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
-            text=True,
+            text=True, errors="replace",
         )
         return result.returncode == 0 and result.stdout.strip() != ""
     except Exception:
@@ -97,6 +99,11 @@ WORKLOADS = {
     "div3or5": 20_000_000,
     "count_div3and5": 20_000_000,
     "sum_multiples_3or5": 20_000_000,
+    "string_concat": 100_000,
+    "list_grow": 10_000,
+    "count_calls": 100_000,
+    "class_new": 100_000,
+    "try_catch": 100_000,
 }
 
 
@@ -384,7 +391,361 @@ def source_for(lang: str, workload: str, n: int) -> str:
                 f"}}\n"
             )
 
-    raise ValueError((lang, workload))
+    if workload == "string_concat":
+        if lang == "period":
+            return (
+                f"let s be \"\".\n"
+                f"let i be 0.\n"
+                f"while i < {n} repeat:\n"
+                f"    set s to s + \"a\".\n"
+                f"    set i to i + 1.\n"
+                f"show length with s.\n"
+            )
+        if lang == "c":
+            return (
+                f"#include <stdio.h>\n"
+                f"#include <stdlib.h>\n"
+                f"int main(void) {{\n"
+                f"    char *s = malloc({n} + 1);\n"
+                f"    size_t len = 0;\n"
+                f"    for (size_t i = 0; i < (size_t){n}; i++) {{\n"
+                f"        s[len++] = 'a';\n"
+                f"    }}\n"
+                f"    s[len] = '\\0';\n"
+                f"    printf(\"%zu\\n\", len);\n"
+                f"    free(s);\n"
+                f"    return 0;\n"
+                f"}}\n"
+            )
+        if lang == "rust":
+            return (
+                f"fn main() {{\n"
+                f"    let mut s = String::new();\n"
+                f"    for _ in 0..{n} {{ s.push('a'); }}\n"
+                f"    println!(\"{{}}\", s.len());\n"
+                f"}}\n"
+            )
+        if lang == "go":
+            return (
+                f"package main\n"
+                f"import \"fmt\"\n"
+                f"func main() {{\n"
+                f"    s := \"\"\n"
+                f"    for i := 0; i < {n}; i++ {{ s += \"a\" }}\n"
+                f"    fmt.Println(len(s))\n"
+                f"}}\n"
+            )
+        if lang == "java":
+            return (
+                f"class Main {{\n"
+                f"    public static void main(String[] args) {{\n"
+                f"        StringBuilder sb = new StringBuilder();\n"
+                f"        for (int i = 0; i < {n}; i++) sb.append('a');\n"
+                f"        System.out.println(sb.length());\n"
+                f"    }}\n"
+                f"}}\n"
+            )
+        if lang == "csharp":
+            return (
+                f"using System;\n"
+                f"using System.Text;\n"
+                f"class Program {{\n"
+                f"    static void Main() {{\n"
+                f"        StringBuilder sb = new StringBuilder();\n"
+                f"        for (int i = 0; i < {n}; i++) sb.Append('a');\n"
+                f"        Console.WriteLine(sb.Length);\n"
+                f"    }}\n"
+                f"}}\n"
+            )
+
+    if workload == "list_grow":
+        if lang == "period":
+            return (
+                f"let xs be [].\n"
+                f"let i be 0.\n"
+                f"while i < {n} repeat:\n"
+                f"    set xs to xs + [i].\n"
+                f"    set i to i + 1.\n"
+                f"show length with xs.\n"
+            )
+        if lang == "c":
+            return (
+                f"#include <stdio.h>\n"
+                f"#include <stdlib.h>\n"
+                f"int main(void) {{\n"
+                f"    long long n = {n}LL;\n"
+                f"    long long *arr = malloc(n * sizeof(long long));\n"
+                f"    for (long long i = 0; i < n; i++) arr[i] = i;\n"
+                f"    printf(\"%lld\\n\", n);\n"
+                f"    free(arr);\n"
+                f"    return 0;\n"
+                f"}}\n"
+            )
+        if lang == "rust":
+            return (
+                f"fn main() {{\n"
+                f"    let n: usize = {n};\n"
+                f"    let mut v = Vec::new();\n"
+                f"    for i in 0..n {{ v.push(i as i64); }}\n"
+                f"    println!(\"{{}}\", v.len());\n"
+                f"}}\n"
+            )
+        if lang == "go":
+            return (
+                f"package main\n"
+                f"import \"fmt\"\n"
+                f"func main() {{\n"
+                f"    var xs []int64\n"
+                f"    for i := 0; i < {n}; i++ {{ xs = append(xs, int64(i)) }}\n"
+                f"    fmt.Println(len(xs))\n"
+                f"}}\n"
+            )
+        if lang == "java":
+            return (
+                f"import java.util.ArrayList;\n"
+                f"class Main {{\n"
+                f"    public static void main(String[] args) {{\n"
+                f"        ArrayList<Long> xs = new ArrayList<>();\n"
+                f"        for (int i = 0; i < {n}; i++) xs.add((long)i);\n"
+                f"        System.out.println(xs.size());\n"
+                f"    }}\n"
+                f"}}\n"
+            )
+        if lang == "csharp":
+            return (
+                f"using System;\n"
+                f"using System.Collections.Generic;\n"
+                f"class Program {{\n"
+                f"    static void Main() {{\n"
+                f"        var xs = new List<long>();\n"
+                f"        for (int i = 0; i < {n}; i++) xs.Add(i);\n"
+                f"        Console.WriteLine(xs.Count);\n"
+                f"    }}\n"
+                f"}}\n"
+            )
+
+    if workload == "count_calls":
+        if lang == "period":
+            return (
+                f"define inc with x:\n"
+                f"    return x + 1.\n"
+                f"let r be 0.\n"
+                f"let i be 0.\n"
+                f"while i < {n} repeat:\n"
+                f"    set r to inc with r.\n"
+                f"    set i to i + 1.\n"
+                f"show r.\n"
+            )
+        if lang == "c":
+            return (
+                f"#include <stdio.h>\n"
+                f"long long inc(long long x) {{ return x + 1; }}\n"
+                f"int main(void) {{\n"
+                f"    long long n = {n}LL;\n"
+                f"    long long r = 0;\n"
+                f"    for (long long i = 0; i < n; i++) r = inc(r);\n"
+                f"    printf(\"%lld\\n\", r);\n"
+                f"    return 0;\n"
+                f"}}\n"
+            )
+        if lang == "rust":
+            return (
+                f"fn inc(x: i64) -> i64 {{ x + 1 }}\n"
+                f"fn main() {{\n"
+                f"    let n: i64 = {n};\n"
+                f"    let mut r = 0;\n"
+                f"    for _ in 0..n {{ r = inc(r); }}\n"
+                f"    println!(\"{{}}\", r);\n"
+                f"}}\n"
+            )
+        if lang == "go":
+            return (
+                f"package main\n"
+                f"import \"fmt\"\n"
+                f"func inc(x int64) int64 {{ return x + 1 }}\n"
+                f"func main() {{\n"
+                f"    var r int64 = 0\n"
+                f"    for i := 0; i < {n}; i++ {{ r = inc(r) }}\n"
+                f"    fmt.Println(r)\n"
+                f"}}\n"
+            )
+        if lang == "java":
+            return (
+                f"class Main {{\n"
+                f"    static long inc(long x) {{ return x + 1; }}\n"
+                f"    public static void main(String[] args) {{\n"
+                f"        long n = {n}L;\n"
+                f"        long r = 0;\n"
+                f"        for (long i = 0; i < n; i++) r = inc(r);\n"
+                f"        System.out.println(r);\n"
+                f"    }}\n"
+                f"}}\n"
+            )
+        if lang == "csharp":
+            return (
+                f"using System;\n"
+                f"class Program {{\n"
+                f"    static long Inc(long x) => x + 1;\n"
+                f"    static void Main() {{\n"
+                f"        long n = {n}L;\n"
+                f"        long r = 0;\n"
+                f"        for (long i = 0; i < n; i++) r = Inc(r);\n"
+                f"        Console.WriteLine(r);\n"
+                f"    }}\n"
+                f"}}\n"
+            )
+
+    if workload == "class_new":
+        if lang == "period":
+            return (
+                f"class Counter:\n"
+                f"    init with value:\n"
+                f"        set this.value to value.\n"
+                f"let total be 0.\n"
+                f"let i be 0.\n"
+                f"while i < {n} repeat:\n"
+                f"    let c be new Counter(i).\n"
+                f"    set total to total + c.value.\n"
+                f"    set i to i + 1.\n"
+                f"show total.\n"
+            )
+        if lang == "c":
+            return (
+                f"#include <stdio.h>\n"
+                f"typedef struct {{ long long value; }} Counter;\n"
+                f"int main(void) {{\n"
+                f"    long long n = {n}LL;\n"
+                f"    long long total = 0;\n"
+                f"    for (long long i = 0; i < n; i++) {{\n"
+                f"        Counter c;\n"
+                f"        c.value = i;\n"
+                f"        total += c.value;\n"
+                f"    }}\n"
+                f"    printf(\"%lld\\n\", total);\n"
+                f"    return 0;\n"
+                f"}}\n"
+            )
+        if lang == "rust":
+            return (
+                f"struct Counter {{ value: i64 }}\n"
+                f"fn main() {{\n"
+                f"    let n: i64 = {n};\n"
+                f"    let mut total = 0;\n"
+                f"    for i in 0..n {{ let c = Counter {{ value: i }}; total += c.value; }}\n"
+                f"    println!(\"{{}}\", total);\n"
+                f"}}\n"
+            )
+        if lang == "go":
+            return (
+                f"package main\n"
+                f"import \"fmt\"\n"
+                f"type Counter struct {{ value int64 }}\n"
+                f"func main() {{\n"
+                f"    var total int64 = 0\n"
+                f"    for i := 0; i < {n}; i++ {{ c := Counter{{value: int64(i)}}; total += c.value }}\n"
+                f"    fmt.Println(total)\n"
+                f"}}\n"
+            )
+        if lang == "java":
+            return (
+                f"class Counter {{\n"
+                f"    long value;\n"
+                f"    Counter(long v) {{ this.value = v; }}\n"
+                f"}}\n"
+                f"class Main {{\n"
+                f"    public static void main(String[] args) {{\n"
+                f"        long n = {n}L;\n"
+                f"        long total = 0;\n"
+                f"        for (long i = 0; i < n; i++) {{\n"
+                f"            Counter c = new Counter(i);\n"
+                f"            total += c.value;\n"
+                f"        }}\n"
+                f"        System.out.println(total);\n"
+                f"    }}\n"
+                f"}}\n"
+            )
+        if lang == "csharp":
+            return (
+                f"using System;\n"
+                f"class Counter {{\n"
+                f"    public long Value;\n"
+                f"    public Counter(long v) {{ Value = v; }}\n"
+                f"}}\n"
+                f"class Program {{\n"
+                f"    static void Main() {{\n"
+                f"        long n = {n}L;\n"
+                f"        long total = 0;\n"
+                f"        for (long i = 0; i < n; i++) {{\n"
+                f"            var c = new Counter(i);\n"
+                f"            total += c.Value;\n"
+                f"        }}\n"
+                f"        Console.WriteLine(total);\n"
+                f"    }}\n"
+                f"}}\n"
+            )
+
+    if workload == "try_catch":
+        if lang == "period":
+            return (
+                f"define may_error with i:\n"
+                f"    if i % 2 == 0, then:\n"
+                f"        error with \"even\".\n"
+                f"    return i.\n"
+                f"let caught be 0.\n"
+                f"let i be 0.\n"
+                f"while i < {n} repeat:\n"
+                f"    try:\n"
+                f"        may_error with i.\n"
+                f"    catch e:\n"
+                f"        set caught to caught + 1.\n"
+                f"    set i to i + 1.\n"
+                f"show caught.\n"
+            )
+        if lang == "java":
+            return (
+                f"class MyException extends Exception {{\n"
+                f"    MyException(String m) {{ super(m); }}\n"
+                f"}}\n"
+                f"class Main {{\n"
+                f"    static long may_error(long i) throws MyException {{\n"
+                f"        if (i % 2 == 0) throw new MyException(\"even\");\n"
+                f"        return i;\n"
+                f"    }}\n"
+                f"    public static void main(String[] args) {{\n"
+                f"        long n = {n}L;\n"
+                f"        long caught = 0;\n"
+                f"        for (long i = 0; i < n; i++) {{\n"
+                f"            try {{ may_error(i); }}\n"
+                f"            catch (MyException e) {{ caught++; }}\n"
+                f"        }}\n"
+                f"        System.out.println(caught);\n"
+                f"    }}\n"
+                f"}}\n"
+            )
+        if lang == "csharp":
+            return (
+                f"using System;\n"
+                f"class MyException : Exception {{\n"
+                f"    public MyException(string m) : base(m) {{}}\n"
+                f"}}\n"
+                f"class Program {{\n"
+                f"    static long MayError(long i) {{\n"
+                f"        if (i % 2 == 0) throw new MyException(\"even\");\n"
+                f"        return i;\n"
+                f"    }}\n"
+                f"    static void Main() {{\n"
+                f"        long n = {n}L;\n"
+                f"        long caught = 0;\n"
+                f"        for (long i = 0; i < n; i++) {{\n"
+                f"            try {{ MayError(i); }}\n"
+                f"            catch (MyException) {{ caught++; }}\n"
+                f"        }}\n"
+                f"        Console.WriteLine(caught);\n"
+                f"    }}\n"
+                f"}}\n"
+            )
+
+    return None
 
 
 def run(cmd: list[str], source: str, ext: str, n: int, runs: int = 10) -> float | None:
@@ -403,7 +764,7 @@ def run(cmd: list[str], source: str, ext: str, n: int, runs: int = 10) -> float 
                 compile_cmd,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.PIPE,
-                text=True,
+                text=True, errors="replace",
             )
             if result.returncode == 0:
                 run_cmd = [str(exe)]
@@ -417,7 +778,7 @@ def run(cmd: list[str], source: str, ext: str, n: int, runs: int = 10) -> float 
             ["rustc", "-O", str(src), "-o", str(exe)],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.PIPE,
-            text=True,
+            text=True, errors="replace",
         )
         if result.returncode != 0:
             print(f"compile failed: {result.stderr}")
@@ -428,7 +789,7 @@ def run(cmd: list[str], source: str, ext: str, n: int, runs: int = 10) -> float 
             ["go", "build", "-o", str(exe), str(src)],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.PIPE,
-            text=True,
+            text=True, errors="replace",
         )
         if result.returncode != 0:
             print(f"compile failed: {result.stderr}")
@@ -439,12 +800,12 @@ def run(cmd: list[str], source: str, ext: str, n: int, runs: int = 10) -> float 
             ["javac", str(src)],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.PIPE,
-            text=True,
+            text=True, errors="replace",
         )
         if result.returncode != 0:
             print(f"compile failed: {result.stderr}")
             return None
-        run_cmd = ["java", "-cp", str(src.parent), src.stem]
+        run_cmd = ["java", "-cp", str(src.parent), "Main"]
     elif ext == ".cs":
         # Requires the .NET SDK (dotnet new / build).
         proj_dir = src.parent / src.stem
@@ -453,7 +814,7 @@ def run(cmd: list[str], source: str, ext: str, n: int, runs: int = 10) -> float 
             ["dotnet", "new", "console", "--force", "-o", str(proj_dir)],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.PIPE,
-            text=True,
+            text=True, errors="replace",
         )
         if result.returncode != 0:
             print(f"dotnet new failed: {result.stderr}")
@@ -463,7 +824,7 @@ def run(cmd: list[str], source: str, ext: str, n: int, runs: int = 10) -> float 
             ["dotnet", "build", "-c", "Release", str(proj_dir)],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.PIPE,
-            text=True,
+            text=True, errors="replace",
         )
         if result.returncode != 0:
             print(f"dotnet build failed: {result.stderr}")
@@ -500,6 +861,109 @@ def run(cmd: list[str], source: str, ext: str, n: int, runs: int = 10) -> float 
     return sum(times) / len(times) * 1000
 
 
+def render_svg(results: list[tuple[str, list[tuple[str, float]]]], path: Path) -> None:
+    """Render a grouped-bar SVG chart of the benchmark results.
+
+    The y-axis uses a log scale so that both sub-millisecond compiled runs
+    and multi-second interpreted runs remain visible on the same chart.
+    """
+    WIDTH = 1200
+    HEIGHT = 700
+    MARGIN = {"top": 60, "right": 220, "bottom": 140, "left": 90}
+    COLORS = {
+        "C (Release)": "#4caf50",
+        "Period": "#ff9800",
+        "Rust": "#2196f3",
+        "Go": "#00bcd4",
+        "Java": "#f44336",
+        "C#": "#9c27b0",
+    }
+
+    plot_w = WIDTH - MARGIN["left"] - MARGIN["right"]
+    plot_h = HEIGHT - MARGIN["top"] - MARGIN["bottom"]
+
+    all_times = [ms for _, data in results for _, ms in data]
+    if not all_times:
+        return
+
+    min_ms = max(0.001, min(all_times) * 0.8)
+    max_ms = max(all_times) * 1.2
+    log_min = math.log10(min_ms)
+    log_max = math.log10(max_ms)
+
+    def y_pos(ms: float) -> float:
+        ratio = (math.log10(max(min_ms, ms)) - log_min) / (log_max - log_min)
+        return MARGIN["top"] + plot_h - ratio * plot_h
+
+    def esc(text: str) -> str:
+        return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+    lines: list[str] = []
+    lines.append(f'<svg xmlns="http://www.w3.org/2000/svg" width="{WIDTH}" height="{HEIGHT}" viewBox="0 0 {WIDTH} {HEIGHT}">')
+    lines.append('<style>')
+    lines.append('  text { font-family: sans-serif; font-size: 12px; fill: #333; }')
+    lines.append('  .title { font-size: 18px; font-weight: bold; }')
+    lines.append('  .axis { font-size: 12px; }')
+    lines.append('  .label { font-size: 11px; }')
+    lines.append('  .grid { stroke: #e0e0e0; stroke-width: 1; }')
+    lines.append('</style>')
+
+    # Background
+    lines.append(f'<rect width="{WIDTH}" height="{HEIGHT}" fill="#ffffff"/>')
+
+    # Title
+    lines.append(f'<text x="{WIDTH // 2}" y="{MARGIN["top"] - 25}" text-anchor="middle" class="title">Period Benchmark Results (log scale)</text>')
+
+    # Grid lines and y-axis labels
+    tick = 10 ** math.floor(log_min)
+    while tick <= max_ms * 1.001:
+        y = y_pos(tick)
+        if MARGIN["top"] - 1 <= y <= MARGIN["top"] + plot_h + 1:
+            lines.append(f'<line x1="{MARGIN["left"]}" y1="{y}" x2="{MARGIN["left"] + plot_w}" y2="{y}" class="grid"/>')
+            lines.append(f'<text x="{MARGIN["left"] - 8}" y="{y + 4}" text-anchor="end" class="axis">{tick:g} ms</text>')
+        tick *= 10
+
+    # Axes
+    lines.append(f'<line x1="{MARGIN["left"]}" y1="{MARGIN["top"]}" x2="{MARGIN["left"]}" y2="{MARGIN["top"] + plot_h}" stroke="#333" stroke-width="2"/>')
+    lines.append(f'<line x1="{MARGIN["left"]}" y1="{MARGIN["top"] + plot_h}" x2="{MARGIN["left"] + plot_w}" y2="{MARGIN["top"] + plot_h}" stroke="#333" stroke-width="2"/>')
+
+    # Bars
+    group_w = plot_w / len(results)
+    max_bars = max(len(data) for _, data in results) if results else 1
+    bar_w = group_w / (max_bars + 1)
+
+    for i, (workload, data) in enumerate(results):
+        group_x = MARGIN["left"] + i * group_w
+        for j, (name, ms) in enumerate(data):
+            x = group_x + (j + 0.5) * bar_w
+            y = y_pos(ms)
+            h = MARGIN["top"] + plot_h - y
+            color = COLORS.get(name, "#999")
+            lines.append(f'<rect x="{x}" y="{y}" width="{bar_w * 0.85}" height="{h}" fill="{color}" rx="2"/>')
+            # Value label above bar
+            label_y = y - 5 if y > MARGIN["top"] + 15 else y + 15
+            lines.append(f'<text x="{x + bar_w * 0.425}" y="{label_y}" text-anchor="middle" class="label">{ms:.1f}</text>')
+
+    # X-axis labels
+    for i, (workload, _) in enumerate(results):
+        x = MARGIN["left"] + i * group_w + group_w / 2
+        y = MARGIN["top"] + plot_h + 20
+        lines.append(f'<text x="{x}" y="{y}" text-anchor="middle" transform="rotate(-30 {x} {y})" class="axis">{esc(workload)}</text>')
+
+    # Legend
+    legend_x = MARGIN["left"] + plot_w + 30
+    legend_y = MARGIN["top"] + 20
+    lines.append('<text x="' + str(legend_x) + '" y="' + str(legend_y - 10) + '" class="axis" font-weight="bold">Language</text>')
+    for idx, name in enumerate(COLORS):
+        y = legend_y + idx * 22
+        color = COLORS[name]
+        lines.append(f'<rect x="{legend_x}" y="{y - 10}" width="14" height="14" fill="{color}" rx="2"/>')
+        lines.append(f'<text x="{legend_x + 22}" y="{y + 2}" class="axis">{esc(name)}</text>')
+
+    lines.append('</svg>')
+    path.write_text("\n".join(lines), encoding="utf-8")
+
+
 def main() -> None:
     augment_path()
 
@@ -532,21 +996,33 @@ def main() -> None:
         "C#": "csharp",
     }
 
+    results: list[tuple[str, list[tuple[str, float]]]] = []
+
     for workload, n in WORKLOADS.items():
         print(f"\nWorkload: {workload} (n={n:,})")
         print(f"{'Language':<12}", end="")
         print(f"{'time (ms)':>15}")
         print("-" * 28)
 
+        workload_results: list[tuple[str, float]] = []
         for name, cmd, ext in languages:
             first = cmd[0]
             if shutil.which(first) is None and not Path(first).exists():
                 continue
-            ms = run(cmd, source_for(lang_key[name], workload, n), ext, n)
+            src = source_for(lang_key[name], workload, n)
+            if src is None:
+                continue
+            ms = run(cmd, src, ext, n)
             if ms is None:
                 print(f"{name:<12}{'failed':>15}")
             else:
                 print(f"{name:<12}{ms:>14.1f}ms")
+                workload_results.append((name, ms))
+        results.append((workload, workload_results))
+
+    chart_path = ROOT / "docs" / "benchmark_long.svg"
+    render_svg(results, chart_path)
+    print(f"\nChart saved to {chart_path}")
 
 
 if __name__ == "__main__":

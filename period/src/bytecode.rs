@@ -36,7 +36,7 @@ pub enum Op {
     PropertySet(usize),
     New(u8),
     Tell { name: usize, arg_count: u8 },
-    BuildClass { name: usize, init: Option<usize>, methods: Vec<usize> },
+    BuildClass { name: usize, init: Option<usize>, methods: Vec<usize>, fields: Vec<usize>, field_init: Vec<usize> },
     IterInit,
     Length,
     TryBegin(usize, usize),
@@ -49,6 +49,8 @@ pub enum Op {
     CheckType(usize),
     IncrementLocal(usize),
     AddLocals(usize, usize),
+    AppendLocalString { slot: usize, string_idx: usize },
+    AppendLocalList { slot: usize },
 }
 
 #[derive(Clone, Debug)]

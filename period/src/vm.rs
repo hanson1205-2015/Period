@@ -457,13 +457,12 @@ impl<'a> Vm<'a> {
                 std::fs::write(&resolved, content_str)
                     .map_err(|e| Control::Error(format!("Cannot write {}: {}", resolved.display(), e)))?;
             }
-            Op::BuildClass { name, init, methods } => {
-                let (name_str, method_names) = {
-                    let f = self.frames.last().unwrap();
-                    let name_str = f.function.chunk.strings[*name].clone();
-                    let method_names: Vec<String> = methods.iter().map(|i| f.function.chunk.strings[*i].clone()).collect();
-                    (name_str, method_names)
-                };
+            Op::BuildClass { name, init, methods, fields, field_init } => {
+                let f = self.frames.last().unwrap();
+                let name_str = f.function.chunk.strings[*name].clone();
+                let method_names: Vec<String> = methods.iter().map(|i| f.function.chunk.strings[*i].clone()).collect();
+                let field_names: Vec<String> = fields.iter().map(|i| f.function.chunk.strings[*i].clone()).collect();
+                let field_init: Vec<Option<usize>> = field_init.iter().map(|&i| if i == usize::MAX { None } else { Some(i) }).collect();
                 let mut method_map: HashMap<String, Value> = HashMap::with_capacity(methods.len());
                 for method_name in method_names.iter().rev() {
                     let func = self.stack.pop().expect("stack underflow in build class method");
@@ -478,6 +477,8 @@ impl<'a> Vm<'a> {
                     name: name_str,
                     init: init_value,
                     methods: method_map,
+                    field_names,
+                    field_init,
                     from_module: self.interpreter.loading_module,
                 }));
                 self.stack.push(class);
@@ -571,6 +572,64 @@ impl<'a> Vm<'a> {
                             let result = Self::add_values(target_val, source_val, span)?;
                             *target_ref = result;
                         }
+                    }
+                }
+            }
+            Op::AppendLocalString { slot, string_idx } => {
+                let s = frame.function.chunk.strings[*string_idx].clone();
+                let target_ref = &mut self.locals[frame.slots_start + *slot];
+                match target_ref {
+                    Value::Box(rc) => {
+                        let mut cell = rc.borrow_mut();
+                        match &mut *cell {
+                            Value::String(existing) => existing.push_str(&s),
+                            other => {
+                                let result = Self::add_values(std::mem::replace(other, Value::Nothing), Value::String(s), span)?;
+                                *other = result;
+                            }
+                        }
+                    }
+                    Value::String(existing) => existing.push_str(&s),
+                    other => {
+                        let result = Self::add_values(std::mem::replace(other, Value::Nothing), Value::String(s), span)?;
+                        *other = result;
+                    }
+                }
+            }
+            Op::AppendLocalList { slot } => {
+                let item = self.stack.pop().expect("stack underflow in append local list");
+                let target_ref = &mut self.locals[frame.slots_start + *slot];
+                match target_ref {
+                    Value::Box(rc) => {
+                        let mut cell = rc.borrow_mut();
+                        match &mut *cell {
+                            Value::List(list) => {
+                                if Rc::strong_count(list) > 1 {
+                                    let mut new_items = list.borrow().clone();
+                                    new_items.push(item);
+                                    *cell = Value::List(Rc::new(RefCell::new(new_items)));
+                                } else {
+                                    list.borrow_mut().push(item);
+                                }
+                            }
+                            other => {
+                                let result = Self::add_values(std::mem::replace(other, Value::Nothing), Value::List(Rc::new(RefCell::new(vec![item]))), span)?;
+                                *other = result;
+                            }
+                        }
+                    }
+                    Value::List(list) => {
+                        if Rc::strong_count(list) > 1 {
+                            let mut new_items = list.borrow().clone();
+                            new_items.push(item);
+                            *target_ref = Value::List(Rc::new(RefCell::new(new_items)));
+                        } else {
+                            list.borrow_mut().push(item);
+                        }
+                    }
+                    other => {
+                        let result = Self::add_values(std::mem::replace(other, Value::Nothing), Value::List(Rc::new(RefCell::new(vec![item]))), span)?;
+                        *other = result;
                     }
                 }
             }
@@ -914,9 +973,19 @@ impl<'a> Vm<'a> {
 
     fn property_get(&self, obj: Value, name: &str, span: &Span) -> Result<Value, Control> {
         match obj {
-            Value::Instance { ref class, ref fields } => {
-                if let Some(v) = fields.borrow().get(name).cloned() {
-                    return Ok(v);
+            Value::Instance { ref class, ref fields, ref slots } => {
+                if let Some(slots) = slots {
+                    if let Some(idx) = match class.as_ref() {
+                        Value::VMClass(cv) => cv.field_names.iter().position(|n| n == name),
+                        _ => None,
+                    } {
+                        return Ok(slots.borrow().get(idx).cloned().unwrap_or(Value::Nothing));
+                    }
+                }
+                if let Some(fields) = fields {
+                    if let Some(v) = fields.borrow().get(name).cloned() {
+                        return Ok(v);
+                    }
                 }
                 match class.as_ref() {
                     Value::Class(cv) => {
@@ -956,9 +1025,22 @@ impl<'a> Vm<'a> {
 
     fn property_set(&self, obj: Value, name: &str, value: Value, span: &Span) -> Result<(), Control> {
         match obj {
-            Value::Instance { fields, .. } => {
-                fields.borrow_mut().insert(name.to_string(), value);
-                Ok(())
+            Value::Instance { ref class, ref fields, ref slots } => {
+                if let Some(slots) = slots {
+                    if let Some(idx) = match class.as_ref() {
+                        Value::VMClass(cv) => cv.field_names.iter().position(|n| n == name),
+                        _ => None,
+                    } {
+                        slots.borrow_mut()[idx] = value;
+                        return Ok(());
+                    }
+                }
+                if let Some(fields) = fields {
+                    fields.borrow_mut().insert(name.to_string(), value);
+                    Ok(())
+                } else {
+                    Err(Control::RuntimeError(format!("Cannot set property '{}' on {}", name, obj.type_name()), span.clone()))
+                }
             }
             _ => Err(Control::RuntimeError(format!("Cannot set property '{}' on {}", name, obj.type_name()), span.clone())),
         }
@@ -967,11 +1049,30 @@ impl<'a> Vm<'a> {
     fn new_instance(&mut self, cls: Value, args: Vec<Value>, span: &Span) -> Result<Value, Control> {
         match cls {
             Value::VMClass(ref cv) => {
+                let has_layout = !cv.field_names.is_empty();
+                let slots = if has_layout {
+                    Some(Rc::new(RefCell::new(vec![Value::Nothing; cv.field_names.len()])))
+                } else {
+                    None
+                };
+                let simple_init = has_layout && cv.field_init.iter().all(|m| m.is_some());
                 let instance = Value::Instance {
                     class: Box::new(cls.clone()),
-                    fields: Rc::new(RefCell::new(HashMap::new())),
+                    fields: if simple_init { None } else { Some(Rc::new(RefCell::new(HashMap::new()))) },
+                    slots: slots.clone(),
                 };
-                if let Some(init_value) = &cv.init {
+
+                if simple_init {
+                    if let Some(ref slots) = slots {
+                        let mut slot_vec = slots.borrow_mut();
+                        for (field_idx, param_idx) in cv.field_init.iter().enumerate() {
+                            let param_idx = param_idx.unwrap();
+                            if param_idx < args.len() {
+                                slot_vec[field_idx] = args[param_idx].clone();
+                            }
+                        }
+                    }
+                } else if let Some(init_value) = &cv.init {
                     let mut init_args = vec![instance.clone()];
                     init_args.extend(args);
                     self.call_value((**init_value).clone(), init_args, span)?;

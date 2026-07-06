@@ -41,7 +41,7 @@
         <div class="feature">
           <div class="feature-icon">⚡</div>
           <h4>Native JIT</h4>
-          <p>Pure numeric loops are compiled to native code with Cranelift. Closed-form and periodic optimisations eliminate whole loops at compile time.</p>
+          <p>Programs compile to native code with Cranelift by default. Numeric loops also get closed-form and periodic optimisations that eliminate whole loops at compile time.</p>
         </div>
         <div class="feature">
           <div class="feature-icon">📦</div>
@@ -77,12 +77,12 @@
 
     <section id="performance">
       <span class="section-label">Performance</span>
-      <h2>Fast numeric loops.</h2>
-      <p>Four numeric workloads, 20,000,000 iterations each. Lower is better.</p>
+      <h2>Benchmark overview.</h2>
+      <p>Nine workloads covering numeric loops, strings, lists, function calls, classes, and exception handling. Lower is better.</p>
       <div class="chart-wrapper">
-        <canvas id="perfChart"></canvas>
+        <img src="benchmark_long.svg" alt="Period benchmark results chart" loading="lazy">
       </div>
-      <p class="chart-note">Benchmarked with <a href="https://github.com/ExploreMaths/Period/blob/main/docs/benchmark_long.py"><code>benchmark_long.py</code></a> (20,000,000 iterations per workload, averaged over 10 runs). Workloads: summing 1..N, counting numbers divisible by 3 or 5, counting numbers divisible by 3 and 5, and summing numbers divisible by 3 or 5. C is compiled with the best available optimizing compiler (MSVC, GCC, Clang) and falls back to the bundled TCC if none are installed; Rust, Go, C# and Java use their normal release builds. Period recognises common numeric loop patterns and evaluates them directly in the fast-path wrapper.</p>
+      <p class="chart-note">Benchmarked with <a href="https://github.com/ExploreMaths/Period/blob/main/docs/benchmark_long.py"><code>benchmark_long.py</code></a> (averaged over 10 runs). Workloads: summing 1..N, counting numbers divisible by 3 or 5, counting numbers divisible by 3 and 5, summing numbers divisible by 3 or 5, string concatenation, list growth, function calls, object instantiation, and try/catch. C is compiled with the best available optimizing compiler (MSVC, GCC, Clang) and falls back to the bundled TCC if none are installed; Rust, Go, C# and Java use their normal release builds. Period now compiles all programs through its Cranelift-based JIT by default.</p>
     </section>
 
     <section id="hello-period">
@@ -605,114 +605,6 @@ tell ada <span class="keyword">to</span> greet <span class="keyword">with</span>
     });
   </script>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-<script>
-  document.addEventListener('DOMContentLoaded', () => {
-    const ctx = document.getElementById('perfChart');
-    if (!ctx) return;
-
-    const relativeLabels = {
-      id: 'relativeLabels',
-      afterDatasetsDraw(chart) {
-        const { ctx } = chart;
-        const baseIndex = 0; // Period
-
-        function drawText(text, tx, ty, color, align = 'center') {
-          ctx.textAlign = align;
-          ctx.font = '11px system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
-          ctx.lineJoin = 'round';
-          ctx.setLineDash([]);
-          ctx.lineWidth = 2;
-          ctx.strokeStyle = 'white';
-          ctx.strokeText(text, tx, ty);
-          ctx.fillStyle = color;
-          ctx.fillText(text, tx, ty);
-        }
-
-        ctx.save();
-        chart.data.datasets.forEach((dataset, dsIndex) => {
-          const base = dataset.data[baseIndex];
-          const meta = chart.getDatasetMeta(dsIndex);
-          meta.data.forEach((bar, i) => {
-            const ratio = dataset.data[i] / base;
-            const label = i === baseIndex ? 'baseline' : `×${ratio.toFixed(1)}`;
-            drawText(label, bar.x, bar.y - 6, '#78716c');
-          });
-        });
-        ctx.restore();
-      }
-    };
-
-    new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: ['Period', 'C (Release)', 'Rust', 'Go', 'C#', 'Java'],
-        datasets: [
-          {
-            label: 'Sum 1..N',
-            data: [8.9, 11.2, 36.4, 40.3, 55.3, 123.2],
-            backgroundColor: 'rgba(217, 119, 6, 0.9)',
-            borderColor: 'rgba(217, 119, 6, 1)',
-            borderWidth: 1,
-            borderRadius: 6,
-            barPercentage: 0.7
-          },
-          {
-            label: 'Divisible by 3 or 5',
-            data: [8.9, 18.4, 41.0, 49.5, 101.0, 123.0],
-            backgroundColor: 'rgba(245, 158, 11, 0.9)',
-            borderColor: 'rgba(245, 158, 11, 1)',
-            borderWidth: 1,
-            borderRadius: 6,
-            barPercentage: 0.7
-          },
-          {
-            label: 'Divisible by 3 and 5',
-            data: [12.3, 31.9, 65.1, 39.1, 67.1, 95.2],
-            backgroundColor: 'rgba(59, 130, 246, 0.9)',
-            borderColor: 'rgba(59, 130, 246, 1)',
-            borderWidth: 1,
-            borderRadius: 6,
-            barPercentage: 0.7
-          },
-          {
-            label: 'Sum multiples of 3 or 5',
-            data: [7.9, 17.4, 35.6, 45.1, 82.3, 91.1],
-            backgroundColor: 'rgba(20, 184, 166, 0.9)',
-            borderColor: 'rgba(20, 184, 166, 1)',
-            borderWidth: 1,
-            borderRadius: 6,
-            barPercentage: 0.7
-          }
-        ]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: true, position: 'top' },
-          tooltip: {
-            callbacks: {
-              label: (item) => `${item.raw} ms`
-            }
-          }
-        },
-        scales: {
-          y: {
-            type: 'logarithmic',
-            title: { display: true, text: 'Milliseconds, logarithmic scale (lower is better)' },
-            grid: { color: 'rgba(0,0,0,0.06)' },
-            ticks: { callback: (value) => value + ' ms' }
-          },
-          x: {
-            grid: { display: false }
-          }
-        }
-      },
-      plugins: [relativeLabels]
-    });
-  });
-</script>
 <script type="module" src="copy-code.js"></script>
 <script type="module" src="bubble-menu.js"></script>
 </body>
