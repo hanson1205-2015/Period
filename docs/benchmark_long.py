@@ -1043,13 +1043,15 @@ def render_svg(results: list[tuple[str, list[tuple[str, float]]]], path: Path) -
     WIDTH = 1200
     HEIGHT = 700
     MARGIN = {"top": 60, "right": 220, "bottom": 140, "left": 90}
+    # Fixed order so Period is first and matches the homepage JS chart.
+    ORDER = ["Period", "C (Release)", "Rust", "Go", "C#", "Java"]
     COLORS = {
-        "C (Release)": "#4caf50",
         "Period": "#ff9800",
+        "C (Release)": "#4caf50",
         "Rust": "#2196f3",
         "Go": "#00bcd4",
-        "Java": "#f44336",
         "C#": "#9c27b0",
+        "Java": "#f44336",
     }
 
     plot_w = WIDTH - MARGIN["left"] - MARGIN["right"]
@@ -1107,7 +1109,10 @@ def render_svg(results: list[tuple[str, list[tuple[str, float]]]], path: Path) -
 
     for i, (workload, data) in enumerate(results):
         group_x = MARGIN["left"] + i * group_w
-        for j, (name, ms) in enumerate(data):
+        # Sort each group's data to the fixed language order.
+        data_map = dict(data)
+        ordered = [(name, data_map[name]) for name in ORDER if name in data_map]
+        for j, (name, ms) in enumerate(ordered):
             x = group_x + (j + 0.5) * bar_w
             y = y_pos(ms)
             h = MARGIN["top"] + plot_h - y
@@ -1127,7 +1132,7 @@ def render_svg(results: list[tuple[str, list[tuple[str, float]]]], path: Path) -
     legend_x = MARGIN["left"] + plot_w + 30
     legend_y = MARGIN["top"] + 20
     lines.append('<text x="' + str(legend_x) + '" y="' + str(legend_y - 10) + '" class="axis" font-weight="bold">Language</text>')
-    for idx, name in enumerate(COLORS):
+    for idx, name in enumerate(ORDER):
         y = legend_y + idx * 22
         color = COLORS[name]
         lines.append(f'<rect x="{legend_x}" y="{y - 10}" width="14" height="14" fill="{color}" rx="2"/>')
