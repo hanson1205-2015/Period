@@ -1041,8 +1041,8 @@ def render_svg(results: list[tuple[str, list[tuple[str, float]]]], path: Path) -
     and multi-second interpreted runs remain visible on the same chart.
     """
     WIDTH = 980
-    HEIGHT = 520
-    MARGIN = {"top": 50, "right": 115, "bottom": 80, "left": 80}
+    HEIGHT = 500
+    MARGIN = {"top": 45, "right": 110, "bottom": 60, "left": 75}
     # Fixed order so Period is first and matches the homepage JS chart.
     ORDER = ["Period", "C (Release)", "Rust", "Go", "C#", "Java"]
     COLORS = {
@@ -1129,9 +1129,9 @@ def render_svg(results: list[tuple[str, list[tuple[str, float]]]], path: Path) -
         lines.append(f'<text x="{x}" y="{y}" text-anchor="middle" transform="rotate(-30 {x} {y})" class="axis">{esc(workload)}</text>')
 
     # Legend
-    legend_x = MARGIN["left"] + plot_w + 20
-    legend_y = MARGIN["top"] + 38
-    lines.append('<text x="' + str(legend_x) + '" y="' + str(legend_y - 12) + '" class="axis" font-weight="bold">Language</text>')
+    legend_x = MARGIN["left"] + plot_w + 10
+    legend_y = MARGIN["top"] + 52
+    lines.append('<text x="' + str(legend_x) + '" y="' + str(legend_y - 32) + '" class="axis" font-weight="bold">Language</text>')
     for idx, name in enumerate(ORDER):
         y = legend_y + idx * 22
         color = COLORS[name]
