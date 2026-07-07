@@ -329,6 +329,48 @@ fn op_stack_delta(op: &Op) -> (usize, usize) {
     }
 }
 
+/// Find catch-slot locals that are never read inside their catch bodies (or
+/// anywhere else).  Their catch blocks do not need a value parameter.
+fn analyze_unused_catch_slots(func: &CompiledFunction) -> HashSet<usize> {
+    let mut catch_slots: HashSet<usize> = HashSet::new();
+    let mut unused: HashSet<usize> = HashSet::new();
+    for op in &func.chunk.ops {
+        if let Op::TryBegin(_, slot) = op {
+            catch_slots.insert(*slot);
+        }
+    }
+    for slot in &catch_slots {
+        let mut used = false;
+        for op in &func.chunk.ops {
+            match op {
+                Op::LoadLocal(s) | Op::IncrementLocal(s) | Op::StoreLocal(s) => {
+                    if s == slot {
+                        used = true;
+                        break;
+                    }
+                }
+                Op::AddLocals(a, b) => {
+                    if a == slot || b == slot {
+                        used = true;
+                        break;
+                    }
+                }
+                Op::Closure { upvalues, .. } => {
+                    if upvalues.iter().any(|u| u.is_local && u.index == *slot) {
+                        used = true;
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+        if !used {
+            unused.insert(*slot);
+        }
+    }
+    unused
+}
+
 struct CachedJitCode {
     code: GenericJitFn,
     _module: Box<cranelift_jit::JITModule>,
@@ -538,6 +580,7 @@ impl GenericJitCompiler {
 
         let (_global_class, transparent_locals, _transparent_new_ips, transparent_class_loads) =
             analyze_transparent_locals(func);
+        let unused_catch_slots = analyze_unused_catch_slots(func);
 
         let mut ctx = self.module.make_context();
         ctx.func.signature.params.push(AbiParam::new(types::I64));
@@ -1159,7 +1202,10 @@ impl GenericJitCompiler {
                 }
                 Op::TryBegin(catch_ip, catch_slot) => {
                     let catch_block = builder.create_block();
-                    builder.append_block_param(catch_block, types::I64);
+                    let unused = unused_catch_slots.contains(catch_slot);
+                    if !unused {
+                        builder.append_block_param(catch_block, types::I64);
+                    }
                     try_stack.push((catch_block, *catch_slot, *catch_ip));
                     // The try header just falls through to the body.
                     let next = blocks.get(i + 1).copied()?;
@@ -1230,8 +1276,10 @@ impl GenericJitCompiler {
 
         for (catch_block, catch_slot, catch_ip) in pending_catches {
             builder.switch_to_block(catch_block);
-            let err = builder.block_params(catch_block)[0];
-            builder.def_var(locals[catch_slot], err);
+            if !unused_catch_slots.contains(&catch_slot) {
+                let err = builder.block_params(catch_block)[0];
+                builder.def_var(locals[catch_slot], err);
+            }
             let catch_dest = blocks.get(catch_ip).copied()?;
             builder.ins().jump(catch_dest, &[]);
             builder.seal_block(catch_block);
@@ -1441,7 +1489,12 @@ fn guard_error(
     let flag = builder.inst_results(call)[0];
     let cmp = builder.ins().icmp_imm(IntCC::NotEqual, flag, 0);
     let fallthrough = builder.create_block();
-    builder.ins().brif(cmp, handler, &[BlockArg::Value(value)], fallthrough, &[]);
+    let handler_has_param = !builder.block_params(handler).is_empty();
+    if handler_has_param {
+        builder.ins().brif(cmp, handler, &[BlockArg::Value(value)], fallthrough, &[]);
+    } else {
+        builder.ins().brif(cmp, handler, &[], fallthrough, &[]);
+    }
     builder.switch_to_block(fallthrough);
     builder.seal_block(fallthrough);
 }
