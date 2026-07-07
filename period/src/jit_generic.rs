@@ -237,6 +237,10 @@ fn analyze_transparent_locals(
             let mut found = false;
             for (fi, &fname) in class.field_names.iter().enumerate() {
                 if fname == name_idx {
+                    if fi >= class.field_init.len() {
+                        ok = false;
+                        break;
+                    }
                     let a = class.field_init[fi];
                     if a == usize::MAX {
                         ok = false;
@@ -539,6 +543,7 @@ struct Helpers {
     env_get: cranelift_module::FuncId,
     env_set: cranelift_module::FuncId,
     env_define: cranelift_module::FuncId,
+    auto_call: cranelift_module::FuncId,
     raise: cranelift_module::FuncId,
     build_list: cranelift_module::FuncId,
     build_dict: cranelift_module::FuncId,
@@ -602,6 +607,7 @@ impl GenericJitCompiler {
         builder.symbol("period_env_get", helper_ptr!(crate::jit_runtime::period_env_get));
         builder.symbol("period_env_set", helper_ptr!(crate::jit_runtime::period_env_set));
         builder.symbol("period_env_define", helper_ptr!(crate::jit_runtime::period_env_define));
+        builder.symbol("period_value_auto_call", helper_ptr!(crate::jit_runtime::period_value_auto_call));
         builder.symbol("period_raise", helper_ptr!(crate::jit_runtime::period_raise));
         builder.symbol("period_build_list", helper_ptr!(crate::jit_runtime::period_build_list));
         builder.symbol("period_build_dict", helper_ptr!(crate::jit_runtime::period_build_dict));
@@ -652,6 +658,7 @@ impl GenericJitCompiler {
             env_get: declare_helper(&mut module, "period_env_get", &[types::I64, types::I64, types::I64], &[types::I64]),
             env_set: declare_helper(&mut module, "period_env_set", &[types::I64, types::I64, types::I64, types::I64], &[types::I64]),
             env_define: declare_helper(&mut module, "period_env_define", &[types::I64, types::I64, types::I64, types::I64, types::I64, types::I64], &[types::I64]),
+            auto_call: declare_helper(&mut module, "period_value_auto_call", &[types::I64, types::I64], &[types::I64]),
             raise: declare_helper(&mut module, "period_raise", &[types::I64], &[types::I64]),
             build_list: declare_helper(&mut module, "period_build_list", &[types::I64, types::I64], &[types::I64]),
             build_dict: declare_helper(&mut module, "period_build_dict", &[types::I64, types::I64], &[types::I64]),
@@ -707,6 +714,15 @@ impl GenericJitCompiler {
         let (_global_class, transparent_locals, _transparent_new_ips, transparent_class_loads) =
             analyze_transparent_locals(func);
         let unused_catch_slots = analyze_unused_catch_slots(func);
+        let catch_slots: std::collections::HashSet<usize> = func
+            .chunk
+            .ops
+            .iter()
+            .filter_map(|op| match op {
+                Op::TryBegin(_, slot) => Some(*slot),
+                _ => None,
+            })
+            .collect();
 
         let mut ctx = self.module.make_context();
         ctx.func.signature.params.push(AbiParam::new(types::I64));
@@ -833,11 +849,23 @@ impl GenericJitCompiler {
                     } else if captured_locals.contains(slot) {
                         let v = builder.use_var(locals[*slot]);
                         let value = call1(module, helpers, &mut builder, helpers.upvalue_get, &[v]);
-                        stack.push(value);
+                        if !catch_slots.contains(slot) {
+                            let value = call(module, helpers, &mut builder, helpers.auto_call, &[interp_ptr, value]);
+                            stack.push(value);
+                            guard_error(module, helpers, &mut builder, value, handler);
+                        } else {
+                            stack.push(value);
+                        }
                     } else {
                         let v = builder.use_var(locals[*slot]);
                         let cloned = call1(module, helpers, &mut builder, helpers.clone, &[v]);
-                        stack.push(cloned);
+                        if !catch_slots.contains(slot) {
+                            let cloned = call(module, helpers, &mut builder, helpers.auto_call, &[interp_ptr, cloned]);
+                            stack.push(cloned);
+                            guard_error(module, helpers, &mut builder, cloned, handler);
+                        } else {
+                            stack.push(cloned);
+                        }
                     }
                 }
                 Op::StoreLocal(slot) => {
@@ -996,6 +1024,8 @@ impl GenericJitCompiler {
                     } else {
                         let (ptr, len) = emit_string(module, helpers, &mut builder, &mut name_strings, &func.chunk.strings[*idx], *idx);
                         let v = call(module, helpers, &mut builder, helpers.env_get, &[interp_ptr, ptr, len]);
+                        guard_error(module, helpers, &mut builder, v, handler);
+                        let v = call(module, helpers, &mut builder, helpers.auto_call, &[interp_ptr, v]);
                         stack.push(v);
                         guard_error(module, helpers, &mut builder, v, handler);
                     }
@@ -1044,7 +1074,9 @@ impl GenericJitCompiler {
                     let offset = (*idx * 8) as i32;
                     let cell = builder.ins().load(types::I64, MemFlagsData::new(), upvalues_param, offset);
                     let v = call1(module, helpers, &mut builder, helpers.upvalue_get, &[cell]);
+                    let v = call(module, helpers, &mut builder, helpers.auto_call, &[interp_ptr, v]);
                     stack.push(v);
+                    guard_error(module, helpers, &mut builder, v, handler);
                 }
                 Op::SetUpvalue(idx) => {
                     let v = stack.pop()?;
@@ -1223,6 +1255,8 @@ impl GenericJitCompiler {
                         let obj = stack.pop()?;
                         let (ptr, len) = emit_string(module, helpers, &mut builder, &mut name_strings, &func.chunk.strings[*idx], *idx);
                         let res = call(module, helpers, &mut builder, helpers.property_get, &[obj, ptr, len]);
+                        guard_error(module, helpers, &mut builder, res, handler);
+                        let res = call(module, helpers, &mut builder, helpers.auto_call, &[interp_ptr, res]);
                         stack.push(res);
                         guard_error(module, helpers, &mut builder, res, handler);
                     }
@@ -1392,6 +1426,8 @@ impl GenericJitCompiler {
                     let (mod_ptr, mod_len) = emit_string(module, helpers, &mut builder, &mut name_strings, &func.chunk.strings[*module_idx], *module_idx);
                     let (name_ptr, name_len) = emit_string(module, helpers, &mut builder, &mut name_strings, &func.chunk.strings[*name_idx], *name_idx);
                     let res = call(module, helpers, &mut builder, helpers.qualified_get, &[interp_ptr, mod_ptr, mod_len, name_ptr, name_len]);
+                    guard_error(module, helpers, &mut builder, res, handler);
+                    let res = call(module, helpers, &mut builder, helpers.auto_call, &[interp_ptr, res]);
                     stack.push(res);
                     guard_error(module, helpers, &mut builder, res, handler);
                 }

@@ -758,6 +758,9 @@ pub extern "C" fn period_index_get(obj: *mut Value, idx: *mut Value) -> *mut Val
     let result = match &obj {
         Value::List(list) => {
             let len = list.borrow().len();
+            if len == 0 {
+                return error_value("Index out of range (list is empty)".to_string());
+            }
             match as_index(&idx, len) {
                 Ok(i) => list.borrow().get(i).cloned().unwrap_or(Value::Nothing),
                 Err(msg) => return error_value(msg),
@@ -1005,6 +1008,39 @@ pub extern "C" fn period_call(interp: *mut Interpreter, callee: *mut Value, argc
     }
 }
 
+/// If `value` is a zero-arity callable, call it and return the result.
+/// Otherwise return the value unchanged. This matches the language-level
+/// auto-call behaviour used by the bytecode VM.
+#[unsafe(no_mangle)]
+pub extern "C" fn period_value_auto_call(interp: *mut Interpreter, value: *mut Value) -> *mut Value {
+    unsafe {
+        let interp = match interp.as_mut() {
+            Some(i) => i,
+            None => return value,
+        };
+        let value_ref = match value.as_ref() {
+            Some(v) => v,
+            None => return value,
+        };
+        match value_ref {
+            Value::BuiltIn(bv) if bv.min_arity == 0 && bv.max_arity == 0 => {
+                let result = match (bv.func)(&[]) {
+                    Ok(v) => v,
+                    Err(m) => return error_value(m),
+                };
+                if !value.is_null() {
+                    free_value(value);
+                }
+                alloc_value(result)
+            }
+            Value::VMFunction(fv) if fv.func.params.is_empty() => {
+                period_call(interp, value, 0, std::ptr::null())
+            }
+            _ => value,
+        }
+    }
+}
+
 fn new_instance(interp: &mut Interpreter, cls: Value, args: Vec<Value>, span: &crate::ast::Span) -> Result<Value, Control> {
     match cls {
         Value::VMClass(ref cv) => {
@@ -1014,7 +1050,9 @@ fn new_instance(interp: &mut Interpreter, cls: Value, args: Vec<Value>, span: &c
             } else {
                 None
             };
-            let simple_init = has_layout && cv.field_init.iter().all(|m| m.is_some());
+            let simple_init = has_layout
+                && cv.field_init.len() == cv.field_names.len()
+                && cv.field_init.iter().all(|m| m.is_some());
             let instance = Value::Instance {
                 class: Box::new(cls.clone()),
                 fields: if simple_init { None } else { Some(std::rc::Rc::new(std::cell::RefCell::new(std::collections::HashMap::new()))) },

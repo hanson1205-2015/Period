@@ -609,7 +609,7 @@ impl Compiler {
                 let field_indices: Vec<usize> = field_names.iter().map(|n| self.add_string(n)).collect();
                 let field_init = analyze_class_init(init, &field_names)
                     .map(|m| m.into_iter().map(|o| o.unwrap_or(usize::MAX)).collect())
-                    .unwrap_or_default();
+                    .unwrap_or_else(|| vec![usize::MAX; field_names.len()]);
                 let name_idx = self.add_string(name);
                 self.emit(Op::BuildClass { name: name_idx, init: init_idx, methods: method_name_indices, fields: field_indices, field_init }, span.clone());
                 if self.state().scope_depth == 0 {
