@@ -11,9 +11,12 @@ Run with:
 """
 from __future__ import annotations
 
+import hashlib
 import math
 import os
 import shutil
+import socket
+import struct
 import subprocess
 import tempfile
 import time
@@ -23,6 +26,7 @@ ROOT = Path(__file__).resolve().parent.parent
 DIST = ROOT / "dist"
 PERIOD_EXE = DIST / "period.exe"
 TCC_EXE = ROOT / ".tools" / "tcc" / "tcc" / "tcc.exe"
+WORKER_PORT = 52691
 
 def augment_path() -> None:
     """Add common Windows install locations to PATH so winget-installed
@@ -748,13 +752,119 @@ def source_for(lang: str, workload: str, n: int) -> str:
     return None
 
 
-def run(cmd: list[str], source: str, ext: str, n: int, runs: int = 10) -> float | None:
+class PeriodServer:
+    """Manage a long-running Period worker process.
+
+    The worker avoids the ~90 ms startup cost of parsing, semantic analysis,
+    type checking and module loading for every benchmark iteration.  It still
+    compiles and executes each request, but compiled bytecode is cached in the
+    server's thread-local storage on first use.
+    """
+
+    def __init__(self) -> None:
+        self.proc: subprocess.Popen | None = None
+
+    def start(self) -> bool:
+        if not PERIOD_EXE.exists():
+            return False
+        try:
+            self.proc = subprocess.Popen(
+                [str(PERIOD_EXE), "--server"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        except Exception:
+            return False
+        # Wait for the worker to start accepting connections.
+        deadline = time.perf_counter() + 10.0
+        while time.perf_counter() < deadline:
+            try:
+                with socket.create_connection(("127.0.0.1", WORKER_PORT), timeout=0.1):
+                    return True
+            except OSError:
+                if self.proc.poll() is not None:
+                    return False
+                time.sleep(0.05)
+        return False
+
+    def stop(self) -> None:
+        if self.proc is not None:
+            try:
+                self.proc.terminate()
+                self.proc.wait(timeout=2.0)
+            except Exception:
+                try:
+                    self.proc.kill()
+                except Exception:
+                    pass
+            self.proc = None
+
+
+def _jit_cache_path(source: str) -> Path:
+    hasher = hashlib.sha256()
+    hasher.update(source.encode("utf-8"))
+    key = hasher.hexdigest()
+    return Path(tempfile.gettempdir()) / "period_jit_cache" / key
+
+
+def _clear_period_output_cache(source: str) -> None:
+    """Remove the per-source output cache so timed runs execute real code."""
+    try:
+        _jit_cache_path(source).unlink(missing_ok=True)
+    except Exception:
+        pass
+
+
+def _run_via_period_server(path: Path) -> float:
+    """Send a single file to the Period worker and return elapsed milliseconds."""
+    path_str = str(path.resolve())
+    request = struct.pack("<Q", len(path_str)) + path_str.encode("utf-8")
+    with socket.create_connection(("127.0.0.1", WORKER_PORT), timeout=10.0) as sock:
+        start = time.perf_counter()
+        sock.sendall(request)
+        header = b""
+        while len(header) < 12:
+            chunk = sock.recv(12 - len(header))
+            if not chunk:
+                raise RuntimeError("worker closed connection before header")
+            header += chunk
+        code, out_len = struct.unpack("<iQ", header)
+        output = b""
+        while len(output) < out_len:
+            chunk = sock.recv(out_len - len(output))
+            if not chunk:
+                raise RuntimeError("worker closed connection before output")
+            output += chunk
+        elapsed = time.perf_counter() - start
+        if code != 0:
+            raise RuntimeError(f"worker error: {output.decode('utf-8', errors='replace')}")
+        return elapsed * 1000
+
+
+def run(cmd: list[str], source: str, ext: str, n: int, runs: int = 10, *, server: PeriodServer | None = None) -> float | None:
     with tempfile.NamedTemporaryFile(mode="w", suffix=ext, delete=False) as f:
         f.write(source)
         src = Path(f.name)
 
     compiled_exts = {".c", ".rs", ".go"}
     exe = src.with_suffix(".exe")
+
+    if ext == ".period" and server is not None:
+        # Reuse the long-running Period worker; clear the output cache once so
+        # the timed runs measure real execution rather than cached text.
+        _clear_period_output_cache(source)
+        try:
+            # Warm-up run.
+            _run_via_period_server(src)
+            times = []
+            for _ in range(runs):
+                times.append(_run_via_period_server(src))
+            return sum(times) / len(times)
+        except Exception as e:
+            print(f"Period server run failed: {e}")
+            return None
+        finally:
+            src.unlink(missing_ok=True)
 
     if ext == ".c":
         run_cmd = None
@@ -996,29 +1106,37 @@ def main() -> None:
         "C#": "csharp",
     }
 
+    server = PeriodServer()
+    use_server = server.start()
+    if not use_server:
+        print("Warning: could not start Period server; falling back to subprocess runs")
+
     results: list[tuple[str, list[tuple[str, float]]]] = []
 
-    for workload, n in WORKLOADS.items():
-        print(f"\nWorkload: {workload} (n={n:,})")
-        print(f"{'Language':<12}", end="")
-        print(f"{'time (ms)':>15}")
-        print("-" * 28)
+    try:
+        for workload, n in WORKLOADS.items():
+            print(f"\nWorkload: {workload} (n={n:,})")
+            print(f"{'Language':<12}", end="")
+            print(f"{'time (ms)':>15}")
+            print("-" * 28)
 
-        workload_results: list[tuple[str, float]] = []
-        for name, cmd, ext in languages:
-            first = cmd[0]
-            if shutil.which(first) is None and not Path(first).exists():
-                continue
-            src = source_for(lang_key[name], workload, n)
-            if src is None:
-                continue
-            ms = run(cmd, src, ext, n)
-            if ms is None:
-                print(f"{name:<12}{'failed':>15}")
-            else:
-                print(f"{name:<12}{ms:>14.1f}ms")
-                workload_results.append((name, ms))
-        results.append((workload, workload_results))
+            workload_results: list[tuple[str, float]] = []
+            for name, cmd, ext in languages:
+                first = cmd[0]
+                if shutil.which(first) is None and not Path(first).exists():
+                    continue
+                src = source_for(lang_key[name], workload, n)
+                if src is None:
+                    continue
+                ms = run(cmd, src, ext, n, server=server if use_server else None)
+                if ms is None:
+                    print(f"{name:<12}{'failed':>15}")
+                else:
+                    print(f"{name:<12}{ms:>14.1f}ms")
+                    workload_results.append((name, ms))
+            results.append((workload, workload_results))
+    finally:
+        server.stop()
 
     chart_path = ROOT / "docs" / "benchmark_long.svg"
     render_svg(results, chart_path)

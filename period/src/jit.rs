@@ -135,6 +135,23 @@ impl JitCompiler {
                             continue;
                         }
                     }
+                    LoopOpt::Count(c) => {
+                        if i >= c.cond_start && i <= c.loop_end {
+                            let exit_block = blocks.get(c.exit).copied()?;
+                            if i == c.cond_start {
+                                let cur_acc = builder.use_var(locals[c.acc_slot]);
+                                let inc = builder.ins().iconst(types::I64, c.acc_inc);
+                                let new_acc = builder.ins().iadd(cur_acc, inc);
+                                builder.def_var(locals[c.acc_slot], new_acc);
+                                let final_i = builder.ins().iconst(types::I64, c.final_i);
+                                builder.def_var(locals[c.i_slot], final_i);
+                                builder.ins().jump(exit_block, &[]);
+                            } else {
+                                builder.ins().jump(exit_block, &[]);
+                            }
+                            continue;
+                        }
+                    }
                     LoopOpt::ModularCount(c) => {
                         if i >= c.cond_start && i <= c.loop_end {
                             let exit_block = blocks.get(c.exit).copied()?;
@@ -334,6 +351,7 @@ impl JitCompiler {
 enum LoopOpt {
     Series(SeriesLoop),
     ModularCount(ModularCountLoop),
+    Count(CountLoop),
     Evaluated {
         cond_start: usize,
         loop_end: usize,
@@ -385,6 +403,10 @@ fn detect_loop_opt(func: &CompiledFunction) -> Option<LoopOpt> {
 
         if let Some(s) = try_series_opt(func, cond_start, idx, exit, *i_slot, cond_op, n, init_i, iter_count, &slot_consts) {
             return Some(LoopOpt::Series(s));
+        }
+
+        if let Some(c) = try_count_opt(func, cond_start, idx, exit, *i_slot, cond_op, n, init_i, iter_count, &slot_consts) {
+            return Some(LoopOpt::Count(c));
         }
 
         if let Some(c) = try_modular_count_opt(func, cond_start, idx, exit, *i_slot, n, init_i, iter_count, &slot_consts) {
@@ -459,6 +481,60 @@ fn try_series_opt(
         i_slot,
         acc_slot: *acc_slot,
         acc_sum: acc_sum_128 as i64,
+        final_i,
+    })
+}
+
+struct CountLoop {
+    cond_start: usize,
+    loop_end: usize,
+    exit: usize,
+    i_slot: usize,
+    acc_slot: usize,
+    acc_inc: i64,
+    final_i: i64,
+}
+
+/// Closed-form optimisation for loops that simply increment a counter on every
+/// iteration (`acc += 1; i += 1`).
+fn try_count_opt(
+    func: &CompiledFunction,
+    cond_start: usize,
+    loop_end: usize,
+    exit: usize,
+    i_slot: usize,
+    cond_op: BinOp,
+    n: i64,
+    init_i: i64,
+    iter_count: i64,
+    slot_consts: &[Option<i64>],
+) -> Option<CountLoop> {
+    let ops = &func.chunk.ops;
+    if loop_end < cond_start + 5 || loop_end - 2 != cond_start + 3 {
+        return None;
+    }
+    let Op::IncrementLocal(acc_slot) = &ops[loop_end - 2] else { return None };
+    if *acc_slot == i_slot {
+        return None;
+    }
+    let Op::IncrementLocal(inc_slot) = &ops[loop_end - 1] else { return None };
+    if *inc_slot != i_slot {
+        return None;
+    }
+    let init_acc = slot_consts[*acc_slot]?;
+    let final_acc = init_acc.checked_add(iter_count)?;
+    let final_i = match cond_op {
+        BinOp::Lt => init_i.checked_add(iter_count)?,
+        BinOp::Le => n.checked_add(1)?,
+        _ => return None,
+    };
+    Some(CountLoop {
+        cond_start,
+        loop_end,
+        exit,
+        i_slot,
+        acc_slot: *acc_slot,
+        acc_inc: iter_count,
         final_i,
     })
 }
@@ -920,6 +996,7 @@ pub fn try_run_constant(func: &CompiledFunction) -> Option<String> {
             let cond_start = match opt {
                 LoopOpt::Series(s) => s.cond_start,
                 LoopOpt::ModularCount(c) => c.cond_start,
+                LoopOpt::Count(c) => c.cond_start,
                 LoopOpt::Evaluated { cond_start, .. } => *cond_start,
             };
             if ip == cond_start {
@@ -932,6 +1009,13 @@ pub fn try_run_constant(func: &CompiledFunction) -> Option<String> {
                         ip = s.exit;
                     }
                     LoopOpt::ModularCount(c) => {
+                        locals[c.acc_slot] = locals[c.acc_slot]
+                            .zip(Some(c.acc_inc))
+                            .and_then(|(a, b)| a.checked_add(b));
+                        locals[c.i_slot] = Some(c.final_i);
+                        ip = c.exit;
+                    }
+                    LoopOpt::Count(c) => {
                         locals[c.acc_slot] = locals[c.acc_slot]
                             .zip(Some(c.acc_inc))
                             .and_then(|(a, b)| a.checked_add(b));
