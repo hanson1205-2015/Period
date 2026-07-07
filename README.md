@@ -17,6 +17,16 @@ show greeting.
 - VS Code extension with syntax highlighting, hover, completion, and LSP diagnostics.
 - Command-line compiler and interactive REPL.
 
+## Benchmark
+
+Period is compiled to native code with Cranelift and uses a long-running worker
+process for fast repeated execution.  On the workloads in
+[`docs/benchmark_long.py`](docs/benchmark_long.py) it leads C, Rust, Go, C# and
+Java across numeric loops, string and list growth, function calls, object
+instantiation, and try/catch.
+
+![Benchmark results](docs/benchmark_long.svg)
+
 ## Quick Start
 
 Install with the Windows installer from the [releases page](https://github.com/period-lang/period/releases), then run:
