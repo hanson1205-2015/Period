@@ -934,6 +934,16 @@ pre code {
   margin: 0 auto;
 }
 
+#performance .chart-note a code {
+  color: var(--accent);
+  background: transparent;
+  padding: 0;
+}
+
+#performance .chart-note a:hover code {
+  text-decoration: underline;
+}
+
 .marquee {
   width: 100vw;
   margin-left: calc((100vw - 100%) / -2);
