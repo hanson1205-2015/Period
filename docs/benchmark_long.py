@@ -1040,9 +1040,9 @@ def render_svg(results: list[tuple[str, list[tuple[str, float]]]], path: Path) -
     The y-axis uses a log scale so that both sub-millisecond compiled runs
     and multi-second interpreted runs remain visible on the same chart.
     """
-    WIDTH = 1200
-    HEIGHT = 700
-    MARGIN = {"top": 60, "right": 220, "bottom": 140, "left": 90}
+    WIDTH = 980
+    HEIGHT = 560
+    MARGIN = {"top": 50, "right": 130, "bottom": 100, "left": 80}
     # Fixed order so Period is first and matches the homepage JS chart.
     ORDER = ["Period", "C (Release)", "Rust", "Go", "C#", "Java"]
     COLORS = {
@@ -1087,7 +1087,7 @@ def render_svg(results: list[tuple[str, list[tuple[str, float]]]], path: Path) -
     lines.append(f'<rect width="{WIDTH}" height="{HEIGHT}" fill="#ffffff"/>')
 
     # Title
-    lines.append(f'<text x="{WIDTH // 2}" y="{MARGIN["top"] - 25}" text-anchor="middle" class="title">Period Benchmark Results (log scale)</text>')
+    lines.append(f'<text x="{WIDTH // 2}" y="{MARGIN["top"] - 18}" text-anchor="middle" class="title">Period Benchmark Results (log scale)</text>')
 
     # Grid lines and y-axis labels
     tick = 10 ** math.floor(log_min)
