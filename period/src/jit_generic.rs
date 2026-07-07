@@ -14,7 +14,7 @@ use cranelift_module::{DataDescription, Linkage, Module};
 use crate::ast::BinOp;
 use crate::bytecode::{CompiledFunction, Op};
 use crate::interpreter::Interpreter;
-use crate::value::Value;
+use crate::value::{Integer, Value};
 
 type ClValue = cranelift::prelude::Value;
 
@@ -371,6 +371,123 @@ fn analyze_unused_catch_slots(func: &CompiledFunction) -> HashSet<usize> {
     unused
 }
 
+/// If this `Loop` is an append-only loop (`while i < n: s += chunk; i += 1`
+/// or `while i < n: xs += [i]; i += 1`), emit a single bulk runtime call
+/// that does the remaining iterations and jump to the loop exit.
+fn try_optimize_append_loop(
+    func: &CompiledFunction,
+    i: usize,
+    target: usize,
+    builder: &mut FunctionBuilder,
+    module: &mut cranelift_jit::JITModule,
+    helpers: &Helpers,
+    locals: &[Variable],
+    interp_ptr: ClValue,
+    blocks: &[Block],
+    name_strings: &mut HashMap<usize, cranelift_module::DataId>,
+) -> Option<()> {
+    let _ = interp_ptr;
+    let ops = &func.chunk.ops;
+    if target + 4 >= ops.len() {
+        return None;
+    }
+
+    // Loop header: LoadLocal(i) (Constant(n) | LoadLocal(n)) Lt JumpIfFalse(end)
+    let i_slot = match &ops[target] {
+        Op::LoadLocal(slot) => *slot,
+        _ => return None,
+    };
+    let (n_raw, n_slot): (Option<ClValue>, Option<usize>) = match &ops[target + 1] {
+        Op::Constant(idx) => {
+            let c = &func.chunk.constants[*idx];
+            let n = match c {
+                Value::Integer(Integer::Small(n)) => *n,
+                _ => return None,
+            };
+            (Some(builder.ins().iconst(types::I64, n)), None)
+        }
+        Op::LoadLocal(slot) => (None, Some(*slot)),
+        _ => return None,
+    };
+    if !matches!(ops[target + 2], Op::Binary(BinOp::Lt)) {
+        return None;
+    }
+    let end_ip = match &ops[target + 3] {
+        Op::JumpIfFalse(ip) => *ip,
+        _ => return None,
+    };
+
+    // Verify the loop body is side-effect free except for the append/increment.
+    // We also ensure the bound local is not mutated inside the loop.
+    let body_start = target + 4;
+    for ip in body_start..i {
+        match &ops[ip] {
+            Op::StoreLocal(slot) | Op::IncrementLocal(slot) => {
+                if let Some(ns) = n_slot {
+                    if *slot == ns {
+                        return None;
+                    }
+                }
+            }
+            Op::AppendLocalString { .. } | Op::AppendLocalList { .. } | Op::LoadLocal(_) => {}
+            _ => return None,
+        }
+    }
+
+    let i_after = builder.use_var(locals[i_slot]);
+    let i_raw = call1(module, helpers, builder, helpers.as_i64, &[i_after]);
+    let n_raw = match n_raw {
+        Some(v) => v,
+        None => {
+            let ns = n_slot?;
+            let n_local = builder.use_var(locals[ns]);
+            call1(module, helpers, builder, helpers.as_i64, &[n_local])
+        }
+    };
+
+    // count = n - i_current (remaining iterations after the current one)
+    let count_raw = builder.ins().isub(n_raw, i_raw);
+
+    let body_len = i - body_start;
+    if body_len == 2
+        && matches!(&ops[body_start + 1], Op::IncrementLocal(slot) if *slot == i_slot)
+    {
+        // while i < n: s += chunk; i += 1
+        if let Op::AppendLocalString { slot, string_idx } = &ops[body_start] {
+            let local_ptr = builder.use_var(locals[*slot]);
+            let (ptr, len_val) = emit_string(module, helpers, builder, name_strings, &func.chunk.strings[*string_idx], *string_idx);
+            call(module, helpers, builder, helpers.append_string_repeat, &[local_ptr, ptr, len_val, count_raw]);
+        } else {
+            return None;
+        }
+    } else if body_len == 3
+        && matches!(&ops[body_start + 2], Op::IncrementLocal(slot) if *slot == i_slot)
+    {
+        // while i < n: xs += [i]; i += 1
+        if let (Op::LoadLocal(load_slot), Op::AppendLocalList { slot }) = (&ops[body_start], &ops[body_start + 1]) {
+            if *load_slot != i_slot {
+                return None;
+            }
+            let local_ptr = builder.use_var(locals[*slot]);
+            call(module, helpers, builder, helpers.append_list_range, &[local_ptr, i_raw, count_raw]);
+        } else {
+            return None;
+        }
+    } else {
+        return None;
+    }
+
+    // i = n (as a boxed value)
+    let n_val = call1(module, helpers, builder, helpers.from_i64, &[n_raw]);
+    let old_i = builder.use_var(locals[i_slot]);
+    builder.def_var(locals[i_slot], n_val);
+    drop_value(module, helpers, builder, old_i);
+
+    let end_block = *blocks.get(end_ip)?;
+    builder.ins().jump(end_block, &[]);
+    Some(())
+}
+
 struct CachedJitCode {
     code: GenericJitFn,
     _module: Box<cranelift_jit::JITModule>,
@@ -410,6 +527,7 @@ struct Helpers {
     is_error: cranelift_module::FuncId,
     set_span: cranelift_module::FuncId,
     from_i64: cranelift_module::FuncId,
+    as_i64: cranelift_module::FuncId,
     from_f64: cranelift_module::FuncId,
     from_bool: cranelift_module::FuncId,
     nothing: cranelift_module::FuncId,
@@ -446,6 +564,8 @@ struct Helpers {
     check_type: cranelift_module::FuncId,
     append_local_string: cranelift_module::FuncId,
     append_local_list: cranelift_module::FuncId,
+    append_string_repeat: cranelift_module::FuncId,
+    append_list_range: cranelift_module::FuncId,
     increment_local: cranelift_module::FuncId,
     add_locals: cranelift_module::FuncId,
 }
@@ -470,6 +590,7 @@ impl GenericJitCompiler {
         builder.symbol("period_value_is_error", helper_ptr!(crate::jit_runtime::period_value_is_error));
         builder.symbol("period_set_span", helper_ptr!(crate::jit_runtime::period_set_span));
         builder.symbol("period_value_from_i64", helper_ptr!(crate::jit_runtime::period_value_from_i64));
+        builder.symbol("period_value_as_i64", helper_ptr!(crate::jit_runtime::period_value_as_i64));
         builder.symbol("period_value_from_f64", helper_ptr!(crate::jit_runtime::period_value_from_f64));
         builder.symbol("period_value_from_bool", helper_ptr!(crate::jit_runtime::period_value_from_bool));
         builder.symbol("period_value_nothing", helper_ptr!(crate::jit_runtime::period_value_nothing));
@@ -506,6 +627,8 @@ impl GenericJitCompiler {
         builder.symbol("period_check_type", helper_ptr!(crate::jit_runtime::period_check_type));
         builder.symbol("period_append_local_string", helper_ptr!(crate::jit_runtime::period_append_local_string));
         builder.symbol("period_append_local_list", helper_ptr!(crate::jit_runtime::period_append_local_list));
+        builder.symbol("period_string_append_repeat", helper_ptr!(crate::jit_runtime::period_string_append_repeat));
+        builder.symbol("period_list_append_range", helper_ptr!(crate::jit_runtime::period_list_append_range));
         builder.symbol("period_value_increment_local", helper_ptr!(crate::jit_runtime::period_value_increment_local));
         builder.symbol("period_value_add_locals", helper_ptr!(crate::jit_runtime::period_value_add_locals));
 
@@ -517,6 +640,7 @@ impl GenericJitCompiler {
             is_error: declare_helper(&mut module, "period_value_is_error", &[types::I64], &[types::I64]),
             set_span: declare_helper(&mut module, "period_set_span", &[types::I64, types::I64], &[]),
             from_i64: declare_helper(&mut module, "period_value_from_i64", &[types::I64], &[types::I64]),
+            as_i64: declare_helper(&mut module, "period_value_as_i64", &[types::I64], &[types::I64]),
             from_f64: declare_helper(&mut module, "period_value_from_f64", &[types::F64], &[types::I64]),
             from_bool: declare_helper(&mut module, "period_value_from_bool", &[types::I64], &[types::I64]),
             nothing: declare_helper(&mut module, "period_value_nothing", &[], &[types::I64]),
@@ -553,6 +677,8 @@ impl GenericJitCompiler {
             check_type: declare_helper(&mut module, "period_check_type", &[types::I64, types::I64, types::I64, types::I64], &[types::I64]),
             append_local_string: declare_helper(&mut module, "period_append_local_string", &[types::I64, types::I64, types::I64], &[types::I64]),
             append_local_list: declare_helper(&mut module, "period_append_local_list", &[types::I64, types::I64], &[types::I64]),
+            append_string_repeat: declare_helper(&mut module, "period_string_append_repeat", &[types::I64, types::I64, types::I64, types::I64], &[types::I64]),
+            append_list_range: declare_helper(&mut module, "period_list_append_range", &[types::I64, types::I64, types::I64], &[types::I64]),
             increment_local: declare_helper(&mut module, "period_value_increment_local", &[types::I64], &[types::I64]),
             add_locals: declare_helper(&mut module, "period_value_add_locals", &[types::I64, types::I64], &[types::I64]),
         };
@@ -945,10 +1071,23 @@ impl GenericJitCompiler {
                     builder.ins().brif(cmp, dest, &[], fallthrough, &[]);
                     terminated = true;
                 }
-                Op::Jump(target) | Op::Loop(target) => {
+                Op::Jump(target) => {
                     let dest = blocks.get(*target).copied()?;
                     builder.ins().jump(dest, &[]);
                     terminated = true;
+                }
+                Op::Loop(target) => {
+                    if try_optimize_append_loop(
+                        func, i, *target, &mut builder, module, helpers, &locals, interp_ptr, &blocks, &mut name_strings,
+                    )
+                    .is_some()
+                    {
+                        terminated = true;
+                    } else {
+                        let dest = blocks.get(*target).copied()?;
+                        builder.ins().jump(dest, &[]);
+                        terminated = true;
+                    }
                 }
                 Op::Call(arg_count) => {
                     let argc = *arg_count as usize;

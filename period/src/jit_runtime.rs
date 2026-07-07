@@ -368,6 +368,109 @@ pub extern "C" fn period_append_local_list(local: *mut Value, item: *mut Value) 
     }
 }
 
+/// Append `count` copies of a constant string chunk to a local string.
+/// `ptr`/`len` point into the module's string table.  Returns null on success.
+#[unsafe(no_mangle)]
+pub extern "C" fn period_string_append_repeat(
+    local: *mut Value,
+    ptr: *const u8,
+    len: usize,
+    count: i64,
+) -> *mut Value {
+    unsafe {
+        if local.is_null() || ptr.is_null() || len == 0 || count <= 0 {
+            return std::ptr::null_mut();
+        }
+        let count = count as usize;
+        if count == 0 {
+            return std::ptr::null_mut();
+        }
+        let local_ref = &mut *local;
+        let chunk = std::slice::from_raw_parts(ptr, len);
+        let chunk_str = std::str::from_utf8_unchecked(chunk);
+        match local_ref {
+            Value::String(s) => {
+                let add = len.saturating_mul(count);
+                s.reserve(add.max(256));
+                if len == 1 {
+                    let byte = chunk[0];
+                    let new_len = s.len() + count;
+                    s.as_mut_vec().resize(new_len, byte);
+                } else {
+                    for _ in 0..count {
+                        s.push_str(chunk_str);
+                    }
+                }
+            }
+            _ => {
+                let add = len.saturating_mul(count);
+                let mut s = String::with_capacity(add.max(256));
+                if len == 1 {
+                    let byte = chunk[0];
+                    s.as_mut_vec().resize(count, byte);
+                } else {
+                    for _ in 0..count {
+                        s.push_str(chunk_str);
+                    }
+                }
+                let right = Value::String(s);
+                let result = add_values(local_ref, &right);
+                *local_ref = result;
+            }
+        }
+        std::ptr::null_mut()
+    }
+}
+
+/// Append a range of integers `[start, start + count)` to a local list.
+/// Returns null on success.
+#[unsafe(no_mangle)]
+pub extern "C" fn period_list_append_range(
+    local: *mut Value,
+    start: i64,
+    count: i64,
+) -> *mut Value {
+    unsafe {
+        if local.is_null() || count <= 0 {
+            return std::ptr::null_mut();
+        }
+        let count = count as usize;
+        if count == 0 {
+            return std::ptr::null_mut();
+        }
+        let local_ref = &mut *local;
+        match local_ref {
+            Value::List(list) => {
+                if std::rc::Rc::strong_count(list) > 1 {
+                    let mut new_items = list.borrow().clone();
+                    new_items.reserve(count.max(512));
+                    for j in 0..count {
+                        new_items.push(Value::Integer(Integer::Small(start + j as i64)));
+                    }
+                    *local_ref = Value::List(Rc::new(RefCell::new(new_items)));
+                } else {
+                    let mut borrowed = list.borrow_mut();
+                    let final_len = borrowed.len() + count;
+                    borrowed.reserve(final_len.max(512));
+                    for j in 0..count {
+                        borrowed.push(Value::Integer(Integer::Small(start + j as i64)));
+                    }
+                }
+            }
+            _ => {
+                let mut items = Vec::with_capacity(count.max(512));
+                for j in 0..count {
+                    items.push(Value::Integer(Integer::Small(start + j as i64)));
+                }
+                let right = Value::List(Rc::new(RefCell::new(items)));
+                let result = add_values(local_ref, &right);
+                *local_ref = result;
+            }
+        }
+        std::ptr::null_mut()
+    }
+}
+
 /// Try to increment a local integer in place without allocation.
 /// Returns 1 on success, 0 if the caller must fall back to generic addition.
 #[unsafe(no_mangle)]
