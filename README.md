@@ -1,4 +1,4 @@
-# Period
+# <img src="assets/period.svg" alt="Period logo" width="32" height="32"> Period
 
 An elegant English programming language where every statement ends with a period. It also accepts a familiar dot-and-parentheses compact syntax, so you can write `obj.method()` when `tell obj to method with ...` feels too verbose.
 
