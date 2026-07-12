@@ -4,13 +4,16 @@
 
 ### Added
 
-- Single-quoted strings: `'...'` is equivalent to `"..."`, including interpolation and escapes (`\'` is now a recognised escape).
-
 ### Changed
 
 ### Fixed
 
 ## 2.0.0-beta.7 (2026-07-12)
+
+### Added
+
+- Single-quoted strings: `'...'` is equivalent to `"..."`, including interpolation and escapes (`\'` is now a recognised escape). The LSP comment detection, VS Code grammar, language configuration, and interpolation-brace decorator all handle both quote styles.
+- The VS Code extension's Run button now saves the file before executing it.
 
 ### Fixed
 
