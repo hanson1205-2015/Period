@@ -479,6 +479,29 @@ class TestLanguageFeatures(unittest.TestCase):
             expected_lines=["5000050000"],
         )
 
+    def test_parse_error_reports_source_location(self):
+        # Regression test for issue #5: parse errors must be reported with a
+        # source line, column and caret, not as a Rust panic message.
+        out = run_file(
+            """
+            let x be 5
+            """,
+            should_fail=True,
+        )
+        self.assertIn("expected '.' at end of let", out)
+        self.assertIn("1:12", out)
+        self.assertIn("^", out)
+
+    def test_compact_show_returns_zero(self):
+        # Regression test for issue #6: compact call syntax must not produce
+        # a non-zero exit code.
+        run_file(
+            """
+            show("Hello,World").
+            """,
+            expected_lines=["Hello,World"],
+        )
+
     def test_function_call_argument_contains_binary_operator(self):
         # "f with a + b" is parsed as "f(a + b)".
         run_file(
