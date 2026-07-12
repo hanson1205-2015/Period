@@ -196,7 +196,8 @@
 
 ## 0.1.4 (2026-07-01)
 
-> **Note:** The C/JIT backend, bundled TCC, and numeric fast-path described in this release were removed in the Unreleased redesign. The current implementation uses a single Rust interpreter for all programs.
+> [!NOTE]
+> The C/JIT backend, bundled TCC, and numeric fast-path described in this release were removed in the Unreleased redesign. The current implementation uses a single Rust interpreter for all programs.
 
 ### What's new
 
@@ -212,7 +213,8 @@
 
 ## 0.1.3 (2026-06-28)
 
-> **Note:** The C/JIT backend mentioned in this release was removed in the Unreleased redesign.
+> [!NOTE]
+> The C/JIT backend mentioned in this release was removed in the Unreleased redesign.
 
 ### What's new
 
@@ -223,7 +225,8 @@
 
 ## 0.1.2 (2026-06-27)
 
-> **Note:** Keyword case enforcement mentioned in this release was later reverted; the current implementation treats keywords as case-insensitive.
+> [!NOTE]
+> Keyword case enforcement mentioned in this release was later reverted; the current implementation treats keywords as case-insensitive.
 
 ### What's new
 
@@ -240,7 +243,8 @@
 
 ## 0.1.1 (2026-06-27)
 
-> **Note:** The C/JIT numeric fast-path and keyword case enforcement mentioned in this release were removed in the Unreleased redesign.
+> [!NOTE]
+> The C/JIT numeric fast-path and keyword case enforcement mentioned in this release were removed in the Unreleased redesign.
 
 ### What's new
 
@@ -279,7 +283,8 @@
 
 ## 0.1.0 (2026-06-27)
 
-> **Note:** The numeric fast-path compiler was removed in the Unreleased redesign; all programs now run through the single Rust interpreter.
+> [!NOTE]
+> The numeric fast-path compiler was removed in the Unreleased redesign; all programs now run through the single Rust interpreter.
 
 ### What's new
 
