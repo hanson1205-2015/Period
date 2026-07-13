@@ -1075,10 +1075,11 @@ fn index_program(program: &Program) -> Vec<SymbolInfo> {
                     kind: CompletionItemKind::VARIABLE,
                 });
             }
-            Stmt::Define { name, params, return_type, docstring, .. } => {
+            Stmt::Define { name, params, return_type, docstring, body, .. } => {
+                let eff_ret = effective_return_type(return_type, body, &func_returns);
                 symbols.push(SymbolInfo {
                     name: name.clone(),
-                    detail: function_detail(name, params, return_type),
+                    detail: function_detail(name, params, &eff_ret),
                     docstring: docstring.clone(),
                     kind: CompletionItemKind::FUNCTION,
                 });
@@ -1099,10 +1100,11 @@ fn index_program(program: &Program) -> Vec<SymbolInfo> {
                     });
                 }
                 for m in methods {
-                    if let Stmt::Define { name: mname, params, return_type, docstring, .. } = m {
+                    if let Stmt::Define { name: mname, params, return_type, docstring, body, .. } = m {
+                        let eff_ret = effective_return_type(return_type, body, &func_returns);
                         symbols.push(SymbolInfo {
                             name: mname.clone(),
-                            detail: function_detail(mname, params, return_type),
+                            detail: function_detail(mname, params, &eff_ret),
                             docstring: docstring.clone(),
                             kind: CompletionItemKind::METHOD,
                         });
@@ -1171,7 +1173,61 @@ fn infer_expr_with_funcs(expr: &Expr, func_returns: &HashMap<String, String>) ->
                 "nothing".to_string()
             }
         }
+        // A bare identifier naming a zero-argument function auto-calls.
+        Expr::Variable { name, .. } => {
+            if let Some(ret) = func_returns.get(name) {
+                ret.clone()
+            } else {
+                function_return_type(name)
+            }
+        }
         _ => "nothing".to_string(),
+    }
+}
+
+/// The declared return type, or one inferred from `return` statements when
+/// the function has no explicit `returns` annotation.
+fn effective_return_type(
+    return_type: &Option<String>,
+    body: &[Stmt],
+    func_returns: &HashMap<String, String>,
+) -> Option<String> {
+    return_type.clone().or_else(|| infer_return_type(body, func_returns))
+}
+
+/// Infer a function's return type from its `return` statements. All returned
+/// expressions must infer to the same type, otherwise give up. Returns of
+/// nested functions are not collected (they belong to the nested function).
+fn infer_return_type(body: &[Stmt], func_returns: &HashMap<String, String>) -> Option<String> {
+    let mut exprs = Vec::new();
+    collect_return_exprs(body, &mut exprs);
+    let mut inferred: Option<String> = None;
+    for expr in exprs {
+        let t = infer_expr_with_funcs(expr, func_returns);
+        match &inferred {
+            None => inferred = Some(t),
+            Some(prev) if *prev == t => {}
+            Some(_) => return None,
+        }
+    }
+    inferred
+}
+
+fn collect_return_exprs<'a>(stmts: &'a [Stmt], out: &mut Vec<&'a Expr>) {
+    for stmt in stmts {
+        match stmt {
+            Stmt::Return { value: Some(e), .. } => out.push(e),
+            Stmt::If { then_branch, else_branch, .. } => {
+                collect_return_exprs(then_branch, out);
+                collect_return_exprs(else_branch, out);
+            }
+            Stmt::While { body, .. } | Stmt::For { body, .. } => collect_return_exprs(body, out),
+            Stmt::Try { body, catch_body, .. } => {
+                collect_return_exprs(body, out);
+                collect_return_exprs(catch_body, out);
+            }
+            _ => {}
+        }
     }
 }
 
@@ -1202,10 +1258,11 @@ fn resolve_symbols_at(program: &Program, name: &str, pos: Position) -> Vec<Symbo
     // the cursor position within the top-level scope.
     for stmt in &program.statements {
         match stmt {
-            Stmt::Define { name: n, params, return_type, docstring, .. } if n == name => {
+            Stmt::Define { name: n, params, return_type, docstring, body, .. } if n == name => {
+                let eff_ret = effective_return_type(return_type, body, &func_returns);
                 result.push(SymbolInfo {
                     name: n.clone(),
-                    detail: function_detail(n, params, return_type),
+                    detail: function_detail(n, params, &eff_ret),
                     docstring: docstring.clone(),
                     kind: CompletionItemKind::FUNCTION,
                 });
@@ -1229,11 +1286,12 @@ fn resolve_symbols_at(program: &Program, name: &str, pos: Position) -> Vec<Symbo
                     }
                 }
                 for m in methods {
-                    if let Stmt::Define { name: mname, params, return_type, docstring, .. } = m {
+                    if let Stmt::Define { name: mname, params, return_type, docstring, body, .. } = m {
                         if mname == name {
+                            let eff_ret = effective_return_type(return_type, body, &func_returns);
                             result.push(SymbolInfo {
                                 name: mname.clone(),
-                                detail: function_detail(mname, params, return_type),
+                                detail: function_detail(mname, params, &eff_ret),
                                 docstring: docstring.clone(),
                                 kind: CompletionItemKind::METHOD,
                             });
@@ -1405,10 +1463,11 @@ fn add_matching_def(
                 kind: CompletionItemKind::VARIABLE,
             });
         }
-        Stmt::Define { name: n, params, return_type, docstring, .. } if n == name && !is_top_level => {
+        Stmt::Define { name: n, params, return_type, docstring, body, .. } if n == name && !is_top_level => {
+            let eff_ret = effective_return_type(return_type, body, func_returns);
             result.push(SymbolInfo {
                 name: n.clone(),
-                detail: function_detail(n, params, return_type),
+                detail: function_detail(n, params, &eff_ret),
                 docstring: docstring.clone(),
                 kind: CompletionItemKind::FUNCTION,
             });
@@ -1434,11 +1493,12 @@ fn add_matching_def(
                 }
             }
             for m in methods {
-                if let Stmt::Define { name: mname, params, return_type, docstring, .. } = m {
+                if let Stmt::Define { name: mname, params, return_type, docstring, body, .. } = m {
                     if mname == name {
+                        let eff_ret = effective_return_type(return_type, body, func_returns);
                         result.push(SymbolInfo {
                             name: mname.clone(),
-                            detail: function_detail(mname, params, return_type),
+                            detail: function_detail(mname, params, &eff_ret),
                             docstring: docstring.clone(),
                             kind: CompletionItemKind::METHOD,
                         });
@@ -1581,10 +1641,11 @@ fn exports_from_path(module: &str, path: &std::path::Path) -> Option<Vec<SymbolI
                     kind: CompletionItemKind::VARIABLE,
                 });
             }
-            Stmt::Define { name, params, return_type, docstring, .. } => {
+            Stmt::Define { name, params, return_type, docstring, body, .. } => {
+                let eff_ret = effective_return_type(return_type, body, &func_returns);
                 exports.push(SymbolInfo {
                     name: name.clone(),
-                    detail: format!("{}::{}", module, function_detail(name, params, return_type)),
+                    detail: format!("{}::{}", module, function_detail(name, params, &eff_ret)),
                     docstring: docstring.clone(),
                     kind: CompletionItemKind::FUNCTION,
                 });
@@ -1605,10 +1666,11 @@ fn exports_from_path(module: &str, path: &std::path::Path) -> Option<Vec<SymbolI
                     });
                 }
                 for m in methods {
-                    if let Stmt::Define { name: mname, params, return_type, docstring, .. } = m {
+                    if let Stmt::Define { name: mname, params, return_type, docstring, body, .. } = m {
+                        let eff_ret = effective_return_type(return_type, body, &func_returns);
                         exports.push(SymbolInfo {
                             name: mname.clone(),
-                            detail: format!("{}::{}", module, function_detail(mname, params, return_type)),
+                            detail: format!("{}::{}", module, function_detail(mname, params, &eff_ret)),
                             docstring: docstring.clone(),
                             kind: CompletionItemKind::METHOD,
                         });

@@ -1087,6 +1087,102 @@ class TestLSP(unittest.TestCase):
                 proc.kill()
                 proc.wait()
 
+    def test_lsp_hover_infers_undeclared_return_type(self):
+        # `define a: return 2.` has no `returns` annotation; hover must infer
+        # the return type from the return statements.
+        proc = subprocess.Popen(
+            [PERIOD, "--lsp"],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        try:
+            uri = "file:///hover_infer_test.period"
+            source = (
+                "define a:\n"
+                "    return 2.\n"
+                "\n"
+                "define b:\n"
+                "    if true, then:\n"
+                "        return 1.\n"
+                "    otherwise:\n"
+                "        return 2.\n"
+                "\n"
+                "define mixed:\n"
+                "    if true, then:\n"
+                "        return 1.\n"
+                "    otherwise:\n"
+                "        return \"x\".\n"
+                "\n"
+                "show a.\n"
+                "show b.\n"
+                "show mixed.\n"
+            )
+            proc.stdin.write(self._lsp_message({
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": {"processId": None, "rootUri": None, "capabilities": {}},
+            }))
+            proc.stdin.flush()
+            msg = self._lsp_read_message(proc)
+            while msg is not None and msg.get("id") != 1:
+                msg = self._lsp_read_message(proc)
+            self.assertIsNotNone(msg, "No initialize response received")
+
+            proc.stdin.write(self._lsp_message({
+                "jsonrpc": "2.0",
+                "method": "initialized",
+                "params": {},
+            }))
+            proc.stdin.write(self._lsp_message({
+                "jsonrpc": "2.0",
+                "method": "textDocument/didOpen",
+                "params": {
+                    "textDocument": {
+                        "uri": uri,
+                        "languageId": "period",
+                        "version": 1,
+                        "text": source,
+                    }
+                },
+            }))
+            proc.stdin.flush()
+
+            lines = source.splitlines()
+
+            def hover_at(line_no, name):
+                proc.stdin.write(self._lsp_message({
+                    "jsonrpc": "2.0",
+                    "id": 100 + line_no,
+                    "method": "textDocument/hover",
+                    "params": {
+                        "textDocument": {"uri": uri},
+                        "position": {"line": line_no, "character": lines[line_no].find(name)},
+                    },
+                }))
+                proc.stdin.flush()
+                msg = self._lsp_read_message(proc)
+                while msg is not None and msg.get("id") != 100 + line_no:
+                    msg = self._lsp_read_message(proc)
+                self.assertIsNotNone(msg, f"No hover response for {name!r}")
+                result = msg.get("result")
+                return result["contents"]["value"] if result else None
+
+            self.assertIn("define a -> integer", hover_at(15, "a"))
+            self.assertIn("define b -> integer", hover_at(16, "b"))
+            # Conflicting return types give up and fall back to nothing.
+            self.assertIn("define mixed -> nothing", hover_at(17, "mixed"))
+        finally:
+            proc.stdin.close()
+            proc.stdout.close()
+            proc.stderr.close()
+            try:
+                proc.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait()
+
 
 class TestStandardLibrary(unittest.TestCase):
     def test_string_module_functions(self):
