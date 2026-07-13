@@ -307,6 +307,8 @@ fn hover(
         }
         let code = if sym.kind == CompletionItemKind::MODULE {
             format!("import {}.", sym.name)
+        } else if matches!(sym.kind, CompletionItemKind::FUNCTION | CompletionItemKind::METHOD) {
+            format!("define {}", sym.detail)
         } else {
             sym.detail.clone()
         };
