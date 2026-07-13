@@ -1028,7 +1028,7 @@ fn format_params(params: &[(String, Option<String>)]) -> String {
 
 fn function_detail(name: &str, params: &[(String, Option<String>)], return_type: &Option<String>) -> String {
     let param_str = format_params(params);
-    let ret = return_type.clone().unwrap_or_else(|| "unknown".to_string());
+    let ret = return_type.clone().unwrap_or_else(|| "nothing".to_string());
     if params.is_empty() {
         format!("{} -> {}", name, ret)
     } else {
@@ -1168,10 +1168,10 @@ fn infer_expr_with_funcs(expr: &Expr, func_returns: &HashMap<String, String>) ->
                     function_return_type(name)
                 }
             } else {
-                "unknown".to_string()
+                "nothing".to_string()
             }
         }
-        _ => "unknown".to_string(),
+        _ => "nothing".to_string(),
     }
 }
 
@@ -1293,7 +1293,7 @@ fn resolve_scope_symbols(
                         if param_name == name {
                             result.push(SymbolInfo {
                                 name: param_name.clone(),
-                                detail: format!("{}: {}", param_name, param_type.as_deref().unwrap_or("unknown")),
+                                detail: format!("{}: {}", param_name, param_type.as_deref().unwrap_or("nothing")),
                                 docstring: None,
                                 kind: CompletionItemKind::VARIABLE,
                             });
@@ -1307,7 +1307,7 @@ fn resolve_scope_symbols(
                             if param_name == name {
                                 result.push(SymbolInfo {
                                     name: param_name.clone(),
-                                    detail: format!("{}: {}", param_name, param_type.as_deref().unwrap_or("unknown")),
+                                    detail: format!("{}: {}", param_name, param_type.as_deref().unwrap_or("nothing")),
                                     docstring: None,
                                     kind: CompletionItemKind::VARIABLE,
                                 });
@@ -1322,7 +1322,7 @@ fn resolve_scope_symbols(
                                     if param_name == name {
                                         result.push(SymbolInfo {
                                             name: param_name.clone(),
-                                            detail: format!("{}: {}", param_name, param_type.as_deref().unwrap_or("unknown")),
+                                            detail: format!("{}: {}", param_name, param_type.as_deref().unwrap_or("nothing")),
                                             docstring: None,
                                             kind: CompletionItemKind::VARIABLE,
                                         });
@@ -1552,7 +1552,7 @@ fn function_return_type(name: &str) -> String {
         "random" => "number",
         "now" => "number",
         "upper" | "lower" => "string",
-        _ => "unknown",
+        _ => "nothing",
     }
     .to_string()
 }
