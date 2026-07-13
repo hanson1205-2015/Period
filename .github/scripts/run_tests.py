@@ -1331,6 +1331,28 @@ class TestStandardLibrary(unittest.TestCase):
             show "ok".
         """, expected_lines=["ok"])
 
+    def test_system_module_run(self):
+        # `echo hi` works in both cmd (Windows) and sh (Unix).
+        run_file("""
+            import system.
+            show run with "echo hi".
+            show type with (run with "echo x").
+        """, expected_lines=["hi", "string"])
+
+    def test_system_module_argument_type_checked(self):
+        out = run_file("""
+            import system.
+            alert with 42.
+        """, should_fail=True)
+        self.assertIn("type mismatch", out)
+
+    def test_system_module_arity_checked(self):
+        out = run_file("""
+            import system.
+            notify with "title".
+        """, should_fail=True)
+        self.assertIn("expected 2 arguments", out)
+
 
 class TestCompactSyntax(unittest.TestCase):
     def test_dot_property_access_and_parenthesized_calls(self):

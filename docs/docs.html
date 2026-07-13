@@ -271,6 +271,7 @@ ada<span class="period">.</span>greet<span class="period">(</span><span class="s
         <li><code>random</code> &mdash; random numbers (native, <code>.periodi</code> stub)</li>
         <li><code>string</code> &mdash; case conversion, trim, split, search, replace, and slicing (native, <code>.periodi</code> stub)</li>
         <li><code>time</code> &mdash; timestamps (native, <code>.periodi</code> stub)</li>
+        <li><code>system</code> &mdash; system integration: <code>run with &lt;command&gt;</code> (shell command, returns stdout), <code>open with &lt;target&gt;</code> (URL or file in the default handler), <code>alert with &lt;message&gt;</code> (message box), <code>confirm with &lt;message&gt;</code> (yes/no dialog, returns boolean), and <code>notify with &lt;title&gt;, &lt;message&gt;</code> (desktop notification). Dialogs and notifications use the native mechanism on each platform (Win32 <code>MessageBox</code>/WinRT toast on Windows, <code>osascript</code> on macOS, <code>zenity</code>/<code>notify-send</code> on Linux). (native, <code>.periodi</code> stub)</li>
         <li><code>list</code> &mdash; sum, max, min, map, filter, find, any, all, contains, reverse, slice, and sort (Period source)</li>
         <li><code>text</code> &mdash; text utilities (Period source)</li>
         <li><code>path</code> &mdash; minimal string path manipulation (Period source)</li>

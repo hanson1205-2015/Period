@@ -1721,6 +1721,13 @@ fn module_exports(module: &str) -> Vec<SymbolInfo> {
         "time" => vec![
             builtin_fn("now", "", "number", "Return the current Unix timestamp."),
         ],
+        "system" => vec![
+            builtin_fn("run", "command", "string", "Run a shell command and return its standard output."),
+            builtin_fn("open", "target", "nothing", "Open a URL or file with the system default handler."),
+            builtin_fn("alert", "message", "nothing", "Show a modal message box."),
+            builtin_fn("confirm", "message", "boolean", "Show a yes/no dialog and return the user's choice."),
+            builtin_fn("notify", "title, message", "nothing", "Show a desktop notification."),
+        ],
         _ => Vec::new(),
     };
     exports
@@ -1744,6 +1751,7 @@ fn all_builtins() -> Vec<SymbolInfo> {
     out.extend(module_exports("math"));
     out.extend(module_exports("string"));
     out.extend(module_exports("random"));
+    out.extend(module_exports("system"));
     out.extend(module_exports("time"));
     out
 }

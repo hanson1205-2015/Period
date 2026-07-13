@@ -239,3 +239,182 @@ pub fn make_time_module() -> Rc<RefCell<Environment>> {
         }}))),
     ])
 }
+
+fn expect_string_arg(arg: &Value, what: &str) -> Result<String, String> {
+    match arg {
+        Value::String(s) => Ok(s.clone()),
+        _ => Err(format!("expected string for {}", what)),
+    }
+}
+
+/// Show a modal message box. Returns the raw button code on Windows
+/// (IDOK=1, IDYES=6, IDNO=7); on other platforms returns 1 for the
+/// affirmative/OK button and 2 for cancel/no, or an error if no dialog
+/// tool is available.
+#[cfg(target_os = "windows")]
+fn platform_message_box(message: &str, yes_no: bool) -> Result<i32, String> {
+    use std::ffi::c_void;
+    #[link(name = "user32")]
+    unsafe extern "system" {
+        fn MessageBoxW(hwnd: *mut c_void, text: *const u16, caption: *const u16, utype: u32) -> i32;
+    }
+    fn wide(s: &str) -> Vec<u16> {
+        s.encode_utf16().chain(std::iter::once(0)).collect()
+    }
+    let text = wide(message);
+    let caption = wide("Period");
+    const MB_OK: u32 = 0;
+    const MB_YESNO: u32 = 4;
+    Ok(unsafe {
+        MessageBoxW(
+            std::ptr::null_mut(),
+            text.as_ptr(),
+            caption.as_ptr(),
+            if yes_no { MB_YESNO } else { MB_OK },
+        )
+    })
+}
+
+#[cfg(target_os = "macos")]
+fn platform_message_box(message: &str, yes_no: bool) -> Result<i32, String> {
+    let escaped = message.replace('\\', "\\\\").replace('"', "\\\"");
+    let script = if yes_no {
+        format!(
+            "display dialog \"{}\" buttons {{\"No\", \"Yes\"}} default button \"Yes\" with title \"Period\"",
+            escaped
+        )
+    } else {
+        format!("display dialog \"{}\" buttons {{\"OK\"}} with title \"Period\"", escaped)
+    };
+    let output = std::process::Command::new("osascript")
+        .args(["-e", &script])
+        .output()
+        .map_err(|e| format!("cannot show dialog: {}", e))?;
+    if !output.status.success() {
+        // Non-zero exit means the user cancelled.
+        return Ok(2);
+    }
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    Ok(if yes_no && !stdout.contains("Yes") { 2 } else { 1 })
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
+fn platform_message_box(message: &str, yes_no: bool) -> Result<i32, String> {
+    let mut cmd = std::process::Command::new("zenity");
+    if yes_no {
+        cmd.args(["--question", "--text", message]);
+    } else {
+        cmd.args(["--info", "--text", message]);
+    }
+    let status = cmd
+        .status()
+        .map_err(|e| format!("cannot show dialog (zenity required): {}", e))?;
+    Ok(if status.success() { 1 } else { 2 })
+}
+
+#[cfg(target_os = "windows")]
+fn platform_notify(title: &str, message: &str) -> Result<(), String> {
+    // WinRT toast via PowerShell; the notifier reuses Windows PowerShell's
+    // AppUserModelID so no app registration is needed.
+    let ps_escape = |s: &str| s.replace('\'', "''");
+    let script = format!(
+        "[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null; \
+         $t = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02); \
+         $n = $t.GetElementsByTagName('text'); \
+         $n.Item(0).AppendChild($t.CreateTextNode('{}')) | Out-Null; \
+         $n.Item(1).AppendChild($t.CreateTextNode('{}')) | Out-Null; \
+         $toast = [Windows.UI.Notifications.ToastNotification]::new($t); \
+         [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('{{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}}\\WindowsPowerShell\\v1.0\\powershell.exe').Show($toast)",
+        ps_escape(title),
+        ps_escape(message)
+    );
+    let status = std::process::Command::new("powershell")
+        .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", &script])
+        .status();
+    match status {
+        Ok(s) if s.success() => Ok(()),
+        // Fall back to a message box when WinRT is unavailable.
+        _ => platform_message_box(&format!("{}\n\n{}", title, message), false).map(|_| ()),
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn platform_notify(title: &str, message: &str) -> Result<(), String> {
+    let script = format!(
+        "display notification \"{}\" with title \"{}\"",
+        message.replace('\\', "\\\\").replace('"', "\\\""),
+        title.replace('\\', "\\\\").replace('"', "\\\"")
+    );
+    std::process::Command::new("osascript")
+        .args(["-e", &script])
+        .status()
+        .map_err(|e| format!("cannot show notification: {}", e))?;
+    Ok(())
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
+fn platform_notify(title: &str, message: &str) -> Result<(), String> {
+    std::process::Command::new("notify-send")
+        .args([title, message])
+        .status()
+        .map_err(|e| format!("cannot show notification (notify-send required): {}", e))?;
+    Ok(())
+}
+
+pub fn make_system_module() -> Rc<RefCell<Environment>> {
+    fn run_fn(args: &[Value]) -> Result<Value, String> {
+        let command = expect_string_arg(&args[0], "command")?;
+        let output = if cfg!(target_os = "windows") {
+            std::process::Command::new("cmd").args(["/C", &command]).output()
+        } else {
+            std::process::Command::new("sh").args(["-c", &command]).output()
+        }
+        .map_err(|e| format!("cannot run command: {}", e))?;
+        let mut out = String::from_utf8_lossy(&output.stdout).into_owned();
+        while out.ends_with('\n') || out.ends_with('\r') {
+            out.pop();
+        }
+        Ok(Value::String(out))
+    }
+
+    fn open_fn(args: &[Value]) -> Result<Value, String> {
+        let target = expect_string_arg(&args[0], "target")?;
+        let result = if cfg!(target_os = "windows") {
+            std::process::Command::new("cmd").args(["/C", "start", "", &target]).spawn()
+        } else if cfg!(target_os = "macos") {
+            std::process::Command::new("open").arg(&target).spawn()
+        } else {
+            std::process::Command::new("xdg-open").arg(&target).spawn()
+        };
+        result.map_err(|e| format!("cannot open '{}': {}", target, e))?;
+        Ok(Value::Nothing)
+    }
+
+    fn alert_fn(args: &[Value]) -> Result<Value, String> {
+        let message = expect_string_arg(&args[0], "message")?;
+        platform_message_box(&message, false)?;
+        Ok(Value::Nothing)
+    }
+
+    fn confirm_fn(args: &[Value]) -> Result<Value, String> {
+        let message = expect_string_arg(&args[0], "message")?;
+        let code = platform_message_box(&message, true)?;
+        // IDOK=1 / IDYES=6 on Windows; 1 is the affirmative button elsewhere.
+        Ok(Value::Bool(code == 1 || code == 6))
+    }
+
+    fn notify_fn(args: &[Value]) -> Result<Value, String> {
+        let title = expect_string_arg(&args[0], "title")?;
+        let message = expect_string_arg(&args[1], "message")?;
+        platform_notify(&title, &message)?;
+        Ok(Value::Nothing)
+    }
+
+    make_module(vec![
+        ("run", Value::BuiltIn(Box::new(BuiltInValue { name: "run".to_string(), min_arity: 1, max_arity: 1, func: run_fn }))),
+        ("open", Value::BuiltIn(Box::new(BuiltInValue { name: "open".to_string(), min_arity: 1, max_arity: 1, func: open_fn }))),
+        ("alert", Value::BuiltIn(Box::new(BuiltInValue { name: "alert".to_string(), min_arity: 1, max_arity: 1, func: alert_fn }))),
+        ("confirm", Value::BuiltIn(Box::new(BuiltInValue { name: "confirm".to_string(), min_arity: 1, max_arity: 1, func: confirm_fn }))),
+        ("notify", Value::BuiltIn(Box::new(BuiltInValue { name: "notify".to_string(), min_arity: 2, max_arity: 2, func: notify_fn }))),
+    ])
+}

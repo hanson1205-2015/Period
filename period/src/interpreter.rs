@@ -9,7 +9,7 @@ use num_bigint::BigInt;
 use num_traits::cast::{FromPrimitive, ToPrimitive};
 
 use crate::ast::*;
-use crate::builtins::{install_builtins, make_math_module, make_random_module, make_string_module, make_time_module};
+use crate::builtins::{install_builtins, make_math_module, make_random_module, make_string_module, make_system_module, make_time_module};
 use crate::compiler;
 use crate::environment::Environment;
 use crate::jit_generic;
@@ -909,6 +909,7 @@ impl Interpreter {
                 "math" => make_math_module(),
                 "random" => make_random_module(),
                 "string" => make_string_module(),
+                "system" => make_system_module(),
                 "time" => make_time_module(),
                 _ => return Err(Control::RuntimeError(format!("Module '{}' not found", path), span.clone())),
             }

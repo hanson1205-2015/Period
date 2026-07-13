@@ -250,6 +250,13 @@ impl TypeChecker {
                 ("substring".to_string(), Type::Function(vec![Type::String, Type::Integer, Type::Integer], Box::new(Type::String))),
             ],
             "time" => vec![("now".to_string(), Type::Function(vec![], Box::new(Type::Number)))],
+            "system" => vec![
+                ("run".to_string(), Type::Function(vec![Type::String], Box::new(Type::String))),
+                ("open".to_string(), Type::Function(vec![Type::String], Box::new(Type::Nothing))),
+                ("alert".to_string(), Type::Function(vec![Type::String], Box::new(Type::Nothing))),
+                ("confirm".to_string(), Type::Function(vec![Type::String], Box::new(Type::Boolean))),
+                ("notify".to_string(), Type::Function(vec![Type::String, Type::String], Box::new(Type::Nothing))),
+            ],
             "path" => vec![
                 ("join".to_string(), Type::Function(vec![Type::String, Type::String], Box::new(Type::String))),
                 ("basename".to_string(), Type::Function(vec![Type::String], Box::new(Type::String))),

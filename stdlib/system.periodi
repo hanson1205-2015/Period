@@ -1,0 +1,21 @@
+-- System-level integration: shell commands, default handlers, dialogs, notifications.
+
+define run with string command returns string:
+    "Run a shell command and return its standard output (trailing newline trimmed).".
+    ...
+
+define open with string target:
+    "Open a URL or file with the system default handler.".
+    ...
+
+define alert with string message:
+    "Show a modal message box.".
+    ...
+
+define confirm with string message returns boolean:
+    "Show a yes/no dialog and return true when the user confirms.".
+    ...
+
+define notify with string title, string message:
+    "Show a desktop notification.".
+    ...
