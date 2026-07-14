@@ -5,13 +5,14 @@ use serde::{Deserialize, Serialize};
 /// Default registry URL.
 pub fn default_registry() -> String {
     std::env::var("PERIOD_REGISTRY")
-        .unwrap_or_else(|_| "https://raw.githubusercontent.com/ExploreMaths/Period/main/registry".to_string())
+        .unwrap_or_else(|_| "https://period-lang.github.io/registry".to_string())
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct RegistryIndex {
-    pub name: String,
-    pub versions: BTreeMap<String, RegistryVersion>,
+    pub schema_version: String,
+    #[serde(default)]
+    pub packages: BTreeMap<String, BTreeMap<String, RegistryVersion>>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
@@ -24,15 +25,15 @@ pub struct RegistryVersion {
 }
 
 impl RegistryIndex {
-    pub fn fetch(registry: &str, name: &str) -> Result<Self, String> {
-        let url = format!("{}/index/{}.json", registry.trim_end_matches('/'), name);
+    pub fn fetch(registry: &str) -> Result<Self, String> {
+        let url = format!("{}/registry.json", registry.trim_end_matches('/'));
         let text = ureq::get(&url)
             .call()
-            .map_err(|e| format!("failed to fetch registry index for '{}': {}", name, e))?
+            .map_err(|e| format!("failed to fetch registry from '{}': {}", url, e))?
             .into_string()
-            .map_err(|e| format!("failed to read registry index for '{}': {}", name, e))?;
+            .map_err(|e| format!("failed to read registry from '{}': {}", url, e))?;
         serde_json::from_str(&text)
-            .map_err(|e| format!("invalid registry index for '{}': {}", name, e))
+            .map_err(|e| format!("invalid registry at '{}': {}", url, e))
     }
 }
 
@@ -174,5 +175,30 @@ mod tests {
             dependencies: BTreeMap::new(),
         });
         assert_eq!(select_version("*", &versions).unwrap(), "0.5.1");
+    }
+
+    #[test]
+    fn deserialize_registry_index() {
+        let json = r#"{
+            "schema_version": "1",
+            "packages": {
+                "list": {
+                    "1.0.0": {
+                        "url": "https://github.com/period-lang/registry/releases/download/list-1.0.0/list-1.0.0.period",
+                        "checksum": "sha256:abcd",
+                        "dependencies": {}
+                    }
+                }
+            }
+        }"#;
+        let index: RegistryIndex = serde_json::from_str(json).unwrap();
+        assert_eq!(index.schema_version, "1");
+        let list = index.packages.get("list").expect("list package");
+        let version = list.get("1.0.0").expect("1.0.0 version");
+        assert_eq!(
+            version.url,
+            "https://github.com/period-lang/registry/releases/download/list-1.0.0/list-1.0.0.period"
+        );
+        assert_eq!(version.checksum.as_deref(), Some("sha256:abcd"));
     }
 }

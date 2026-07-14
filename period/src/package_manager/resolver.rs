@@ -15,6 +15,7 @@ pub struct ResolvedPackage {
 
 pub struct Resolver<'a> {
     registry: &'a str,
+    index: Option<RegistryIndex>,
     resolved: BTreeMap<String, ResolvedPackage>,
     loading: HashSet<String>,
 }
@@ -23,6 +24,7 @@ impl<'a> Resolver<'a> {
     pub fn new(registry: &'a str) -> Self {
         Self {
             registry,
+            index: None,
             resolved: BTreeMap::new(),
             loading: HashSet::new(),
         }
@@ -75,10 +77,20 @@ impl<'a> Resolver<'a> {
         Ok(self.resolved.values().cloned().collect())
     }
 
-    fn resolve_registry(&self, name: &str, constraint: &str) -> Result<ResolvedVersion, String> {
-        let index = RegistryIndex::fetch(self.registry, name)?;
-        let version = select_version(constraint, &index.versions)?;
-        let entry = index.versions.get(&version).unwrap();
+    fn resolve_registry(&mut self,
+        name: &str,
+        constraint: &str,
+    ) -> Result<ResolvedVersion, String> {
+        if self.index.is_none() {
+            self.index = Some(RegistryIndex::fetch(self.registry)?);
+        }
+        let index = self.index.as_ref().unwrap();
+        let versions = index
+            .packages
+            .get(name)
+            .ok_or_else(|| format!("package '{}' not found in registry", name))?;
+        let version = select_version(constraint, versions)?;
+        let entry = versions.get(&version).unwrap();
         Ok(ResolvedVersion {
             version,
             source: format!("registry+{}", entry.url),

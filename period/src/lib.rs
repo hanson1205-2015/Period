@@ -94,15 +94,16 @@ pub unsafe extern "C" fn period_run() -> i32 {
         let mut file: Option<String> = None;
         let mut version: Option<String> = None;
         let mut name: Option<String> = None;
-        let mut registry: Option<String> = None;
+        let mut registry_file: Option<String> = None;
         let mut base_url: Option<String> = None;
+        let usage = "usage: period publish <file.period> [--version <version>] [--name <name>] [--registry-file <path>] [--base-url <url>]";
         let mut i = 2;
         while i < args.len() {
             match args[i].as_str() {
                 "--version" => {
                     i += 1;
                     if i >= args.len() {
-                        eprintln!("usage: period publish <file.period> [--version <version>] [--name <name>] [--registry <dir>] [--base-url <url>]");
+                        eprintln!("{}", usage);
                         return 1;
                     }
                     version = Some(args[i].clone());
@@ -110,30 +111,30 @@ pub unsafe extern "C" fn period_run() -> i32 {
                 "--name" | "-n" => {
                     i += 1;
                     if i >= args.len() {
-                        eprintln!("usage: period publish <file.period> [--version <version>] [--name <name>] [--registry <dir>] [--base-url <url>]");
+                        eprintln!("{}", usage);
                         return 1;
                     }
                     name = Some(args[i].clone());
                 }
-                "--registry" | "-r" => {
+                "--registry-file" | "-r" => {
                     i += 1;
                     if i >= args.len() {
-                        eprintln!("usage: period publish <file.period> [--version <version>] [--name <name>] [--registry <dir>] [--base-url <url>]");
+                        eprintln!("{}", usage);
                         return 1;
                     }
-                    registry = Some(args[i].clone());
+                    registry_file = Some(args[i].clone());
                 }
                 "--base-url" | "-u" => {
                     i += 1;
                     if i >= args.len() {
-                        eprintln!("usage: period publish <file.period> [--version <version>] [--name <name>] [--registry <dir>] [--base-url <url>]");
+                        eprintln!("{}", usage);
                         return 1;
                     }
                     base_url = Some(args[i].clone());
                 }
                 other => {
                     if file.is_some() {
-                        eprintln!("usage: period publish <file.period> [--version <version>] [--name <name>] [--registry <dir>] [--base-url <url>]");
+                        eprintln!("{}", usage);
                         return 1;
                     }
                     file = Some(other.to_string());
@@ -142,16 +143,16 @@ pub unsafe extern "C" fn period_run() -> i32 {
             i += 1;
         }
         let Some(file) = file else {
-            eprintln!("usage: period publish <file.period> [--version <version>] [--name <name>] [--registry <dir>] [--base-url <url>]");
+            eprintln!("{}", usage);
             return 1;
         };
         let file_path = PathBuf::from(&file);
-        let registry_path = registry.as_deref().map(PathBuf::from);
+        let registry_file_path = registry_file.as_deref().map(PathBuf::from);
         let options = package_manager::PublishOptions {
             file: &file_path,
             name: name.as_deref(),
             version: version.as_deref(),
-            registry_dir: registry_path.as_deref(),
+            registry_file: registry_file_path.as_deref(),
             base_url: base_url.as_deref(),
         };
         if let Err(e) = package_manager::publish(options) {

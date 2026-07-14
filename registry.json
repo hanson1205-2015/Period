@@ -1,0 +1,19 @@
+{
+  "schema_version": "1",
+  "packages": {
+    "hello": {
+      "1.0.0": {
+        "url": "https://github.com/period-lang/registry/releases/download/hello-1.0.0/hello-1.0.0.period",
+        "checksum": "sha256:7ce9752dad1d85d7a31ee49d04561f19c52779002d4f0a777787aa8cce04d38d",
+        "dependencies": {}
+      }
+    },
+    "triple": {
+      "1.0.0": {
+        "url": "https://github.com/period-lang/registry/releases/download/triple-1.0.0/triple-1.0.0.period",
+        "checksum": "sha256:0d254bbc7990ebd3b032e6980b0d254d76bd2ca7cacef6e32bdb22983440ec82",
+        "dependencies": {}
+      }
+    }
+  }
+}

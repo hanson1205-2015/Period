@@ -4,89 +4,80 @@ use std::path::{Path, PathBuf};
 
 use crate::package_manager::downloader::sha256_hex;
 use crate::package_manager::manifest::PeriodToml;
-use crate::package_manager::registry::RegistryIndex;
+use crate::package_manager::registry::{RegistryIndex, RegistryVersion};
 
 /// Options for publishing a package.
 pub struct PublishOptions<'a> {
     pub file: &'a Path,
     pub name: Option<&'a str>,
     pub version: Option<&'a str>,
-    pub registry_dir: Option<&'a Path>,
+    pub registry_file: Option<&'a Path>,
     pub base_url: Option<&'a str>,
 }
 
-/// Publish a `.period` file to a local registry directory or upload it to a registry server.
+/// Publish a `.period` file and produce a registry entry.
 ///
 /// If `version` is `None`, tries to read it from `period.toml` in the current
 /// directory, falling back to `"1.0.0"`.
 ///
-/// If `registry_dir` is `None`, defaults to a `registry/` directory next to
-/// the current project's `period.toml`, or the current working directory.
+/// The file is read, its SHA256 checksum is computed, and a registry entry is
+/// built. If `registry_file` is provided, the entry is merged into that file
+/// (creating it if necessary). Otherwise the entry JSON is printed to stdout.
 pub fn publish(options: PublishOptions<'_>) -> Result<(), String> {
     let package_name = determine_package_name(options.file, options.name)?;
     let package_version = determine_version(options.version)?;
 
-    let registry = options.registry_dir
-        .map(PathBuf::from)
-        .unwrap_or_else(default_registry_dir);
-
-    let packages_dir = registry.join("packages");
-    let index_dir = registry.join("index");
-    fs::create_dir_all(&packages_dir)
-        .map_err(|e| format!("cannot create {}: {}", packages_dir.display(), e))?;
-    fs::create_dir_all(&index_dir)
-        .map_err(|e| format!("cannot create {}: {}", index_dir.display(), e))?;
-
-    let dest_filename = format!("{}-{}.period", package_name, package_version);
-    let dest_path = packages_dir.join(&dest_filename);
-    if dest_path.exists() {
-        return Err(format!(
-            "package '{} {}' already exists at {}",
-            package_name,
-            package_version,
-            dest_path.display()
-        ));
-    }
-
-    fs::copy(options.file, &dest_path)
-        .map_err(|e| format!("cannot copy to {}: {}", dest_path.display(), e))?;
-
-    let bytes = fs::read(&dest_path)
-        .map_err(|e| format!("cannot read '{}': {}", dest_path.display(), e))?;
+    let bytes = fs::read(options.file)
+        .map_err(|e| format!("cannot read '{}': {}", options.file.display(), e))?;
     let checksum = format!("sha256:{}", sha256_hex(&bytes));
 
-    let registry_url = options.base_url
-        .map(|u| format!("{}/packages/{}-{}.period", u.trim_end_matches('/'), package_name, package_version))
+    let registry_url = options
+        .base_url
+        .map(|u| format!("{}/{}-{}.period", u.trim_end_matches('/'), package_name, package_version))
         .unwrap_or_else(|| default_registry_url_for(&package_name, &package_version));
-    let index_path = index_dir.join(format!("{}.json", package_name));
-    let mut index = load_or_create_index(&index_path, &package_name)?;
 
-    index.versions.insert(
-        package_version.clone(),
-        crate::package_manager::registry::RegistryVersion {
-            url: registry_url,
-            checksum: Some(checksum),
-            dependencies: BTreeMap::new(),
-        },
-    );
+    let entry = RegistryVersion {
+        url: registry_url,
+        checksum: Some(checksum),
+        dependencies: BTreeMap::new(),
+    };
 
-    let index_json = serde_json::to_string_pretty(&index)
-        .map_err(|e| format!("cannot serialize index: {}", e))?;
-    fs::write(&index_path, index_json)
-        .map_err(|e| format!("cannot write {}: {}", index_path.display(), e))?;
+    if let Some(registry_file) = options.registry_file {
+        let mut index = load_or_create_registry(registry_file)?;
+        let package_entry = index
+            .packages
+            .entry(package_name.clone())
+            .or_default();
+        if package_entry.contains_key(&package_version) {
+            return Err(format!(
+                "package '{} {}' already exists in registry",
+                package_name, package_version
+            ));
+        }
+        package_entry.insert(package_version.clone(), entry);
 
-    println!(
-        "Published {} {} to registry\n  package: {}\n  index: {}",
-        package_name,
-        package_version,
-        dest_path.display(),
-        index_path.display()
-    );
+        let index_json = serde_json::to_string_pretty(&index)
+            .map_err(|e| format!("cannot serialize registry: {}", e))?;
+        fs::write(registry_file, index_json)
+            .map_err(|e| format!("cannot write {}: {}", registry_file.display(), e))?;
 
-    println!("\nNext steps:");
-    println!("  1. Review the generated files under '{}'.", registry.display());
-    println!("  2. git add registry/ && git commit -m 'publish {} {}'", package_name, package_version);
-    println!("  3. Open a PR or push to your registry remote manually.");
+        println!(
+            "Updated {} with {} {}",
+            registry_file.display(),
+            package_name,
+            package_version
+        );
+    } else {
+        let snippet = serde_json::to_string_pretty(&BTreeMap::from([(
+            package_version.clone(),
+            entry,
+        )]))
+        .map_err(|e| format!("cannot serialize entry: {}", e))?;
+        println!(
+            "Add the following entry for package '{}' to your registry.json:\n{}",
+            package_name, snippet
+        );
+    }
 
     Ok(())
 }
@@ -130,31 +121,23 @@ fn determine_version(override_version: Option<&str>) -> Result<String, String> {
     Ok("1.0.0".to_string())
 }
 
-fn default_registry_dir() -> PathBuf {
-    let manifest_path = PathBuf::from("period.toml");
-    if let Some(parent) = manifest_path.parent() {
-        return parent.join("registry");
-    }
-    PathBuf::from("registry")
-}
-
 fn default_registry_url_for(name: &str, version: &str) -> String {
     format!(
-        "https://raw.githubusercontent.com/ExploreMaths/Period/main/registry/packages/{}-{}.period",
-        name, version
+        "https://github.com/period-lang/registry/releases/download/{}-{}/{}-{}.period",
+        name, version, name, version
     )
 }
 
-fn load_or_create_index(path: &Path, name: &str) -> Result<RegistryIndex, String> {
+fn load_or_create_registry(path: &Path) -> Result<RegistryIndex, String> {
     if path.exists() {
         let text = fs::read_to_string(path)
             .map_err(|e| format!("cannot read {}: {}", path.display(), e))?;
         serde_json::from_str(&text)
-            .map_err(|e| format!("invalid index {}: {}", path.display(), e))
+            .map_err(|e| format!("invalid registry {}: {}", path.display(), e))
     } else {
         Ok(RegistryIndex {
-            name: name.to_string(),
-            versions: BTreeMap::new(),
+            schema_version: "1".to_string(),
+            packages: BTreeMap::new(),
         })
     }
 }
@@ -165,29 +148,56 @@ mod tests {
     use std::env;
 
     #[test]
-    fn publish_creates_index_and_package() {
+    fn publish_prints_entry_without_registry_file() {
         let tmp = env::temp_dir().join(format!("period-publish-test-{}", std::process::id()));
         fs::create_dir_all(&tmp).unwrap();
         let src = tmp.join("greet.period");
-        fs::write(&src, "export hi.\ndefine hi with x:\n    return x.\n").unwrap();
+        fs::write(&src,
+            "export hi.\ndefine hi with x:\n    return x.\n",
+        )
+        .unwrap();
 
-        let reg = tmp.join("registry");
         publish(PublishOptions {
             file: &src,
             name: None,
             version: Some("1.2.3"),
-            registry_dir: Some(&reg),
+            registry_file: None,
             base_url: None,
-        }).unwrap();
+        })
+        .unwrap();
 
-        let pkg = reg.join("packages").join("greet-1.2.3.period");
-        let idx = reg.join("index").join("greet.json");
-        assert!(pkg.exists());
-        assert!(idx.exists());
+        fs::remove_dir_all(&tmp).unwrap();
+    }
 
-        let index: RegistryIndex = serde_json::from_str(&fs::read_to_string(&idx).unwrap()).unwrap();
-        assert_eq!(index.name, "greet");
-        assert!(index.versions.contains_key("1.2.3"));
+    #[test]
+    fn publish_creates_registry_file() {
+        let tmp = env::temp_dir().join(format!("period-publish-reg-test-{}", std::process::id()));
+        fs::create_dir_all(&tmp).unwrap();
+        let src = tmp.join("greet.period");
+        fs::write(&src, "export hi.").unwrap();
+        let reg = tmp.join("registry.json");
+
+        publish(PublishOptions {
+            file: &src,
+            name: None,
+            version: Some("1.2.3"),
+            registry_file: Some(&reg),
+            base_url: None,
+        })
+        .unwrap();
+
+        assert!(reg.exists());
+        let index: RegistryIndex = serde_json::from_str(&fs::read_to_string(&reg).unwrap()).unwrap();
+        assert_eq!(index.schema_version, "1");
+        let versions = index.packages.get("greet").expect("greet package");
+        assert!(versions.contains_key("1.2.3"));
+        assert!(versions
+            .get("1.2.3")
+            .unwrap()
+            .checksum
+            .as_ref()
+            .unwrap()
+            .starts_with("sha256:"));
 
         fs::remove_dir_all(&tmp).unwrap();
     }
@@ -198,20 +208,21 @@ mod tests {
         fs::create_dir_all(&tmp).unwrap();
         let src = tmp.join("greet.period");
         fs::write(&src, "export hi.").unwrap();
+        let reg = tmp.join("registry.json");
 
-        let reg = tmp.join("registry");
         publish(PublishOptions {
             file: &src,
             name: None,
             version: Some("1.0.0"),
-            registry_dir: Some(&reg),
+            registry_file: Some(&reg),
             base_url: None,
-        }).unwrap();
+        })
+        .unwrap();
         let result = publish(PublishOptions {
             file: &src,
             name: None,
             version: Some("1.0.0"),
-            registry_dir: Some(&reg),
+            registry_file: Some(&reg),
             base_url: None,
         });
         assert!(result.is_err());

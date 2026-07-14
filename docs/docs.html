@@ -25,6 +25,7 @@
         <li><a href="#types">Type Annotations</a></li>
         <li><a href="#classes">Classes</a></li>
         <li><a href="#imports">Imports</a></li>
+        <li><a href="#packages">Packages</a></li>
         <li><a href="#builtins">Built-ins</a></li>
         <li><a href="#files">File I/O</a></li>
         <li><a href="#exceptions">Exceptions</a></li>
@@ -284,6 +285,33 @@ ada<span class="period">.</span>greet<span class="period">(</span><span class="s
 
 <span class="keyword">let</span> pi <span class="keyword">be</span> <span class="keyword">...</span><span class="period">.</span></code></pre>
       <p>Local modules must be imported with a POSIX-style relative path: <code>./helper</code> loads <code>helper.period</code> from the same directory as the importing file, and <code>../utils/helper</code> loads it from the parent directory's <code>utils</code> folder. A project <code>lib/</code> folder is also checked for relative imports. Plain module names such as <code>helper</code> only resolve to built-in or standard-library modules.</p>
+    </section>
+
+    <section id="packages">
+      <h2>Packages</h2>
+      <p>Period has a built-in package manager. Packages are plain <code>.period</code> files published to a registry.</p>
+
+      <h3>Using packages</h3>
+      <p>Add a dependency to <code>period.toml</code>:</p>
+      <pre><code>[package]
+name = "my-project"
+version = "0.1.0"
+
+[dependencies]
+list = "^1.0.0"
+math = "~2.1.0"
+hello = "=1.0.0"</code></pre>
+      <p>Then run <code>period install</code>. The CLI downloads the registry index, resolves versions, fetches each package, verifies its SHA-256 checksum, and writes <code>period.lock</code>.</p>
+      <p>Version constraints support <code>*</code>, <code>=1.2.3</code>, <code>^1.2.3</code>, and <code>~1.2.3</code>. The registry index is a single JSON file hosted on a static site such as GitHub Pages.</p>
+
+      <h3>Publishing packages</h3>
+      <p>Prepare a <code>.period</code> file with <code>export</code> statements and run:</p>
+      <pre><code>period publish greet.period --version 1.0.0 --registry-file registry.json</code></pre>
+      <p>This computes the file checksum and updates <code>registry.json</code>. Next, upload the <code>.period</code> file to your release host (for example, as a GitHub Release asset) and deploy the updated <code>registry.json</code> to GitHub Pages. The default download URL assumes GitHub Releases at <code>https://github.com/period-lang/registry/releases/download/{name}-{version}/{name}-{version}.period</code>; override it with <code>--base-url</code> if you use Cloudflare R2 or another host.</p>
+
+      <h3>Private or custom registries</h3>
+      <p>Point the CLI at a different registry with the <code>PERIOD_REGISTRY</code> environment variable:</p>
+      <pre><code>PERIOD_REGISTRY=https://my-org.github.io/registry period install</code></pre>
     </section>
 
     <section id="builtins">
