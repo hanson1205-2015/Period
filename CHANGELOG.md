@@ -21,6 +21,7 @@
 - The optional comma after an `if` condition is removed: only `if <condition> then:` is accepted now. This was a grammar concession to typos that complicated the parser for no real benefit.
 - `README.md` benchmark wording now leads with the caveat that the compared workloads are hand-picked loop patterns evaluated with closed-form arithmetic, not a general performance claim. Package manager instructions now describe the hosted-registry model instead of the old `period publish --push` workflow.
 - `stdlib/list.period` `sort` is now a mergesort (O(n log n)) instead of an insertion sort that repeatedly sliced and concatenated sublists.
+- `map`, `filter`, `find`, `any`, `all`, `contains`, `reverse`, and `slice` in `stdlib/list.period` now have explicit `list of anything` parameter and return-type annotations where applicable, so the static checker can catch more list-shape mismatches at call sites.
 
 ### Fixed
 

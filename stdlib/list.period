@@ -20,50 +20,50 @@ define min with list of number values returns number:
             set m to x.
     return m.
 
-define map with values, f:
+define map with list of anything values, f returns list of anything:
     let result be [].
     for x in values repeat:
         set result to result + [f with x].
     return result.
 
-define filter with values, f:
+define filter with list of anything values, f returns list of anything:
     let result be [].
     for x in values repeat:
         if (f with x) then:
             set result to result + [x].
     return result.
 
-define find with values, f:
+define find with list of anything values, f returns anything:
     for x in values repeat:
         if (f with x) then:
             return x.
     return nothing.
 
-define any with values, f returns boolean:
+define any with list of anything values, f returns boolean:
     for x in values repeat:
         if (f with x) then:
             return true.
     return false.
 
-define all with values, f returns boolean:
+define all with list of anything values, f returns boolean:
     for x in values repeat:
         if not (f with x) then:
             return false.
     return true.
 
-define contains with values, item returns boolean:
+define contains with list of anything values, anything item returns boolean:
     for x in values repeat:
         if x == item then:
             return true.
     return false.
 
-define reverse with values:
+define reverse with list of anything values returns list of anything:
     let result be [].
     for x in values repeat:
         set result to [x] + result.
     return result.
 
-define slice with values, integer start, integer end:
+define slice with list of anything values, integer start, integer end returns list of anything:
     let result be [].
     let i be start.
     let len be length with values.
