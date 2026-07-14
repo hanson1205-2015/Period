@@ -69,7 +69,7 @@ fn check_program(program: &Program, current_path: Option<&Path>) -> Diagnostics 
 }
 
 fn builtin_globals() -> Vec<&'static str> {
-    vec!["length", "string", "number", "integer", "boolean", "type", "input", "range", "error"]
+    vec!["length", "string", "number", "integer", "boolean", "type", "input", "range", "error", "append"]
 }
 
 /// Scoped symbol table with duplicate-detection warnings.

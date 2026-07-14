@@ -50,6 +50,8 @@ impl TypeChecker {
         builtins.insert("range".to_string(), Type::Function(vec![Type::Integer], Box::new(Type::Range)));
         // `error` raises a runtime error with a message.
         builtins.insert("error".to_string(), Type::Function(vec![Type::String], Box::new(Type::Nothing)));
+        // `append` mutates a list by adding an element to the end.
+        builtins.insert("append".to_string(), Type::Function(vec![Type::List(Box::new(Type::Anything)), Type::Anything], Box::new(Type::Nothing)));
         Self {
             errors: Vec::new(),
             warnings: Vec::new(),

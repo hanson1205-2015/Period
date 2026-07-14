@@ -6,6 +6,7 @@
 
 - Union type annotations: several types can be combined with `or` (`number or string`, or `integer, number or string` for three or more) on parameters, return values, and variables. A value matches a union when it matches any member; mismatches are reported with the full union name. Checked both statically and at runtime.
 - Function type annotations: callbacks can be annotated as `function(integer) -> boolean`, `function(anything) -> anything`, `function(integer, string) -> number`, etc. This lets higher-order standard-library functions such as `map` and `filter` expose precise signatures to the static checker and LSP hover.
+- New built-in `append with <list>, <value>`: mutates a list by adding an element to the end and returns `nothing`. Used by the standard library to build lists efficiently.
 - LSP semantic tokens: user-defined functions, classes, and methods are highlighted at both definition and call sites, including zero-argument calls that the TextMate grammar cannot distinguish from variables. When the document has syntax errors, highlighting falls back to a token-stream scan so it keeps working while typing.
 - The LSP now infers undeclared function return types from `return` statements for hover and completion, including if/otherwise branches; conflicting types are shown as a union in the language's list style.
 - The TextMate grammar now highlights the function name after `define` (which also fixes function-name highlighting inside hover popups).
@@ -23,6 +24,7 @@
 - `README.md` benchmark wording now leads with the caveat that the compared workloads are hand-picked loop patterns evaluated with closed-form arithmetic, not a general performance claim. Package manager instructions now describe the hosted-registry model instead of the old `period publish --push` workflow.
 - `stdlib/list.period` `sort` is now a mergesort (O(n log n)) instead of an insertion sort that repeatedly sliced and concatenated sublists.
 - `map`, `filter`, `find`, `any`, `all`, `contains`, `reverse`, and `slice` in `stdlib/list.period` now have explicit type annotations. Higher-order callbacks use the new `function(...) -> ...` syntax so the static checker and LSP know the expected callback shape.
+- `map`, `filter`, `reverse`, and `slice` in `stdlib/list.period` no longer build their results by repeatedly concatenating single-element lists (`result + [x]` was O(n²)). A new built-in `append with <list>, <value>` mutates the list in place, and the standard-library functions use it to build results in O(n). Both `stdlib/` copies are updated.
 
 ### Fixed
 

@@ -23,14 +23,14 @@ define min with list of number values returns number:
 define map with list of anything values, function(anything) -> anything f returns list of anything:
     let result be [].
     for x in values repeat:
-        set result to result + [f with x].
+        append with result, (f with x).
     return result.
 
 define filter with list of anything values, function(anything) -> boolean f returns list of anything:
     let result be [].
     for x in values repeat:
         if (f with x) then:
-            set result to result + [x].
+            append with result, x.
     return result.
 
 define find with list of anything values, function(anything) -> boolean f returns anything:
@@ -59,8 +59,10 @@ define contains with list of anything values, anything item returns boolean:
 
 define reverse with list of anything values returns list of anything:
     let result be [].
-    for x in values repeat:
-        set result to [x] + result.
+    let i be length with values.
+    while i > 0 repeat:
+        set i to i - 1.
+        append with result, values[i].
     return result.
 
 define slice with list of anything values, integer start, integer end returns list of anything:
@@ -71,7 +73,7 @@ define slice with list of anything values, integer start, integer end returns li
     if stop > len then:
         set stop to len.
     while i < stop repeat:
-        set result to result + [values[i]].
+        append with result, values[i].
         set i to i + 1.
     return result.
 

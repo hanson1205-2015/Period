@@ -20,6 +20,17 @@ pub fn install_builtins(env: &Environment) {
     env.define_untyped("input", Value::BuiltIn(Box::new(BuiltInValue { name: "input".to_string(), min_arity: 0, max_arity: 0, func: builtin_input })));
     env.define_untyped("range", Value::BuiltIn(Box::new(BuiltInValue { name: "range".to_string(), min_arity: 1, max_arity: 3, func: builtin_range })));
     env.define_untyped("error", Value::BuiltIn(Box::new(BuiltInValue { name: "error".to_string(), min_arity: 1, max_arity: 1, func: builtin_error })));
+    env.define_untyped("append", Value::BuiltIn(Box::new(BuiltInValue { name: "append".to_string(), min_arity: 2, max_arity: 2, func: builtin_append })));
+}
+
+fn builtin_append(args: &[Value]) -> Result<Value, String> {
+    match &args[0] {
+        Value::List(l) => {
+            l.borrow_mut().push(args[1].clone());
+            Ok(Value::Nothing)
+        }
+        _ => Err("append requires a list".to_string()),
+    }
 }
 
 fn builtin_length(args: &[Value]) -> Result<Value, String> {
