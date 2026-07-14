@@ -11,6 +11,7 @@ mod lsp;
 mod package_manager;
 mod parser;
 mod reporting;
+mod repl;
 mod semantic;
 mod type_checker;
 mod types;
@@ -19,7 +20,6 @@ mod vm;
 
 use std::env;
 use std::fs;
-use std::io::{self, Write};
 use std::path::PathBuf;
 use std::rc::Rc;
 
@@ -43,7 +43,7 @@ pub unsafe extern "C" fn period_run() -> i32 {
 
     let args: Vec<String> = env::args().collect();
     if args.len() == 1 {
-        if let Err(e) = run_repl() {
+        if let Err(e) = repl::run_repl() {
             eprintln!("repl error: {}", e);
             return 1;
         }
@@ -162,7 +162,7 @@ pub unsafe extern "C" fn period_run() -> i32 {
         return 0;
     }
     if args.len() == 2 && args[1] == "repl" {
-        if let Err(e) = run_repl() {
+        if let Err(e) = repl::run_repl() {
             eprintln!("repl error: {}", e);
             return 1;
         }
@@ -275,129 +275,3 @@ pub(crate) fn parse_source(source: &str) -> Result<ast::Program, Vec<String>> {
     parser::Parser::new(tokens).parse_program()
 }
 
-pub(crate) fn run_repl() -> Result<(), Box<dyn std::error::Error>> {
-    println!("Period REPL. Type 'exit.' or 'quit.' to leave, or Ctrl+C.");
-    let stdin = io::stdin();
-    let mut interp = interpreter::Interpreter::new();
-    if let Ok(cwd) = env::current_dir() {
-        interp.set_current_path(cwd.clone());
-    }
-    let mut buffer = String::new();
-    let mut repl_history: Vec<ast::Stmt> = Vec::new();
-    // Diagnostics of the already-accepted history, so each warning is shown
-    // only once instead of being re-reported on every subsequent input.
-    let mut history_diags: std::collections::HashMap<(usize, usize, String), usize> =
-        std::collections::HashMap::new();
-
-    loop {
-        let prompt = if buffer.is_empty() { ">>> " } else { "... " };
-        print!("{}", prompt);
-        io::stdout().flush()?;
-
-        let mut line = String::new();
-        if stdin.read_line(&mut line)? == 0 {
-            println!();
-            break;
-        }
-        if line.ends_with('\n') {
-            line.pop();
-        }
-        if line.ends_with('\r') {
-            line.pop();
-        }
-
-        if buffer.is_empty() && (line == "exit." || line == "quit.") {
-            break;
-        }
-
-        if !buffer.is_empty() {
-            buffer.push('\n');
-        }
-        buffer.push_str(&line);
-
-        let trimmed = buffer.trim();
-        if trimmed.is_empty() {
-            buffer.clear();
-            continue;
-        }
-        if !trimmed.ends_with('.') {
-            continue;
-        }
-
-        match parse_source(&buffer) {
-            Ok(program) => {
-                let current_path = env::current_dir().ok();
-                let mut trial_history = repl_history.clone();
-                trial_history.extend(program.statements.clone());
-                let trial_program = ast::Program { statements: trial_history };
-                let mut had_error = false;
-                let (sem_errors, sem_warnings) = semantic::program_diagnostics(&trial_program, current_path.as_deref());
-                let (type_errors, type_warnings) = if sem_errors.is_empty() {
-                    let mut tc = type_checker::TypeChecker::new();
-                    tc.check(&trial_program)
-                } else {
-                    (Vec::new(), Vec::new())
-                };
-                // Only surface warnings that are new relative to the
-                // already-accepted history (multiset difference); history
-                // never contains errors, so errors are always fresh.
-                let mut seen = history_diags.clone();
-                let mut fresh = |diags: &[(ast::Span, String)]| -> Vec<(ast::Span, String)> {
-                    let mut out = Vec::new();
-                    for (span, msg) in diags {
-                        let key = (span.line, span.col, msg.clone());
-                        if let Some(n) = seen.get_mut(&key)
-                            && *n > 0 {
-                                *n -= 1;
-                                continue;
-                            }
-                        out.push((span.clone(), msg.clone()));
-                    }
-                    out
-                };
-                for (span, msg) in fresh(&sem_warnings) {
-                    reporting::report_source_warning("<repl>", &buffer, &span, &msg);
-                }
-                for (span, msg) in sem_errors {
-                    reporting::report_source_error("<repl>", &buffer, &span, &msg);
-                    had_error = true;
-                }
-                if !had_error {
-                    for (span, msg) in fresh(&type_warnings) {
-                        reporting::report_source_warning("<repl>", &buffer, &span, &msg);
-                    }
-                    for (span, msg) in type_errors {
-                        reporting::report_source_error("<repl>", &buffer, &span, &msg);
-                        had_error = true;
-                    }
-                }
-                if !had_error {
-                    repl_history.extend(program.statements.clone());
-                    history_diags.clear();
-                    for (span, msg) in sem_warnings.into_iter().chain(type_warnings) {
-                        *history_diags.entry((span.line, span.col, msg)).or_insert(0) += 1;
-                    }
-                    // Single execution path: compile and run on the bytecode VM.
-                    if let Err(ctrl) = interp.interpret(&program, true) {
-                        match ctrl {
-                            interpreter::Control::RuntimeError(msg, span) => {
-                                reporting::report_runtime_error("<repl>", &buffer, &msg, Some(&span));
-                            }
-                            interpreter::Control::Error(msg) => {
-                                reporting::report_runtime_error("<repl>", &buffer, &msg, None);
-                            }
-                            _ => eprintln!("runtime error: {:?}", ctrl),
-                        }
-                    }
-                }
-                buffer.clear();
-            }
-            Err(errors) => {
-                reporting::report_parse_errors("<repl>", &buffer, &errors);
-                buffer.clear();
-            }
-        }
-    }
-
-    Ok(())
-}

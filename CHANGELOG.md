@@ -10,6 +10,7 @@
 
 ### Added
 
+- REPL overhaul: the interactive prompt now uses continuously increasing line numbers (`  1 | `, `  2 | `, ...) instead of `>>> `, with syntax highlighting and automatic block-aware indentation. Block headers (`:`) pre-indent the next line by four spaces; completing a statement inside a block dedents to the parent level; a blank line inside a block dedents one more level. Input that does not end with `.` stays open, and a standalone `.` on its own line terminates the previous statement. A statement only executes once its block structure is closed. Error and warning messages report the session line number.
 - Union type annotations: several types can be combined with `or` (`number or string`, or `integer, number or string` for three or more) on parameters, return values, and variables. A value matches a union when it matches any member; mismatches are reported with the full union name. Checked both statically and at runtime.
 - Function type annotations: callbacks can be annotated as `function(integer) -> boolean`, `function(anything) -> anything`, `function(integer, string) -> number`, etc. This lets higher-order standard-library functions such as `map` and `filter` expose precise signatures to the static checker and LSP hover.
 - New built-in `append with <list>, <value>`: mutates a list by adding an element to the end and returns `nothing`. Used by the standard library to build lists efficiently.

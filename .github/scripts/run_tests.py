@@ -182,6 +182,33 @@ class TestLexerErrors(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertEqual(result.stdout.count("redefinition of 'x'"), 1, result.stdout)
 
+    def test_repl_multiline_with_indentation(self):
+        # Piped input must include the indentation explicitly; in an
+        # interactive terminal rustyline auto-indents continuation lines.
+        result = run_period([], input_text="define add with a, b:\n    return a + b.\nshow add with 1, 2.\nexit.\n")
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertIn("3", result.stdout)
+
+    def test_repl_standalone_period_terminates_statement(self):
+        # A standalone `.` on its own line should terminate the previous line's
+        # statement, so `show 1` followed by `.` is equivalent to `show 1.`.
+        result = run_period([], input_text="show 1\n.\nexit.\n")
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertIn("1", result.stdout)
+
+    def test_repl_session_line_numbers_in_errors(self):
+        # Error messages should use continuously increasing session line numbers.
+        result = run_period([], input_text="let x be 10.\nshow x.\nlet y be.\nexit.\n")
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertIn("<repl>:3:9: error: expected expression", result.stdout)
+
+    def test_repl_class_across_multiple_lines(self):
+        # A class with multiple methods should not be executed until the block
+        # is closed by a dedent/blank line.
+        result = run_period([], input_text="class A:\n    init:\n        show \"init\".\n    define a:\n        show \"a\".\n\nlet obj be new A.\nexit.\n")
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertIn("init", result.stdout)
+
     def test_non_ascii_identifier_does_not_panic(self):
         # Regression: multi-byte (e.g. Chinese) identifiers used to panic the
         # lexer with a byte-index-out-of-bounds slice.
