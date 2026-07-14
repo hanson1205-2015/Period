@@ -60,7 +60,7 @@ Period REPL. Type 'exit.' or 'quit.' to leave, or Ctrl+C.
 
 ## Building from Source
 
-The language is implemented in Rust under `period/`. On Windows the release build also produces a small C wrapper (`period.exe`) for fast startup; on Linux and macOS you can use the Rust binary directly.
+The language is implemented in Rust under `period/`. The release binary works on Windows, Linux, and macOS.
 
 ### Windows
 

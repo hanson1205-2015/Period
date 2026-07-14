@@ -1,7 +1,9 @@
 -- System-level integration: shell commands, default handlers, dialogs, notifications.
 
 define run with string command returns string:
-    "Run a shell command and return its standard output (trailing newline trimmed).".
+    "Run a shell command and return its standard output (trailing newline trimmed)."
+    "Disabled by default for safety: set PERIOD_ALLOW_SYSTEM_RUN=1 in the"
+    "environment before running programs that use this function.".
     ...
 
 define open with string target:

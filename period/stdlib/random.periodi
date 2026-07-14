@@ -1,7 +1,11 @@
 -- Random numbers.
 
 define random returns number:
-    "Return a random number between 0 and 1.".
+    "Return a random number between 0 and 1."
+    "The generator is a 64-bit linear congruential generator (LCG) with the"
+    "parameters used by glibc/Numerical Recipes. It is fast but not"
+    "cryptographically secure; use it for simulations and games, not for"
+    "security or cryptography.".
     ...
 
 define seed with integer value:

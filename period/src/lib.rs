@@ -24,8 +24,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 /// Main entry point used by the `period` binary.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn period_run() -> i32 {
+pub fn period_run() -> i32 {
     // In release builds, suppress Rust's default panic backtrace so users see our
     // own friendly error messages. In debug builds keep the default hook so
     // developers get a backtrace when RUST_BACKTRACE=1.

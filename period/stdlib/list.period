@@ -94,15 +94,15 @@ define merge with list of number left, list of number right returns list of numb
     let rn be length with right.
     while i < ln and j < rn repeat:
         if left[i] <= right[j] then:
-            set result to result + [left[i]].
+            append with result, left[i].
             set i to i + 1.
         otherwise:
-            set result to result + [right[j]].
+            append with result, right[j].
             set j to j + 1.
     while i < ln repeat:
-        set result to result + [left[i]].
+        append with result, left[i].
         set i to i + 1.
     while j < rn repeat:
-        set result to result + [right[j]].
+        append with result, right[j].
         set j to j + 1.
     return result.

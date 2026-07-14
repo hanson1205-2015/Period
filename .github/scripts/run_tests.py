@@ -32,8 +32,11 @@ def find_period_binary():
 PERIOD = find_period_binary()
 
 
-def run_period(args, input_text=None, cwd=None):
+def run_period(args, input_text=None, cwd=None, env=None):
     """Run period with the given args and optional stdin."""
+    run_env = os.environ.copy()
+    if env:
+        run_env.update(env)
     result = subprocess.run(
         [PERIOD] + args,
         input=input_text,
@@ -41,17 +44,18 @@ def run_period(args, input_text=None, cwd=None):
         cwd=cwd,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
+        env=run_env,
     )
     return result
 
 
-def run_file(source, expected_lines=None, should_fail=False):
+def run_file(source, expected_lines=None, should_fail=False, env=None):
     """Write source to a temp file, run it, and assert the outcome."""
     with tempfile.TemporaryDirectory() as tmp:
         path = os.path.join(tmp, "test.period")
         with open(path, "w", encoding="utf-8") as f:
             f.write(textwrap.dedent(source).strip() + "\n")
-        result = run_period([path])
+        result = run_period([path], env=env)
         if should_fail:
             if result.returncode == 0:
                 raise AssertionError(
@@ -1464,11 +1468,12 @@ class TestStandardLibrary(unittest.TestCase):
 
     def test_system_module_run(self):
         # `echo hi` works in both cmd (Windows) and sh (Unix).
+        # system.run is disabled by default; enable it for this test.
         run_file("""
             import system.
             show run with "echo hi".
             show type with (run with "echo x").
-        """, expected_lines=["hi", "string"])
+        """, expected_lines=["hi", "string"], env={"PERIOD_ALLOW_SYSTEM_RUN": "1"})
 
     def test_system_module_argument_type_checked(self):
         out = run_file("""

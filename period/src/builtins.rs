@@ -396,6 +396,21 @@ fn platform_notify(title: &str, message: &str) -> Result<(), String> {
 pub fn make_system_module() -> Rc<RefCell<Environment>> {
     fn run_fn(args: &[Value]) -> Result<Value, String> {
         let command = expect_string_arg(&args[0], "command")?;
+
+        // Safety guard for the teaching environment: shell command execution is
+        // disabled by default. Users must explicitly opt in by setting
+        // PERIOD_ALLOW_SYSTEM_RUN=1 in the environment.
+        let allowed = std::env::var("PERIOD_ALLOW_SYSTEM_RUN")
+            .map(|v| v == "1" || v.eq_ignore_ascii_case("true") || v.eq_ignore_ascii_case("yes"))
+            .unwrap_or(false);
+        if !allowed {
+            return Err(
+                "system.run is disabled by default for safety. \
+                 Set PERIOD_ALLOW_SYSTEM_RUN=1 to enable shell command execution."
+                    .to_string(),
+            );
+        }
+
         let output = if cfg!(target_os = "windows") {
             std::process::Command::new("cmd").args(["/C", &command]).output()
         } else {

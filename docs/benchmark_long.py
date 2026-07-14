@@ -59,7 +59,9 @@ def c_compiler_candidates(src: Path, exe: Path) -> list[list[str]]:
 
     Prefer a real optimizing compiler (MSVC cl /O2, gcc -O2, clang -O2).
     Also look in common Windows install locations. If nothing works, fall
-    back to the bundled TCC with -O2.
+    back to the bundled TCC with -O2. TCC is a fast but poorly-optimising
+    compiler, so when this fallback is used the "C (Release)" label is
+    replaced with "C (TCC)" in the output.
     """
     candidates: list[list[str]] = []
 
@@ -812,17 +814,27 @@ def source_for(lang: str, workload: str, n: int) -> str:
 
 
 
-def run(cmd: list[str], source: str, ext: str, n: int, runs: int = 10) -> float | None:
+def run(cmd: list[str], source: str, ext: str, n: int, runs: int = 10) -> tuple[float, str] | None:
+    """Compile and run a workload, returning its average time in ms and label.
+
+    For C workloads, the returned label is "C (Release)" if an optimizing
+    compiler (MSVC, GCC, or Clang) succeeded, or "C (TCC)" if only the
+    bundled TCC compiler could build the program.
+    """
     with tempfile.NamedTemporaryFile(mode="w", suffix=ext, delete=False) as f:
         f.write(source)
         src = Path(f.name)
 
     compiled_exts = {".c", ".rs", ".go"}
     exe = src.with_suffix(".exe")
+    runtime_label = None
 
     if ext == ".c":
         run_cmd = None
         last_error = ""
+        # Track which compiler succeeded so the chart label is honest.
+        optimizing = ["cl", "gcc", "clang"]
+        used_tcc = True
         for compile_cmd in c_compiler_candidates(src, exe):
             result = subprocess.run(
                 compile_cmd,
@@ -832,11 +844,13 @@ def run(cmd: list[str], source: str, ext: str, n: int, runs: int = 10) -> float 
             )
             if result.returncode == 0:
                 run_cmd = [str(exe)]
+                used_tcc = Path(compile_cmd[0]).name.lower().startswith("tcc")
                 break
             last_error = result.stderr
         if run_cmd is None:
             print(f"all C compilers failed; last error: {last_error}")
             return None
+        runtime_label = "C (TCC)" if used_tcc else "C (Release)"
     elif ext == ".rs":
         result = subprocess.run(
             ["rustc", "-O", str(src), "-o", str(exe)],
@@ -848,6 +862,7 @@ def run(cmd: list[str], source: str, ext: str, n: int, runs: int = 10) -> float 
             print(f"compile failed: {result.stderr}")
             return None
         run_cmd = [str(exe)]
+        runtime_label = "Rust"
     elif ext == ".go":
         result = subprocess.run(
             ["go", "build", "-o", str(exe), str(src)],
@@ -859,6 +874,7 @@ def run(cmd: list[str], source: str, ext: str, n: int, runs: int = 10) -> float 
             print(f"compile failed: {result.stderr}")
             return None
         run_cmd = [str(exe)]
+        runtime_label = "Go"
     elif ext == ".java":
         result = subprocess.run(
             ["javac", str(src)],
@@ -870,6 +886,7 @@ def run(cmd: list[str], source: str, ext: str, n: int, runs: int = 10) -> float 
             print(f"compile failed: {result.stderr}")
             return None
         run_cmd = ["java", "-cp", str(src.parent), "Main"]
+        runtime_label = "Java"
     elif ext == ".cs":
         # Requires the .NET SDK (dotnet new / build).
         proj_dir = src.parent / src.stem
@@ -898,10 +915,13 @@ def run(cmd: list[str], source: str, ext: str, n: int, runs: int = 10) -> float 
             print("dotnet build did not produce an executable")
             return None
         run_cmd = [str(exe_candidates[0])]
+        runtime_label = "C#"
     elif ext == ".ps1":
         run_cmd = ["powershell", "-ExecutionPolicy", "Bypass", "-File", str(src)]
+        runtime_label = "PowerShell"
     else:
         run_cmd = cmd + [str(src)]
+        runtime_label = "Period"
 
     # Warm-up.
     subprocess.run(run_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -922,7 +942,7 @@ def run(cmd: list[str], source: str, ext: str, n: int, runs: int = 10) -> float 
     if ext == ".cs":
         shutil.rmtree(proj_dir, ignore_errors=True)
 
-    return sum(times) / len(times) * 1000
+    return sum(times) / len(times) * 1000, runtime_label
 
 
 def render_svg(results: list[tuple[str, list[tuple[str, float]]]], path: Path) -> None:
@@ -930,20 +950,29 @@ def render_svg(results: list[tuple[str, list[tuple[str, float]]]], path: Path) -
 
     The y-axis uses a log scale so that both sub-millisecond compiled runs
     and multi-second interpreted runs remain visible on the same chart.
+
+    Languages that failed to run for a workload are omitted from that group,
+    so missing data does not leave empty legend entries.
     """
     WIDTH = 980
     HEIGHT = 500
     MARGIN = {"top": 45, "right": 110, "bottom": 60, "left": 75}
     # Fixed order so Period is first and matches the homepage JS chart.
-    ORDER = ["Period", "C (Release)", "Rust", "Go", "C#", "Java"]
+    # C (TCC) appears separately when the bundled TCC compiler is used.
+    ORDER = ["Period", "C (Release)", "C (TCC)", "Rust", "Go", "C#", "Java"]
     COLORS = {
         "Period": "#ff9800",
         "C (Release)": "#4caf50",
+        "C (TCC)": "#8bc34a",
         "Rust": "#2196f3",
         "Go": "#00bcd4",
         "C#": "#9c27b0",
         "Java": "#f44336",
     }
+
+    # Only include languages that actually have data in at least one workload.
+    present = {name for _, data in results for name, _ in data}
+    ORDER = [name for name in ORDER if name in present]
 
     plot_w = WIDTH - MARGIN["left"] - MARGIN["right"]
     plot_h = HEIGHT - MARGIN["top"] - MARGIN["bottom"]
@@ -1042,6 +1071,9 @@ def main() -> None:
     if not TCC_EXE.exists():
         print(f"Warning: TCC not found at {TCC_EXE}; C benchmark will be skipped")
 
+    # C is special: the runtime label depends on which compiler actually won.
+    # Keep the input name as "C (Release)" so source_for still works, but
+    # accept the returned label from run().
     languages = [
         ("C (Release)", [str(TCC_EXE)], ".c"),
         ("Period", [str(PERIOD_EXE)], ".period"),
@@ -1080,12 +1112,13 @@ def main() -> None:
             src = source_for(lang_key[name], workload, n)
             if src is None:
                 continue
-            ms = run(cmd, src, ext, n)
-            if ms is None:
+            run_result = run(cmd, src, ext, n)
+            if run_result is None:
                 print(f"{name:<12}{'failed':>15}")
             else:
-                print(f"{name:<12}{ms:>14.1f}ms")
-                workload_results.append((name, ms))
+                ms, runtime_label = run_result
+                print(f"{runtime_label:<12}{ms:>14.1f}ms")
+                workload_results.append((runtime_label, ms))
         results.append((workload, workload_results))
 
     chart_path = ROOT / "docs" / "benchmark_long.svg"

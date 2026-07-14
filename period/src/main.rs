@@ -1,3 +1,3 @@
 fn main() {
-    std::process::exit(unsafe { period_core::period_run() });
+    std::process::exit(period_core::period_run());
 }
