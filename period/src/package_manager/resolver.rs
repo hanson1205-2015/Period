@@ -84,13 +84,15 @@ impl<'a> Resolver<'a> {
         if self.index.is_none() {
             self.index = Some(RegistryIndex::fetch(self.registry)?);
         }
-        let index = self.index.as_ref().unwrap();
+        let index = self.index.as_ref().ok_or_else(|| "internal error: registry index not loaded".to_string())?;
         let versions = index
             .packages
             .get(name)
             .ok_or_else(|| format!("package '{}' not found in registry", name))?;
         let version = select_version(constraint, versions)?;
-        let entry = versions.get(&version).unwrap();
+        let entry = versions
+            .get(&version)
+            .ok_or_else(|| format!("internal error: selected version '{}' disappeared for package '{}'", version, name))?;
         Ok(ResolvedVersion {
             version,
             source: format!("registry+{}", entry.url),

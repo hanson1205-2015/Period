@@ -47,8 +47,8 @@ mod tests {
                 checksum: "sha256:abcd".to_string(),
             }],
         };
-        let text = toml::to_string_pretty(&lock).unwrap();
-        let parsed: PeriodLock = toml::from_str(&text).unwrap();
+        let text = toml::to_string_pretty(&lock).expect("lockfile should serialize");
+        let parsed: PeriodLock = toml::from_str(&text).expect("lockfile should deserialize");
         assert_eq!(lock, parsed);
     }
 }

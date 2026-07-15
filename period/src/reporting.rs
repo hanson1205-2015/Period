@@ -90,13 +90,13 @@ mod tests {
         // "show 0/0." — '/' is at 1-indexed column 7.
         let source = "show 0/0.";
         let span = Span { line: 1, col: 7 };
-        let block = source_caret_block(source, &span, 1).unwrap();
+        let block = source_caret_block(source, &span, 1).expect("caret block should be generated");
         let lines: Vec<&str> = block.lines().collect();
         assert_eq!(lines[0], "    1 | show 0/0.");
         let caret_line = lines[1];
         // The '^' should be directly under the '/' in the source line above.
-        let slash_pos = lines[0].find('/').unwrap();
-        let caret_pos = caret_line.find('^').unwrap();
+        let slash_pos = lines[0].find('/').unwrap_or(0);
+        let caret_pos = caret_line.find('^').unwrap_or(0);
         assert_eq!(caret_pos, slash_pos);
     }
 
@@ -105,11 +105,11 @@ mod tests {
         // Pad source so line 10 contains the expression.
         let source = "show 1.\nshow 2.\nshow 3.\nshow 4.\nshow 5.\nshow 6.\nshow 7.\nshow 8.\nshow 9.\nshow 100 / 0.";
         let span = Span { line: 10, col: 10 };
-        let block = source_caret_block(source, &span, 1).unwrap();
+        let block = source_caret_block(source, &span, 1).expect("caret block should be generated");
         let lines: Vec<&str> = block.lines().collect();
         assert_eq!(lines[0], "    10 | show 100 / 0.");
-        let slash_pos = lines[0].find('/').unwrap();
-        let caret_pos = lines[1].find('^').unwrap();
+        let slash_pos = lines[0].find('/').unwrap_or(0);
+        let caret_pos = lines[1].find('^').unwrap_or(0);
         assert_eq!(caret_pos, slash_pos);
     }
 
@@ -120,7 +120,7 @@ mod tests {
         // "undefined variable 'ab'" should underline both characters.
         let len = quoted_token_len("undefined variable 'ab'");
         assert_eq!(len, 2);
-        let block = source_caret_block(source, &span, len).unwrap();
+        let block = source_caret_block(source, &span, len).expect("caret block should be generated");
         let lines: Vec<&str> = block.lines().collect();
         assert_eq!(lines[1], "             ^^");
     }

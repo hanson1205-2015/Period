@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::io::{self, Write};
 use std::rc::Rc;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use num_bigint::BigInt;
@@ -35,7 +35,7 @@ fn builtin_append(args: &[Value]) -> Result<Value, String> {
 
 fn builtin_length(args: &[Value]) -> Result<Value, String> {
     match &args[0] {
-        Value::String(s) => Ok(Value::integer(s.len() as i64)),
+        Value::String(s) => Ok(Value::integer(s.chars().count() as i64)),
         Value::List(l) => Ok(Value::integer(l.borrow().len() as i64)),
         Value::Dict(d) => Ok(Value::integer(d.borrow().len() as i64)),
         Value::Range { start, stop, step } => Ok(Value::big_integer(range_len(start, stop, step))),
@@ -93,7 +93,7 @@ fn builtin_type(args: &[Value]) -> Result<Value, String> {
 
 fn builtin_input(_: &[Value]) -> Result<Value, String> {
     let mut s = String::new();
-    io::stdout().flush().unwrap();
+    io::stdout().flush().map_err(|e| format!("cannot flush stdout: {}", e))?;
     io::stdin().read_line(&mut s).map_err(|e| e.to_string())?;
     Ok(Value::String(s.trim_end().to_string()))
 }
@@ -160,17 +160,19 @@ pub fn make_math_module() -> Rc<RefCell<Environment>> {
 }
 
 pub fn make_random_module() -> Rc<RefCell<Environment>> {
-    static SEED: AtomicU64 = AtomicU64::new(0);
-    static SEEDED: AtomicBool = AtomicBool::new(false);
+    static STATE: Mutex<(bool, u64)> = Mutex::new((false, 0));
     fn random_fn(_: &[Value]) -> Result<Value, String> {
-        let mut seed = SEED.load(Ordering::Relaxed);
-        if !SEEDED.load(Ordering::Relaxed) {
-            seed = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos() as u64;
-            SEEDED.store(true, Ordering::Relaxed);
+        let mut guard = STATE.lock().map_err(|e| format!("random state poisoned: {}", e))?;
+        let (seeded, seed) = &mut *guard;
+        if !*seeded {
+            *seed = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map(|d| d.as_nanos() as u64)
+                .map_err(|e| format!("system clock error: {}", e))?;
+            *seeded = true;
         }
-        seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
-        SEED.store(seed, Ordering::Relaxed);
-        let r = ((seed >> 33) as f64) / ((1u64 << 31) as f64);
+        *seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
+        let r = ((*seed >> 33) as f64) / ((1u64 << 31) as f64);
         Ok(Value::Number(r))
     }
     fn seed_fn(args: &[Value]) -> Result<Value, String> {
@@ -182,8 +184,9 @@ pub fn make_random_module() -> Rc<RefCell<Environment>> {
         };
         // Reduce to the low 64 bits so any integer, however large, is accepted.
         let seed = (n & BigInt::from(u64::MAX)).to_u64().unwrap_or(0);
-        SEED.store(seed, Ordering::Relaxed);
-        SEEDED.store(true, Ordering::Relaxed);
+        let mut guard = STATE.lock().map_err(|e| format!("random state poisoned: {}", e))?;
+        guard.0 = true;
+        guard.1 = seed;
         Ok(Value::Nothing)
     }
     make_module(vec![
@@ -239,10 +242,12 @@ pub fn make_string_module() -> Rc<RefCell<Environment>> {
         ("slice", Value::BuiltIn(Box::new(BuiltInValue { name: "slice".to_string(), min_arity: 2, max_arity: 2, func: |args| {
             match (&args[0], &args[1]) {
                 (Value::String(s), Value::Integer(start)) => {
+                    let chars: Vec<char> = s.chars().collect();
+                    let len = chars.len();
                     let start = start.to_i64().ok_or("slice start too large")?;
-                    let start = if start < 0 { s.len().saturating_sub((-start) as usize) } else { start as usize };
-                    let start = start.min(s.len());
-                    Ok(Value::String(s[start..].to_string()))
+                    let start = if start < 0 { len.saturating_sub((-start) as usize) } else { start as usize };
+                    let start = start.min(len);
+                    Ok(Value::String(chars[start..].iter().collect()))
                 }
                 _ => Err("expected string and integer start".to_string())
             }
@@ -250,13 +255,15 @@ pub fn make_string_module() -> Rc<RefCell<Environment>> {
         ("substring", Value::BuiltIn(Box::new(BuiltInValue { name: "substring".to_string(), min_arity: 3, max_arity: 3, func: |args| {
             match (&args[0], &args[1], &args[2]) {
                 (Value::String(s), Value::Integer(start), Value::Integer(end)) => {
-                    let start = start.to_i64().ok_or("slice start too large")?;
-                    let start = if start < 0 { s.len().saturating_sub((-start) as usize) } else { start as usize };
-                    let end = end.to_i64().ok_or("slice end too large")?;
-                    let end = if end < 0 { s.len().saturating_sub((-end) as usize) } else { end as usize };
-                    let end = end.min(s.len());
+                    let chars: Vec<char> = s.chars().collect();
+                    let len = chars.len();
+                    let start = start.to_i64().ok_or("substring start too large")?;
+                    let start = if start < 0 { len.saturating_sub((-start) as usize) } else { start as usize };
+                    let end = end.to_i64().ok_or("substring end too large")?;
+                    let end = if end < 0 { len.saturating_sub((-end) as usize) } else { end as usize };
+                    let end = end.min(len);
                     let start = start.min(end);
-                    Ok(Value::String(s[start..end].to_string()))
+                    Ok(Value::String(chars[start..end].iter().collect()))
                 }
                 _ => Err("expected string, integer start, and integer end".to_string())
             }
@@ -267,7 +274,11 @@ pub fn make_string_module() -> Rc<RefCell<Environment>> {
 pub fn make_time_module() -> Rc<RefCell<Environment>> {
     make_module(vec![
         ("now", Value::BuiltIn(Box::new(BuiltInValue { name: "now".to_string(), min_arity: 0, max_arity: 0, func: |_| {
-            Ok(Value::Number(std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs_f64()))
+            let secs = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map(|d| d.as_secs_f64())
+                .map_err(|e| format!("system clock error: {}", e))?;
+            Ok(Value::Number(secs))
         }}))),
     ])
 }

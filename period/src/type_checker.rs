@@ -159,7 +159,7 @@ impl TypeChecker {
         }
         match members.len() {
             0 => Type::Anything,
-            1 => members.pop().expect("one member"),
+            1 => members.pop().unwrap_or(Type::Anything),
             _ => Type::Union(members),
         }
     }
@@ -994,12 +994,12 @@ mod tests {
         let mut lexer = Lexer::new(source);
         let mut tokens = Vec::new();
         loop {
-            let t = lexer.next_token().unwrap();
+            let t = lexer.next_token().expect("lexer should produce a token");
             let eof = matches!(t.kind, crate::lexer::TokenKind::Eof);
             tokens.push(t);
             if eof { break; }
         }
-        let program = Parser::new(tokens).parse_program().unwrap();
+        let program = Parser::new(tokens).parse_program().expect("source should parse");
         TypeChecker::new().check(&program).0
     }
 

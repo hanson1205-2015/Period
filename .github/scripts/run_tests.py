@@ -41,6 +41,7 @@ def run_period(args, input_text=None, cwd=None, env=None):
         [PERIOD] + args,
         input=input_text,
         text=True,
+        encoding="utf-8",
         cwd=cwd,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
@@ -1407,6 +1408,23 @@ class TestStandardLibrary(unittest.TestCase):
             "ello",
             "ell",
             "[a, b, c]",
+        ])
+
+    def test_unicode_string_indexing_and_slicing(self):
+        out = run_file("""
+            import string.
+            let s be "héllo 世界".
+            show s[0].
+            show s[6].
+            show length with s.
+            show slice with s, 6.
+            show substring with s, 1, 5.
+        """, expected_lines=[
+            "h",
+            "世",
+            "8",
+            "世界",
+            "éllo",
         ])
 
     def test_list_module_higher_order_functions(self):

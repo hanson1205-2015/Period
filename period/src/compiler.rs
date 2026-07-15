@@ -691,9 +691,13 @@ impl Compiler {
     ) -> Result<(), CompileError> {
         let span = Span { line: 1, col: 1 };
         let zero_idx = self.add_constant(Value::integer(0));
-        let has_stop = stop.is_some();
-        let stop_expr = if has_stop { stop.unwrap() } else { start.as_ref().unwrap().clone() };
-        let start_expr: Expr = if has_stop { start.unwrap() } else { Expr::Integer(num_bigint::BigInt::from(0), span.clone()) };
+        let _has_stop = stop.is_some();
+        let stop_expr = if let Some(stop) = stop {
+            stop
+        } else {
+            start.clone().ok_or_else(|| CompileError("internal error: for-range missing start and stop".to_string()))?
+        };
+        let start_expr: Expr = if let Some(start) = start { start } else { Expr::Integer(num_bigint::BigInt::from(0), span.clone()) };
         let step_expr: Expr = if let Some(s) = step { s } else { Expr::Integer(num_bigint::BigInt::from(1), span.clone()) };
 
         self.compile_expr(&start_expr)?;

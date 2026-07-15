@@ -142,14 +142,14 @@ fn handle_notification(not: Notification, documents: &Arc<Mutex<HashMap<Url, Str
         "textDocument/didOpen" => {
             if let Ok(params) = serde_json::from_value::<DidOpenTextDocumentParams>(not.params) {
                 let uri = params.text_document.uri.clone();
-                documents.lock().unwrap().insert(params.text_document.uri, params.text_document.text);
+                documents.lock().unwrap_or_else(|e| e.into_inner()).insert(params.text_document.uri, params.text_document.text);
                 return Some(uri);
             }
         }
         "textDocument/didChange" => {
             if let Ok(params) = serde_json::from_value::<DidChangeTextDocumentParams>(not.params) {
                 let uri = params.text_document.uri.clone();
-                let mut docs = documents.lock().unwrap();
+                let mut docs = documents.lock().unwrap_or_else(|e| e.into_inner());
                 if let Some(current) = docs.get(&params.text_document.uri).cloned() {
                     let updated = apply_content_changes(&current, params.content_changes);
                     docs.insert(params.text_document.uri, updated);
@@ -159,7 +159,7 @@ fn handle_notification(not: Notification, documents: &Arc<Mutex<HashMap<Url, Str
         }
         "textDocument/didClose" => {
             if let Ok(params) = serde_json::from_value::<DidCloseTextDocumentParams>(not.params) {
-                documents.lock().unwrap().remove(&params.text_document.uri);
+                documents.lock().unwrap_or_else(|e| e.into_inner()).remove(&params.text_document.uri);
                 return Some(params.text_document.uri);
             }
         }
@@ -182,6 +182,10 @@ fn apply_content_changes(current: &str, changes: Vec<TextDocumentContentChangeEv
         }
     }
     text
+}
+
+fn get_doc_text(documents: &Arc<Mutex<HashMap<Url, String>>>, uri: &Url) -> Option<String> {
+    documents.lock().unwrap_or_else(|e| e.into_inner()).get(uri).cloned()
 }
 
 fn position_to_offset(text: &str, pos: Position) -> usize {
@@ -249,8 +253,8 @@ fn hover(
 ) -> Result<Option<Hover>, Box<dyn Error>> {
     let uri = params.text_document_position_params.text_document.uri;
     let pos = params.text_document_position_params.position;
-    let text = match documents.lock().unwrap().get(&uri) {
-        Some(t) => t.clone(),
+    let text = match get_doc_text(documents, &uri) {
+        Some(t) => t,
         None => return Ok(None),
     };
 
@@ -429,8 +433,8 @@ fn completion(
     params: CompletionParams,
 ) -> Result<Option<CompletionResponse>, Box<dyn Error>> {
     let uri = params.text_document_position.text_document.uri;
-    let text = match documents.lock().unwrap().get(&uri) {
-        Some(t) => t.clone(),
+    let text = match get_doc_text(documents, &uri) {
+        Some(t) => t,
         None => return Ok(None),
     };
 
@@ -485,8 +489,8 @@ fn definition(
 ) -> Result<Option<Vec<Location>>, Box<dyn Error>> {
     let uri = params.text_document_position_params.text_document.uri;
     let pos = params.text_document_position_params.position;
-    let text = match documents.lock().unwrap().get(&uri) {
-        Some(t) => t.clone(),
+    let text = match get_doc_text(documents, &uri) {
+        Some(t) => t,
         None => return Ok(None),
     };
 
@@ -539,8 +543,8 @@ fn semantic_tokens(
     documents: &Arc<Mutex<HashMap<Url, String>>>,
     params: SemanticTokensParams,
 ) -> Result<Option<SemanticTokens>, Box<dyn Error>> {
-    let text = match documents.lock().unwrap().get(&params.text_document.uri) {
-        Some(t) => t.clone(),
+    let text = match get_doc_text(documents, &params.text_document.uri) {
+        Some(t) => t,
         None => return Ok(None),
     };
 
@@ -898,8 +902,8 @@ fn publish_diagnostics(
     documents: &Arc<Mutex<HashMap<Url, String>>>,
     uri: Url,
 ) -> Result<(), Box<dyn Error>> {
-    let text = match documents.lock().unwrap().get(&uri) {
-        Some(t) => t.clone(),
+    let text = match get_doc_text(documents, &uri) {
+        Some(t) => t,
         None => return Ok(()),
     };
 
@@ -1214,7 +1218,7 @@ fn infer_return_type(body: &[Stmt], func_returns: &HashMap<String, String>) -> O
         0 => None,
         1 => Some(types[0].clone()),
         _ => {
-            let last = types.pop().unwrap();
+            let last = types.pop()?;
             Some(format!("{} or {}", types.join(", "), last))
         }
     }
@@ -1884,7 +1888,7 @@ mod tests {
     #[test]
     fn hover_ignores_later_top_level_let() {
         let source = "show a.\nlet a be 1.";
-        let program = try_parse(source).unwrap();
+        let program = try_parse(source).expect("test source should parse");
         let symbols = resolve_symbols_at(&program, "a", Position { line: 0, character: 5 });
         assert!(symbols.is_empty());
     }
@@ -1892,7 +1896,7 @@ mod tests {
     #[test]
     fn hover_finds_earlier_variable_in_same_scope() {
         let source = "let a be 1.\nshow a.";
-        let program = try_parse(source).unwrap();
+        let program = try_parse(source).expect("test source should parse");
         let symbols = resolve_symbols_at(&program, "a", Position { line: 1, character: 5 });
         assert_eq!(symbols.len(), 1);
         assert_eq!(symbols[0].detail, "a: integer");
@@ -1901,7 +1905,7 @@ mod tests {
     #[test]
     fn hover_does_not_leak_function_local_to_outer_scope() {
         let source = "define f with x:\n    let a be 1.\nshow a.";
-        let program = try_parse(source).unwrap();
+        let program = try_parse(source).expect("test source should parse");
         let symbols = resolve_symbols_at(&program, "a", Position { line: 2, character: 5 });
         assert!(symbols.is_empty());
     }

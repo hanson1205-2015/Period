@@ -103,8 +103,9 @@ fn download_url(url: &str, dest: &Path) -> Result<(), String> {
         let path = path.replace('/', "\\");
         let bytes = fs::read(&path)
             .map_err(|e| format!("cannot read local file '{}': {}", path, e))?;
-        fs::create_dir_all(dest.parent().unwrap_or(dest))
-            .map_err(|e| format!("cannot create directory: {}", e))?;
+        let parent = dest.parent().filter(|p| !p.as_os_str().is_empty()).unwrap_or(dest);
+        fs::create_dir_all(parent)
+            .map_err(|e| format!("cannot create directory '{}': {}", parent.display(), e))?;
         fs::write(dest, bytes)
             .map_err(|e| format!("cannot write {}: {}", dest.display(), e))?;
         Ok(())
@@ -196,18 +197,18 @@ mod tests {
     #[test]
     fn init_creates_manifest() {
         let tmp = std::env::temp_dir().join(format!("period-init-test-{}", std::process::id()));
-        fs::create_dir_all(&tmp).unwrap();
-        init_project_at(&tmp, Some("demo")).unwrap();
-        let manifest = PeriodToml::load(&tmp.join(MANIFEST_FILE)).unwrap();
+        fs::create_dir_all(&tmp).expect("should create temp dir");
+        init_project_at(&tmp, Some("demo")).expect("should init project");
+        let manifest = PeriodToml::load(&tmp.join(MANIFEST_FILE)).expect("manifest should load");
         assert_eq!(manifest.package.name, "demo");
         assert_eq!(manifest.package.version, "1.0.0");
-        fs::remove_dir_all(&tmp).unwrap();
+        fs::remove_dir_all(&tmp).expect("should remove temp dir");
     }
 
     #[test]
     fn package_path_reads_lockfile() {
         let tmp = std::env::temp_dir().join(format!("period-lock-test-{}", std::process::id()));
-        fs::create_dir_all(&tmp).unwrap();
+        fs::create_dir_all(&tmp).expect("should create temp dir");
         let lock = PeriodLock {
             packages: vec![LockedPackage {
                 name: "foo".to_string(),
@@ -216,23 +217,23 @@ mod tests {
                 checksum: "sha256:abcd".to_string(),
             }],
         };
-        lock.save(&tmp.join(LOCKFILE_FILE)).unwrap();
+        lock.save(&tmp.join(LOCKFILE_FILE)).expect("lockfile should save");
 
         let path = package_path_in("foo", &tmp);
 
         assert_eq!(path, Some(PathBuf::from("period_packages/foo.period")));
-        fs::remove_dir_all(&tmp).unwrap();
+        fs::remove_dir_all(&tmp).expect("should remove temp dir");
     }
 
     #[test]
     fn package_path_falls_back_to_loose_file() {
         let tmp = std::env::temp_dir().join(format!("period-loose-test-{}", std::process::id()));
-        fs::create_dir_all(&tmp.join(PACKAGES_DIR)).unwrap();
-        fs::write(&tmp.join(PACKAGES_DIR).join("bar.period"), "export x.").unwrap();
+        fs::create_dir_all(&tmp.join(PACKAGES_DIR)).expect("should create packages dir");
+        fs::write(&tmp.join(PACKAGES_DIR).join("bar.period"), "export x.").expect("should write loose package file");
 
         let path = package_path_in("bar", &tmp);
 
         assert_eq!(path, Some(PathBuf::from("period_packages/bar.period")));
-        fs::remove_dir_all(&tmp).unwrap();
+        fs::remove_dir_all(&tmp).expect("should remove temp dir");
     }
 }

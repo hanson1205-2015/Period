@@ -252,16 +252,16 @@ impl<'a> Lexer<'a> {
     }
 
     fn handle_indent(&mut self, spaces: usize) -> Result<Option<TokenKind>, String> {
-        let top = *self.indent_stack.last().unwrap();
+        let top = *self.indent_stack.last().unwrap_or(&0);
         if spaces > top {
             self.indent_stack.push(spaces);
             Ok(Some(TokenKind::Indent))
         } else if spaces < top {
-            while spaces < *self.indent_stack.last().unwrap() {
+            while spaces < *self.indent_stack.last().unwrap_or(&0) {
                 self.indent_stack.pop();
                 self.pending.push(Token { kind: TokenKind::Dedent, span: self.span() });
             }
-            if spaces != *self.indent_stack.last().unwrap() {
+            if spaces != *self.indent_stack.last().unwrap_or(&0) {
                 return Err(self.error("inconsistent indentation"));
             }
             self.pending.pop().map(|t| Ok(Some(t.kind))).unwrap_or_else(|| self.lex_token())
@@ -432,7 +432,7 @@ mod tests {
         let mut lexer = Lexer::new(source);
         let mut out = Vec::new();
         loop {
-            let t = lexer.next_token().unwrap();
+            let t = lexer.next_token().expect("lexer should produce a token");
             let eof = matches!(t.kind, TokenKind::Eof);
             out.push(t.kind);
             if eof { break; }
@@ -494,7 +494,7 @@ mod tests {
             let mut lexer = Lexer::new(source);
             let mut out = Vec::new();
             loop {
-                let t = lexer.next_token().unwrap();
+                let t = lexer.next_token().expect("lexer should produce a token");
                 let eof = matches!(t.kind, TokenKind::Eof);
                 out.push(t.span);
                 if eof { break; }

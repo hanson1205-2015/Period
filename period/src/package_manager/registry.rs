@@ -160,10 +160,10 @@ mod tests {
             checksum: None,
             dependencies: BTreeMap::new(),
         });
-        assert_eq!(select_version("1.0.0", &versions).unwrap(), "2.0.0");
-        assert_eq!(select_version("=1.2.0", &versions).unwrap(), "1.2.0");
-        assert_eq!(select_version("^1.0.0", &versions).unwrap(), "2.0.0");
-        assert_eq!(select_version("*", &versions).unwrap(), "2.0.0");
+        assert_eq!(select_version("1.0.0", &versions).expect("should select latest version"), "2.0.0");
+        assert_eq!(select_version("=1.2.0", &versions).expect("should select exact version"), "1.2.0");
+        assert_eq!(select_version("^1.0.0", &versions).expect("should select caret version"), "2.0.0");
+        assert_eq!(select_version("*", &versions).expect("should select wildcard version"), "2.0.0");
     }
 
     #[test]
@@ -174,7 +174,7 @@ mod tests {
             checksum: None,
             dependencies: BTreeMap::new(),
         });
-        assert_eq!(select_version("*", &versions).unwrap(), "0.5.1");
+        assert_eq!(select_version("*", &versions).expect("should select wildcard version"), "0.5.1");
     }
 
     #[test]
@@ -191,7 +191,7 @@ mod tests {
                 }
             }
         }"#;
-        let index: RegistryIndex = serde_json::from_str(json).unwrap();
+        let index: RegistryIndex = serde_json::from_str(json).expect("registry JSON should deserialize");
         assert_eq!(index.schema_version, "1");
         let list = index.packages.get("list").expect("list package");
         let version = list.get("1.0.0").expect("1.0.0 version");

@@ -518,7 +518,7 @@ mod tests {
 
     #[test]
     fn value_key_roundtrip() {
-        let key = Value::integer(42).as_key().unwrap();
+        let key = Value::integer(42).as_key().expect("integer should be a valid dict key");
         assert_eq!(key.to_value(), Value::integer(42));
     }
 }

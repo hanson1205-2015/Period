@@ -93,10 +93,10 @@ version = "0.1.0"
 [dependencies]
 foo = "1.0.0"
 "#;
-        let manifest: PeriodToml = toml::from_str(text).unwrap();
+        let manifest: PeriodToml = toml::from_str(text).expect("manifest should parse");
         assert_eq!(manifest.package.name, "demo");
         assert_eq!(manifest.package.version, "0.1.0");
-        assert_eq!(manifest.dependencies.get("foo").unwrap().version(), Some("1.0.0"));
+        assert_eq!(manifest.dependencies.get("foo").expect("dependency foo should exist").version(), Some("1.0.0"));
     }
 
     #[test]
@@ -109,8 +109,8 @@ version = "0.1.0"
 [dependencies]
 bar = { git = "https://github.com/user/bar", version = "2.1.0" }
 "#;
-        let manifest: PeriodToml = toml::from_str(text).unwrap();
-        let dep = manifest.dependencies.get("bar").unwrap();
+        let manifest: PeriodToml = toml::from_str(text).expect("manifest should parse");
+        let dep = manifest.dependencies.get("bar").expect("dependency bar should exist");
         assert_eq!(dep.version(), Some("2.1.0"));
         assert_eq!(dep.git_url(), Some("https://github.com/user/bar"));
     }

@@ -62,7 +62,9 @@ impl<'a> Vm<'a> {
             if self.frames.is_empty() {
                 return Ok(());
             }
-            let frame = self.frames.last_mut().unwrap();
+            let frame = self.frames.last_mut().ok_or_else(|| {
+                Control::RuntimeError("internal error: no active call frame".to_string(), Span { line: 1, col: 1 })
+            })?;
             if frame.ip >= frame.function.chunk.ops.len() {
                 // Should not happen because every path returns, but be safe.
                 self.frames.pop();
@@ -89,28 +91,58 @@ impl<'a> Vm<'a> {
         }
     }
 
+    fn current_frame(&self, span: &Span,
+    ) -> Result<&CallFrame, Control> {
+        self.frames.last().ok_or_else(|| {
+            Control::RuntimeError("internal error: no active call frame".to_string(), span.clone())
+        })
+    }
+
+    fn current_frame_mut(&mut self, span: &Span,
+    ) -> Result<&mut CallFrame, Control> {
+        self.frames.last_mut().ok_or_else(|| {
+            Control::RuntimeError("internal error: no active call frame".to_string(), span.clone())
+        })
+    }
+
     #[inline(always)]
-    fn execute_op(&mut self, op: &Op, span: &Span) -> Result<(), Control> {
-        let frame = self.frames.last_mut().unwrap();
+    fn execute_op(&mut self, op: &Op, span: &Span,
+    ) -> Result<(), Control> {
         match op {
             Op::Constant(idx) => {
-                let value = frame.function.chunk.constants[*idx].clone();
+                let value = {
+                    let f = self.current_frame(span)?;
+                    f.function.chunk.constants.get(*idx).ok_or_else(|| {
+                        Control::RuntimeError("internal error: invalid constant index".to_string(), span.clone())
+                    })?.clone()
+                };
                 self.stack.push(value);
             }
             Op::Nothing => self.stack.push(Value::Nothing),
             Op::True => self.stack.push(Value::Bool(true)),
             Op::False => self.stack.push(Value::Bool(false)),
             Op::Pop => {
-                self.stack.pop();
+                self.stack.pop().ok_or_else(|| {
+                    Control::RuntimeError("stack underflow".to_string(), span.clone())
+                })?;
             }
             Op::Dup => {
-                let v = self.stack.last().expect("stack underflow in dup").clone();
+                let v = self.stack.last().ok_or_else(|| {
+                    Control::RuntimeError("stack underflow in dup".to_string(), span.clone())
+                })?.clone();
                 self.stack.push(v);
             }
             Op::LoadLocal(slot) => {
-                let value = match &self.locals[frame.slots_start + *slot] {
-                    Value::Box(rc) => rc.borrow().clone(),
-                    other => other.clone(),
+                let slots_start = self.current_frame(span)?.slots_start;
+                let value = match self.locals.get(slots_start + *slot) {
+                    Some(Value::Box(rc)) => rc.borrow().clone(),
+                    Some(other) => other.clone(),
+                    None => {
+                        return Err(Control::RuntimeError(
+                            "internal error: invalid local slot".to_string(),
+                            span.clone(),
+                        ));
+                    }
                 };
                 if self.try_auto_call(&value, span)? {
                     // try_auto_call pushed a frame; return so the called function runs.
@@ -119,27 +151,51 @@ impl<'a> Vm<'a> {
                 self.stack.push(value);
             }
             Op::StoreLocal(slot) => {
-                let value = self.stack.pop().expect("stack underflow in store local");
-                match &mut self.locals[frame.slots_start + *slot] {
-                    Value::Box(rc) => *rc.borrow_mut() = value,
-                    slot_ref => *slot_ref = value,
+                let slot_start = self.current_frame(span)?.slots_start;
+                let value = self.stack.pop().ok_or_else(|| {
+                    Control::RuntimeError("stack underflow in store local".to_string(), span.clone())
+                })?;
+                match self.locals.get_mut(slot_start + *slot) {
+                    Some(Value::Box(rc)) => *rc.borrow_mut() = value,
+                    Some(slot_ref) => *slot_ref = value,
+                    None => {
+                        return Err(Control::RuntimeError(
+                            "internal error: invalid local slot".to_string(),
+                            span.clone(),
+                        ));
+                    }
                 }
             }
             Op::GetUpvalue(slot) => {
-                let value = frame.upvalues[*slot].borrow().clone();
+                let value = {
+                    let f = self.current_frame(span)?;
+                    f.upvalues.get(*slot).ok_or_else(|| {
+                        Control::RuntimeError("internal error: invalid upvalue".to_string(), span.clone())
+                    })?.borrow().clone()
+                };
                 if self.try_auto_call(&value, span)? {
                     return Ok(());
                 }
                 self.stack.push(value);
             }
             Op::SetUpvalue(slot) => {
-                let value = self.stack.pop().expect("stack underflow in set upvalue");
-                *frame.upvalues[*slot].borrow_mut() = value;
+                let value = self.stack.pop().ok_or_else(|| {
+                    Control::RuntimeError("stack underflow in set upvalue".to_string(), span.clone())
+                })?;
+                let upvalue = {
+                    let f = self.current_frame(span)?;
+                    f.upvalues.get(*slot).ok_or_else(|| {
+                        Control::RuntimeError("internal error: invalid upvalue".to_string(), span.clone())
+                    })?.clone()
+                };
+                *upvalue.borrow_mut() = value;
             }
             Op::LoadGlobal(idx) => {
                 let (_name, value) = {
-                    let f = self.frames.last().unwrap();
-                    let name = f.function.chunk.strings[*idx].clone();
+                    let f = self.current_frame(span)?;
+                    let name = f.function.chunk.strings.get(*idx).ok_or_else(|| {
+                        Control::RuntimeError("internal error: invalid global name index".to_string(), span.clone())
+                    })?.clone();
                     let value = f.closure.borrow().get(&name).ok_or_else(|| {
                         Control::RuntimeError(format!("Undefined variable '{}'", name), span.clone())
                     })?;
@@ -152,45 +208,80 @@ impl<'a> Vm<'a> {
             }
             Op::StoreGlobal(idx) => {
                 let name = {
-                    let f = self.frames.last().unwrap();
-                    f.function.chunk.strings[*idx].clone()
+                    let f = self.current_frame(span)?;
+                    f.function.chunk.strings.get(*idx).ok_or_else(|| {
+                        Control::RuntimeError("internal error: invalid global name index".to_string(), span.clone())
+                    })?.clone()
                 };
-                let value = self.stack.pop().expect("stack underflow in store global");
-                self.frames.last().unwrap().closure.borrow().set(&name, value).map_err(Control::Error)?;
+                let value = self.stack.pop().ok_or_else(|| {
+                    Control::RuntimeError("stack underflow in store global".to_string(), span.clone())
+                })?;
+                self.current_frame(span)?.closure.borrow().set(&name, value).map_err(Control::Error)?;
             }
             Op::DefineGlobal { name } => {
                 let name = {
-                    let f = self.frames.last().unwrap();
-                    f.function.chunk.strings[*name].clone()
+                    let f = self.current_frame(span)?;
+                    f.function.chunk.strings.get(*name).ok_or_else(|| {
+                        Control::RuntimeError("internal error: invalid global name index".to_string(), span.clone())
+                    })?.clone()
                 };
-                let value = self.stack.pop().expect("stack underflow in define global");
-                self.frames.last().unwrap().closure.borrow().define(&name, value, None);
+                let value = self.stack.pop().ok_or_else(|| {
+                    Control::RuntimeError("stack underflow in define global".to_string(), span.clone())
+                })?;
+                self.current_frame(span)?.closure.borrow().define(&name, value, None);
             }
             Op::Closure { func, upvalues } => {
-                let (proto, closure, captured) = {
-                    let f = self.frames.last_mut().unwrap();
-                    let proto = Rc::clone(&f.function.chunk.functions[*func]);
+                let (proto, closure, slots_start, parent_upvalues) = {
+                    let f = self.current_frame(span)?;
+                    let proto = f
+                        .function
+                        .chunk
+                        .functions
+                        .get(*func)
+                        .ok_or_else(|| {
+                            Control::RuntimeError(
+                                "internal error: invalid function index".to_string(),
+                                span.clone(),
+                            )
+                        })
+                        .map(Rc::clone)?;
                     let closure = f.closure.clone();
-                    let mut captured = Vec::with_capacity(upvalues.len());
-                    for uv in upvalues {
-                        let slot_idx = f.slots_start + uv.index;
-                        let rc = if uv.is_local {
-                            match &mut self.locals[slot_idx] {
-                                Value::Box(rc) => Rc::clone(rc),
-                                slot => {
-                                    let val = std::mem::replace(slot, Value::Nothing);
-                                    let rc = Rc::new(RefCell::new(val));
-                                    *slot = Value::Box(Rc::clone(&rc));
-                                    rc
-                                }
-                            }
-                        } else {
-                            Rc::clone(&f.upvalues[uv.index])
-                        };
-                        captured.push(rc);
-                    }
-                    (proto, closure, captured)
+                    let slots_start = f.slots_start;
+                    let parent_upvalues = f.upvalues.clone();
+                    (proto, closure, slots_start, parent_upvalues)
                 };
+                let mut captured = Vec::with_capacity(upvalues.len());
+                for uv in upvalues {
+                    let slot_idx = slots_start + uv.index;
+                    let rc = if uv.is_local {
+                        match self.locals.get_mut(slot_idx) {
+                            Some(Value::Box(rc)) => Rc::clone(rc),
+                            Some(slot) => {
+                                let val = std::mem::replace(slot, Value::Nothing);
+                                let rc = Rc::new(RefCell::new(val));
+                                *slot = Value::Box(Rc::clone(&rc));
+                                rc
+                            }
+                            None => {
+                                return Err(Control::RuntimeError(
+                                    "internal error: invalid local slot for upvalue".to_string(),
+                                    span.clone(),
+                                ));
+                            }
+                        }
+                    } else {
+                        parent_upvalues
+                            .get(uv.index)
+                            .ok_or_else(|| {
+                                Control::RuntimeError(
+                                    "internal error: invalid upvalue index".to_string(),
+                                    span.clone(),
+                                )
+                            })
+                            .map(Rc::clone)?
+                    };
+                    captured.push(rc);
+                }
                 let value = Value::Function(Box::new(FunctionValue {
                     func: proto,
                     closure,
@@ -200,13 +291,19 @@ impl<'a> Vm<'a> {
                 self.stack.push(value);
             }
             Op::Binary(bin_op) => {
-                let right = self.stack.pop().expect("stack underflow in binary");
-                let left = self.stack.pop().expect("stack underflow in binary");
+                let right = self.stack.pop().ok_or_else(|| {
+                    Control::RuntimeError("stack underflow in binary".to_string(), span.clone())
+                })?;
+                let left = self.stack.pop().ok_or_else(|| {
+                    Control::RuntimeError("stack underflow in binary".to_string(), span.clone())
+                })?;
                 let result = self.eval_binary(bin_op, left, right, span)?;
                 self.stack.push(result);
             }
             Op::Unary(unary_op) => {
-                let value = self.stack.pop().expect("stack underflow in unary");
+                let value = self.stack.pop().ok_or_else(|| {
+                    Control::RuntimeError("stack underflow in unary".to_string(), span.clone())
+                })?;
                 let result = match unary_op {
                     UnaryOp::Neg => self.eval_neg(value, span)?,
                     UnaryOp::Not => {
@@ -223,35 +320,47 @@ impl<'a> Vm<'a> {
                 self.stack.push(result);
             }
             Op::Jump(target) => {
-                frame.ip = *target;
+                self.current_frame_mut(span)?.ip = *target;
             }
             Op::JumpIfFalse(target) => {
-                let value = self.stack.pop().expect("stack underflow in jump if false");
+                let value = self.stack.pop().ok_or_else(|| {
+                    Control::RuntimeError("stack underflow in jump if false".to_string(), span.clone())
+                })?;
                 if !Interpreter::is_truthy(&value) {
-                    frame.ip = *target;
+                    self.current_frame_mut(span)?.ip = *target;
                 }
             }
             Op::JumpIfTrue(target) => {
-                let value = self.stack.pop().expect("stack underflow in jump if true");
+                let value = self.stack.pop().ok_or_else(|| {
+                    Control::RuntimeError("stack underflow in jump if true".to_string(), span.clone())
+                })?;
                 if Interpreter::is_truthy(&value) {
-                    frame.ip = *target;
+                    self.current_frame_mut(span)?.ip = *target;
                 }
             }
             Op::Loop(target) => {
-                frame.ip = *target;
+                self.current_frame_mut(span)?.ip = *target;
             }
             Op::Call(arg_count) => {
                 let mut args = Vec::with_capacity(*arg_count as usize);
                 for _ in 0..*arg_count {
-                    args.push(self.stack.pop().expect("stack underflow in call args"));
+                    args.push(self.stack.pop().ok_or_else(|| {
+                        Control::RuntimeError("stack underflow in call args".to_string(), span.clone())
+                    })?);
                 }
                 args.reverse();
-                let callee = self.stack.pop().expect("stack underflow in callee");
+                let callee = self.stack.pop().ok_or_else(|| {
+                    Control::RuntimeError("stack underflow in callee".to_string(), span.clone())
+                })?;
                 self.call_value(callee, args, span)?;
             }
             Op::Return => {
-                let value = self.stack.pop().expect("stack underflow in return");
-                let frame = self.frames.pop().unwrap();
+                let value = self.stack.pop().ok_or_else(|| {
+                    Control::RuntimeError("stack underflow in return".to_string(), span.clone())
+                })?;
+                let frame = self.frames.pop().ok_or_else(|| {
+                    Control::RuntimeError("internal error: return with no frame".to_string(), span.clone())
+                })?;
                 self.locals.truncate(frame.slots_start);
                 if self.frames.is_empty() {
                     return Ok(());
@@ -261,7 +370,9 @@ impl<'a> Vm<'a> {
             }
 
             Op::Show => {
-                let value = self.stack.pop().expect("stack underflow in show");
+                let value = self.stack.pop().ok_or_else(|| {
+                    Control::RuntimeError("stack underflow in show".to_string(), span.clone())
+                })?;
                 let text = value.to_string();
                 self.interpreter.output.push(text.clone());
                 if !self.interpreter.silent {
@@ -271,7 +382,9 @@ impl<'a> Vm<'a> {
             Op::BuildList(count) => {
                 let mut items = Vec::with_capacity(*count);
                 for _ in 0..*count {
-                    items.push(self.stack.pop().expect("stack underflow in list"));
+                    items.push(self.stack.pop().ok_or_else(|| {
+                        Control::RuntimeError("stack underflow in list".to_string(), span.clone())
+                    })?);
                 }
                 items.reverse();
                 self.stack.push(Value::List(Rc::new(RefCell::new(items))));
@@ -279,69 +392,96 @@ impl<'a> Vm<'a> {
             Op::BuildDict(count) => {
                 let mut map = HashMap::with_capacity(*count);
                 for _ in 0..*count {
-                    let v = self.stack.pop().expect("stack underflow in dict value");
-                    let k = self.stack.pop().expect("stack underflow in dict key");
+                    let v = self.stack.pop().ok_or_else(|| {
+                        Control::RuntimeError("stack underflow in dict value".to_string(), span.clone())
+                    })?;
+                    let k = self.stack.pop().ok_or_else(|| {
+                        Control::RuntimeError("stack underflow in dict key".to_string(), span.clone())
+                    })?;
                     let key = k.as_key().map_err(|m| Control::RuntimeError(m, span.clone()))?;
                     map.insert(key, v);
                 }
                 self.stack.push(Value::Dict(Rc::new(RefCell::new(map))));
             }
             Op::Index => {
-                let index = self.stack.pop().expect("stack underflow in index");
-                let object = self.stack.pop().expect("stack underflow in index object");
+                let index = self.stack.pop().ok_or_else(|| {
+                    Control::RuntimeError("stack underflow in index".to_string(), span.clone())
+                })?;
+                let object = self.stack.pop().ok_or_else(|| {
+                    Control::RuntimeError("stack underflow in index object".to_string(), span.clone())
+                })?;
                 let result = self.index_get(object, index, span)?;
                 self.stack.push(result);
             }
             Op::IndexSet => {
                 // Compiler pushes: value, object, index (top).
-                let index = self.stack.pop().expect("stack underflow in index set");
-                let object = self.stack.pop().expect("stack underflow in index set object");
-                let value = self.stack.pop().expect("stack underflow in index set");
+                let index = self.stack.pop().ok_or_else(|| {
+                    Control::RuntimeError("stack underflow in index set".to_string(), span.clone())
+                })?;
+                let object = self.stack.pop().ok_or_else(|| {
+                    Control::RuntimeError("stack underflow in index set object".to_string(), span.clone())
+                })?;
+                let value = self.stack.pop().ok_or_else(|| {
+                    Control::RuntimeError("stack underflow in index set".to_string(), span.clone())
+                })?;
                 self.index_set(object, index, value, span)?;
             }
             Op::PropertyGet(idx) => {
-                let name = {
-                    let f = self.frames.last().unwrap();
-                    f.function.chunk.strings[*idx].clone()
-                };
-                let object = self.stack.pop().expect("stack underflow in property get");
+                let name = self.current_frame(span)?.function.chunk.strings.get(*idx).ok_or_else(|| {
+                    Control::RuntimeError("internal error: invalid property name index".to_string(), span.clone())
+                })?.clone();
+                let object = self.stack.pop().ok_or_else(|| {
+                    Control::RuntimeError("stack underflow in property get".to_string(), span.clone())
+                })?;
                 let result = self.property_get(object, &name, span)?;
                 self.stack.push(result);
             }
             Op::PropertySet(idx) => {
-                let name = {
-                    let f = self.frames.last().unwrap();
-                    f.function.chunk.strings[*idx].clone()
-                };
-                let object = self.stack.pop().expect("stack underflow in property set object");
-                let value = self.stack.pop().expect("stack underflow in property set value");
+                let name = self.current_frame(span)?.function.chunk.strings.get(*idx).ok_or_else(|| {
+                    Control::RuntimeError("internal error: invalid property name index".to_string(), span.clone())
+                })?.clone();
+                let object = self.stack.pop().ok_or_else(|| {
+                    Control::RuntimeError("stack underflow in property set object".to_string(), span.clone())
+                })?;
+                let value = self.stack.pop().ok_or_else(|| {
+                    Control::RuntimeError("stack underflow in property set value".to_string(), span.clone())
+                })?;
                 self.property_set(object, &name, value, span)?;
             }
             Op::New(arg_count) => {
                 let mut args = Vec::with_capacity(*arg_count as usize);
                 for _ in 0..*arg_count {
-                    args.push(self.stack.pop().expect("stack underflow in new args"));
+                    args.push(self.stack.pop().ok_or_else(|| {
+                        Control::RuntimeError("stack underflow in new args".to_string(), span.clone())
+                    })?);
                 }
                 args.reverse();
-                let class = self.stack.pop().expect("stack underflow in new class");
+                let class = self.stack.pop().ok_or_else(|| {
+                    Control::RuntimeError("stack underflow in new class".to_string(), span.clone())
+                })?;
                 let instance = self.new_instance(class, args, span)?;
                 self.stack.push(instance);
             }
             Op::Tell { name: idx, arg_count } => {
-                let name = {
-                    let f = self.frames.last().unwrap();
-                    f.function.chunk.strings[*idx].clone()
-                };
+                let name = self.current_frame(span)?.function.chunk.strings.get(*idx).ok_or_else(|| {
+                    Control::RuntimeError("internal error: invalid method name index".to_string(), span.clone())
+                })?.clone();
                 let mut args = Vec::with_capacity(*arg_count as usize);
                 for _ in 0..*arg_count {
-                    args.push(self.stack.pop().expect("stack underflow in tell args"));
+                    args.push(self.stack.pop().ok_or_else(|| {
+                        Control::RuntimeError("stack underflow in tell args".to_string(), span.clone())
+                    })?);
                 }
                 args.reverse();
-                let object = self.stack.pop().expect("stack underflow in tell object");
+                let object = self.stack.pop().ok_or_else(|| {
+                    Control::RuntimeError("stack underflow in tell object".to_string(), span.clone())
+                })?;
                 self.call_method(object, &name, args, span)?;
             }
             Op::IterInit => {
-                let value = self.stack.pop().expect("stack underflow in iter init");
+                let value = self.stack.pop().ok_or_else(|| {
+                    Control::RuntimeError("stack underflow in iter init".to_string(), span.clone())
+                })?;
                 let items = match value {
                     Value::List(list) => list.borrow().clone(),
                     Value::String(s) => s.chars().map(|c| Value::String(c.to_string())).collect(),
@@ -362,9 +502,11 @@ impl<'a> Vm<'a> {
                 self.stack.push(Value::List(Rc::new(RefCell::new(items))));
             }
             Op::Length => {
-                let value = self.stack.pop().expect("stack underflow in length");
+                let value = self.stack.pop().ok_or_else(|| {
+                    Control::RuntimeError("stack underflow in length".to_string(), span.clone())
+                })?;
                 let len = match value {
-                    Value::String(s) => BigInt::from(s.len()),
+                    Value::String(s) => BigInt::from(s.chars().count()),
                     Value::List(list) => BigInt::from(list.borrow().len()),
                     Value::Dict(dict) => BigInt::from(dict.borrow().len()),
                     Value::Range { start, stop, step } => range_len(&start, &stop, &step),
@@ -385,24 +527,24 @@ impl<'a> Vm<'a> {
                 self.try_stack.pop();
             }
             Op::Import(idx) => {
-                let path = {
-                    let f = self.frames.last().unwrap();
-                    f.function.chunk.strings[*idx].clone()
-                };
+                let path = self.current_frame(span)?.function.chunk.strings.get(*idx).ok_or_else(|| {
+                    Control::RuntimeError("internal error: invalid import path index".to_string(), span.clone())
+                })?.clone();
                 let old_env = self.interpreter.env.clone();
-                {
-                    let f = self.frames.last().unwrap();
-                    self.interpreter.env = f.closure.clone();
-                }
+                self.interpreter.env = self.current_frame(span)?.closure.clone();
                 let result = self.interpreter.import_module(&path, span);
                 self.interpreter.env = old_env;
                 result?;
             }
             Op::QualifiedGet(module_idx, name_idx) => {
                 let (module_name, name) = {
-                    let f = self.frames.last().unwrap();
-                    let module_name = f.function.chunk.strings[*module_idx].clone();
-                    let name = f.function.chunk.strings[*name_idx].clone();
+                    let f = self.current_frame(span)?;
+                    let module_name = f.function.chunk.strings.get(*module_idx).ok_or_else(|| {
+                        Control::RuntimeError("internal error: invalid module name index".to_string(), span.clone())
+                    })?.clone();
+                    let name = f.function.chunk.strings.get(*name_idx).ok_or_else(|| {
+                        Control::RuntimeError("internal error: invalid qualified name index".to_string(), span.clone())
+                    })?.clone();
                     (module_name, name)
                 };
                 let value = {
@@ -421,16 +563,20 @@ impl<'a> Vm<'a> {
             }
             Op::Export(indices) => {
                 let names: Vec<String> = {
-                    let f = self.frames.last().unwrap();
-                    indices.iter().map(|i| f.function.chunk.strings[*i].clone()).collect()
+                    let f = self.current_frame(span)?;
+                    indices.iter().map(|i| f.function.chunk.strings.get(*i).ok_or_else(|| {
+                        Control::RuntimeError("internal error: invalid export name index".to_string(), span.clone())
+                    }).cloned()).collect::<Result<_, _>>()?
                 };
-                let closure = self.frames.last().unwrap().closure.clone();
+                let closure = self.current_frame(span)?.closure.clone();
                 for name in names {
                     closure.borrow().add_export(&name);
                 }
             }
             Op::Read => {
-                let path_value = self.stack.pop().expect("stack underflow in read");
+                let path_value = self.stack.pop().ok_or_else(|| {
+                    Control::RuntimeError("stack underflow in read".to_string(), span.clone())
+                })?;
                 let path_str = match path_value {
                     Value::String(s) => s,
                     _ => return Err(Control::RuntimeError("Read path must be a string".to_string(), span.clone())),
@@ -441,8 +587,12 @@ impl<'a> Vm<'a> {
                 self.stack.push(Value::String(content));
             }
             Op::Write => {
-                let path_value = self.stack.pop().expect("stack underflow in write path");
-                let content_value = self.stack.pop().expect("stack underflow in write content");
+                let path_value = self.stack.pop().ok_or_else(|| {
+                    Control::RuntimeError("stack underflow in write path".to_string(), span.clone())
+                })?;
+                let content_value = self.stack.pop().ok_or_else(|| {
+                    Control::RuntimeError("stack underflow in write content".to_string(), span.clone())
+                })?;
                 let path_str = match path_value {
                     Value::String(s) => s,
                     _ => return Err(Control::RuntimeError("Write path must be a string".to_string(), span.clone())),
@@ -453,18 +603,28 @@ impl<'a> Vm<'a> {
                     .map_err(|e| Control::Error(format!("Cannot write {}: {}", resolved.display(), e)))?;
             }
             Op::BuildClass { name, init, methods, fields, field_init } => {
-                let f = self.frames.last().unwrap();
-                let name_str = f.function.chunk.strings[*name].clone();
-                let method_names: Vec<String> = methods.iter().map(|i| f.function.chunk.strings[*i].clone()).collect();
-                let field_names: Vec<String> = fields.iter().map(|i| f.function.chunk.strings[*i].clone()).collect();
+                let f = self.current_frame(span)?;
+                let name_str = f.function.chunk.strings.get(*name).ok_or_else(|| {
+                    Control::RuntimeError("internal error: invalid class name index".to_string(), span.clone())
+                })?.clone();
+                let method_names: Vec<String> = methods.iter().map(|i| f.function.chunk.strings.get(*i).ok_or_else(|| {
+                    Control::RuntimeError("internal error: invalid method name index".to_string(), span.clone())
+                }).cloned()).collect::<Result<_, _>>()?;
+                let field_names: Vec<String> = fields.iter().map(|i| f.function.chunk.strings.get(*i).ok_or_else(|| {
+                    Control::RuntimeError("internal error: invalid field name index".to_string(), span.clone())
+                }).cloned()).collect::<Result<_, _>>()?;
                 let field_init: Vec<Option<usize>> = field_init.iter().map(|&i| if i == usize::MAX { None } else { Some(i) }).collect();
                 let mut method_map: HashMap<String, Value> = HashMap::with_capacity(methods.len());
                 for method_name in method_names.iter().rev() {
-                    let func = self.stack.pop().expect("stack underflow in build class method");
+                    let func = self.stack.pop().ok_or_else(|| {
+                        Control::RuntimeError("stack underflow in build class method".to_string(), span.clone())
+                    })?;
                     method_map.insert(method_name.clone(), func);
                 }
                 let init_value = if init.is_some() {
-                    Some(Box::new(self.stack.pop().expect("stack underflow in build class init")))
+                    Some(Box::new(self.stack.pop().ok_or_else(|| {
+                        Control::RuntimeError("stack underflow in build class init".to_string(), span.clone())
+                    })?))
                 } else {
                     None
                 };
@@ -479,8 +639,9 @@ impl<'a> Vm<'a> {
                 self.stack.push(class);
             }
             Op::IncrementLocal(slot) => {
-                match &mut self.locals[frame.slots_start + *slot] {
-                    Value::Box(rc) => {
+                let slots_start = self.current_frame(span)?.slots_start;
+                match self.locals.get_mut(slots_start + *slot) {
+                    Some(Value::Box(rc)) => {
                         let mut cell = rc.borrow_mut();
                         match &mut *cell {
                             Value::Integer(n) => n.add_assign(&Integer::from_i64(1)),
@@ -490,16 +651,25 @@ impl<'a> Vm<'a> {
                             )),
                         }
                     }
-                    Value::Integer(n) => n.add_assign(&Integer::from_i64(1)),
-                    Value::Number(n) => *n += 1.0,
-                    _ => return Err(Control::RuntimeError(
+                    Some(Value::Integer(n)) => n.add_assign(&Integer::from_i64(1)),
+                    Some(Value::Number(n)) => *n += 1.0,
+                    Some(_) => return Err(Control::RuntimeError(
                         "Increment requires a number".to_string(), span.clone(),
                     )),
+                    None => {
+                        return Err(Control::RuntimeError(
+                            "internal error: invalid local slot".to_string(),
+                            span.clone(),
+                        ));
+                    }
                 }
             }
             Op::AddLocals(target, source) => {
+                let slots_start = self.current_frame(span)?.slots_start;
                 if *target == *source {
-                    let target_ref = &mut self.locals[frame.slots_start + *target];
+                    let target_ref = self.locals.get_mut(slots_start + *target).ok_or_else(|| {
+                        Control::RuntimeError("internal error: invalid local slot".to_string(), span.clone())
+                    })?;
                     match &mut *target_ref {
                         Value::Box(rc) => {
                             let mut cell = rc.borrow_mut();
@@ -518,11 +688,19 @@ impl<'a> Vm<'a> {
                         )),
                     }
                 } else {
-                    let source_val = match &self.locals[frame.slots_start + *source] {
-                        Value::Box(rc) => rc.borrow().clone(),
-                        other => other.clone(),
+                    let source_val = match self.locals.get(slots_start + *source) {
+                        Some(Value::Box(rc)) => rc.borrow().clone(),
+                        Some(other) => other.clone(),
+                        None => {
+                            return Err(Control::RuntimeError(
+                                "internal error: invalid local slot".to_string(),
+                                span.clone(),
+                            ));
+                        }
                     };
-                    let target_ref = &mut self.locals[frame.slots_start + *target];
+                    let target_ref = self.locals.get_mut(slots_start + *target).ok_or_else(|| {
+                        Control::RuntimeError("internal error: invalid local slot".to_string(), span.clone())
+                    })?;
                     match &mut *target_ref {
                         Value::Box(rc) => {
                             let mut target_cell = rc.borrow_mut();
@@ -563,8 +741,16 @@ impl<'a> Vm<'a> {
                 }
             }
             Op::AppendLocalString { slot, string_idx } => {
-                let s = frame.function.chunk.strings[*string_idx].clone();
-                let target_ref = &mut self.locals[frame.slots_start + *slot];
+                let s = {
+                    let f = self.current_frame(span)?;
+                    f.function.chunk.strings.get(*string_idx).ok_or_else(|| {
+                        Control::RuntimeError("internal error: invalid string index".to_string(), span.clone())
+                    })?.clone()
+                };
+                let slots_start = self.current_frame(span)?.slots_start;
+                let target_ref = self.locals.get_mut(slots_start + *slot).ok_or_else(|| {
+                    Control::RuntimeError("internal error: invalid local slot".to_string(), span.clone())
+                })?;
                 match target_ref {
                     Value::Box(rc) => {
                         let mut cell = rc.borrow_mut();
@@ -584,8 +770,13 @@ impl<'a> Vm<'a> {
                 }
             }
             Op::AppendLocalList { slot } => {
-                let item = self.stack.pop().expect("stack underflow in append local list");
-                let target_ref = &mut self.locals[frame.slots_start + *slot];
+                let item = self.stack.pop().ok_or_else(|| {
+                    Control::RuntimeError("stack underflow in append local list".to_string(), span.clone())
+                })?;
+                let slots_start = self.current_frame(span)?.slots_start;
+                let target_ref = self.locals.get_mut(slots_start + *slot).ok_or_else(|| {
+                    Control::RuntimeError("internal error: invalid local slot".to_string(), span.clone())
+                })?;
                 match target_ref {
                     Value::Box(rc) => {
                         let mut cell = rc.borrow_mut();
@@ -624,7 +815,8 @@ impl<'a> Vm<'a> {
         Ok(())
     }
 
-    fn handle_runtime_error(&mut self, msg: String, span: Span) -> Result<(), Control> {
+    fn handle_runtime_error(&mut self, msg: String, span: Span,
+    ) -> Result<(), Control> {
         let current_depth = self.frames.len();
         let target = self.try_stack.iter().rposition(|f| f.frame_depth <= current_depth);
         if let Some(idx) = target {
@@ -633,7 +825,9 @@ impl<'a> Vm<'a> {
             while self.try_stack.len() > idx + 1 {
                 self.try_stack.pop();
             }
-            let try_frame = self.try_stack.pop().unwrap();
+            let try_frame = self.try_stack.pop().ok_or_else(|| {
+                Control::RuntimeError("internal error: empty try stack".to_string(), span.clone())
+            })?;
             while self.frames.len() > target_depth {
                 self.frames.pop();
             }
@@ -645,7 +839,10 @@ impl<'a> Vm<'a> {
                 col: span.col as i64,
             }));
             if let Some(frame) = self.frames.last_mut() {
-                self.locals[frame.slots_start + try_frame.catch_var_slot] = err;
+                let slot = frame.slots_start + try_frame.catch_var_slot;
+                if slot < self.locals.len() {
+                    self.locals[slot] = err;
+                }
                 frame.ip = try_frame.catch_ip;
             }
             Ok(())
@@ -767,7 +964,10 @@ impl<'a> Vm<'a> {
                     return Err(Control::RuntimeError("Modulo by zero.".to_string(), span.clone()));
                 }
                 match (&left, &right) {
-                    (Value::Integer(a), Value::Integer(b)) => Ok(Value::Integer(a.modulo(b).unwrap())),
+                    (Value::Integer(a), Value::Integer(b)) => match a.modulo(b) {
+                        Some(v) => Ok(Value::Integer(v)),
+                        None => Err(Control::RuntimeError("Modulo by zero.".to_string(), span.clone())),
+                    },
                     _ => self.numeric_op(&left, &right, |a, b| a % b, |a, b| a.to_f64() % b.to_f64(), span),
                 }
             }
@@ -889,25 +1089,35 @@ impl<'a> Vm<'a> {
             Value::List(list) => {
                 let len = list.borrow().len();
                 if len == 0 {
-                    return Err(Control::RuntimeError("Index out of range (list is empty)".to_string(), span.clone()));
+                    return Err(Control::RuntimeError(
+                        "Index out of range (list is empty)".to_string(),
+                        span.clone(),
+                    ));
                 }
                 let i = self.as_index(&idx, len, span)?;
                 Ok(list.borrow()[i].clone())
             }
             Value::Dict(dict) => {
                 let key = idx.as_key().map_err(|m| Control::RuntimeError(m, span.clone()))?;
-                dict.borrow().get(&key).cloned().ok_or_else(|| Control::RuntimeError("Key not found".to_string(), span.clone()))
+                dict.borrow()
+                    .get(&key)
+                    .cloned()
+                    .ok_or_else(|| Control::RuntimeError("Key not found".to_string(), span.clone()))
             }
             Value::String(s) => {
-                let i = self.as_index(&idx, s.len(), span)?;
-                Ok(Value::String(s.chars().nth(i).unwrap().to_string()))
+                let chars: Vec<char> = s.chars().collect();
+                let i = self.as_index(&idx, chars.len(), span)?;
+                Ok(Value::String(chars[i].to_string()))
             }
             Value::Range { start, stop, step } => {
                 let len = range_len(&start, &stop, &step);
                 let i = bigint_index(&idx, &len).map_err(|m| Control::RuntimeError(m, span.clone()))?;
                 Ok(Value::big_integer(start.to_bigint() + step.to_bigint() * i))
             }
-            _ => Err(Control::RuntimeError(format!("Cannot index into {}", obj.type_name()), span.clone())),
+            _ => Err(Control::RuntimeError(
+                format!("Cannot index into {}", obj.type_name()),
+                span.clone(),
+            )),
         }
     }
 
@@ -1014,9 +1224,10 @@ impl<'a> Vm<'a> {
                     if let Some(ref slots) = slots {
                         let mut slot_vec = slots.borrow_mut();
                         for (field_idx, param_idx) in cv.field_init.iter().enumerate() {
-                            let param_idx = param_idx.unwrap();
-                            if param_idx < args.len() {
-                                slot_vec[field_idx] = args[param_idx].clone();
+                            if let Some(param_idx) = param_idx {
+                                if *param_idx < args.len() {
+                                    slot_vec[field_idx] = args[*param_idx].clone();
+                                }
                             }
                         }
                     }

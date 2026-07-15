@@ -464,9 +464,9 @@ impl Parser {
             members.push(self.parse_type_from(name)?);
         }
         if members.len() == 1 {
-            return Ok(members.pop().unwrap());
+            return members.pop().ok_or_else(|| "internal error: empty type union".to_string());
         }
-        let last = members.pop().unwrap();
+        let last = members.pop().ok_or_else(|| "internal error: empty type union".to_string())?;
         Ok(format!("{} or {}", members.join(", "), last))
     }
 
@@ -856,12 +856,12 @@ mod tests {
         let mut lexer = Lexer::new(source);
         let mut tokens = Vec::new();
         loop {
-            let t = lexer.next_token().unwrap();
+            let t = lexer.next_token().expect("lexer should produce a token");
             let eof = matches!(t.kind, TokenKind::Eof);
             tokens.push(t);
             if eof { break; }
         }
-        Parser::new(tokens).parse_program().unwrap()
+        Parser::new(tokens).parse_program().expect("source should parse")
     }
 
     #[test]
@@ -907,7 +907,7 @@ mod tests {
         let mut lexer = Lexer::new("let x.");
         let mut tokens = Vec::new();
         loop {
-            let t = lexer.next_token().unwrap();
+            let t = lexer.next_token().expect("lexer should produce a token");
             let eof = matches!(t.kind, TokenKind::Eof);
             tokens.push(t);
             if eof { break; }

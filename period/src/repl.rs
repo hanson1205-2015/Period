@@ -28,11 +28,11 @@ impl ReplState {
     }
 
     fn current_indent(&self) -> usize {
-        *self.indent_stack.last().unwrap()
+        *self.indent_stack.last().unwrap_or(&0)
     }
 
     fn pop_to(&mut self, indent: usize) {
-        while self.indent_stack.len() > 1 && *self.indent_stack.last().unwrap() > indent {
+        while self.indent_stack.len() > 1 && *self.indent_stack.last().unwrap_or(&0) > indent {
             self.indent_stack.pop();
         }
     }
@@ -69,7 +69,7 @@ pub fn run_repl() -> Result<(), Box<dyn std::error::Error>> {
     let mut buffer = String::new();
 
     loop {
-        let current_indent = state.lock().unwrap().current_indent();
+        let current_indent = state.lock().unwrap_or_else(|e| e.into_inner()).current_indent();
         let prompt = format!("{:>3} | ", session_line_offset + line_no);
         let initial = " ".repeat(current_indent);
         let line = match editor.readline_with_initial(&prompt, (&initial, "")) {
@@ -78,7 +78,7 @@ pub fn run_repl() -> Result<(), Box<dyn std::error::Error>> {
                 println!("^C");
                 buffer.clear();
                 line_no = 1;
-                state.lock().unwrap().indent_stack = vec![0];
+                state.lock().unwrap_or_else(|e| e.into_inner()).indent_stack = vec![0];
                 continue;
             }
             Err(rustyline::error::ReadlineError::Eof) => {
@@ -92,7 +92,7 @@ pub fn run_repl() -> Result<(), Box<dyn std::error::Error>> {
         let leading = line.chars().take_while(|c| c.is_whitespace()).count();
 
         {
-            let mut stack = state.lock().unwrap();
+            let mut stack = state.lock().unwrap_or_else(|e| e.into_inner());
 
             // Blank line inside a block dedents one level; at base level it is
             // ignored entirely by the EmptyLineHandler, but handle it here too.
@@ -137,7 +137,7 @@ pub fn run_repl() -> Result<(), Box<dyn std::error::Error>> {
             line_no += 1;
             continue;
         }
-        if state.lock().unwrap().indent_stack.len() > 1 {
+        if state.lock().unwrap_or_else(|e| e.into_inner()).indent_stack.len() > 1 {
             // We are still inside an open block; keep reading lines until the
             // block is closed by a dedent or blank line.
             line_no += 1;
@@ -327,7 +327,7 @@ impl ConditionalEventHandler for EmptyLineHandler {
                 // At the base level, an empty Enter does nothing and the cursor
                 // stays on the same line. Inside a block, let it through so the
                 // main loop can dedent.
-                if self.state.lock().unwrap().current_indent() == 0 {
+                if self.state.lock().unwrap_or_else(|e| e.into_inner()).current_indent() == 0 {
                     return Some(Cmd::Noop);
                 }
             }
@@ -478,7 +478,10 @@ fn normalize_repl_source(raw: &str) -> String {
     if lines.len() < 2 {
         return raw.to_string();
     }
-    let last = lines.last().unwrap().trim();
+    let last = match lines.last() {
+        Some(l) => l.trim(),
+        None => return raw.to_string(),
+    };
     if last != "." {
         return raw.to_string();
     }
